@@ -4,13 +4,12 @@ from mpi4py import MPI
 import datetime
 import json
 
+dwnld_dir='/home/tswater/Documents/tyche/data/neon/'
 
 # MPI4PY Stuff
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 size = comm.Get_size()
-
-text_dir='/home/tsw35/soteria/data/NEON/download_prep/textfileprecip'
 
 sites = {'YELL':'D12','TREE':'D05','STEI':'D05','WREF':'D16',
          'ABBY':'D16','SCBI':'D02','MLBS':'D07','BLAN':'D02',
@@ -34,22 +33,22 @@ dt = (end_date-start_date).days
 sitelist=list(sites.keys())
 sitelist.sort()
 
-sitelist=['ORNL','PUUM','UNDE']
+#sitelist=['ORNL','PUUM','UNDE']
 
 for site in sitelist[rank::size]:
-    os.chdir('/home/tsw35/soteria/data/NEON/download_prep')
+    os.chdir(dwnld_dir)
     print(site,flush=True)
     try:
-        subprocess.run('mkdir ../'+'d_workspace/'+site,shell=True)
+        subprocess.run('mkdir d_workspace/'+site,shell=True)
     except:
         pass
-    
+
     try:
-        subprocess.run('mkdir ../'+'dsm/'+site,shell=True)
+        subprocess.run('mkdir dsm/'+site,shell=True)
     except:
         pass
     try:
-        subprocess.run('mkdir ../'+'dtm/'+site,shell=True)
+        subprocess.run('mkdir dtm/'+site,shell=True)
     except:
         pass
     if site in ['BARR','ORNL','NIWO','PUUM']:
@@ -58,11 +57,11 @@ for site in sitelist[rank::size]:
         start_date =datetime.date(2021,1,1)
     end_date   =datetime.date(2024,1,1)
     dt = (end_date-start_date).days
-    
+
     # download the list of data
     print(site+' identifying download list',flush=True)
     om=0
-    os.chdir('/home/tsw35/soteria/data/NEON/d_workspace/'+site)
+    os.chdir('d_workspace/'+site)
     for i in range(dt):
         m_date=start_date+datetime.timedelta(days=i)
         if m_date.month==om:
@@ -97,10 +96,10 @@ for site in sitelist[rank::size]:
         else:
             print(site+' download list identified; downloading',flush=True)
             break
-    # clear out packages 
-    for file in os.listdir('/home/tsw35/soteria/data/NEON/d_workspace/'+site):
+    # clear out packages
+    for file in os.listdir(dwnld_dir+'d_workspace/'+site):
         subprocess.run('rm '+file,shell=True)
-    
+
     dwnld_list=[]
 
     # Start downloading real data
@@ -110,12 +109,12 @@ for site in sitelist[rank::size]:
             dwnld_list.append(a)
 
     for a in dwnld_list:
-        subprocess.run('wget -nv '+a+' tifs/',shell=True)
+        subprocess.run('wget -nv '+a,shell=True)
 
     subprocess.run('mv *DSM* ../../dsm/'+site+'/',shell=True)
     subprocess.run('mv *DTM* ../../dtm/'+site+'/',shell=True)
 
-    
+
 
 
 

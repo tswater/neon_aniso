@@ -8,7 +8,7 @@ for file in flist:
         # check if a checkpoint
         if 'checkpoint' in file:
             continue
-        
+
         # check if jupytext analog exists, if so, sync
         if (file[0:-5]+'py') in flist:
             cmd='jupytext --sync '+file[0:-5]+'py'

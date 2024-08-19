@@ -10,7 +10,10 @@ comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 size = comm.Get_size()
 
-text_dir='/home/tsw35/soteria/data/NEON/download_prep/textfiles4ex'
+dwnld_dir='/home/tswater/Documents/tyche/data/neon/'
+
+#text_dir='/home/tsw35/soteria/data/NEON/download_prep/textfiles4ex'
+text_dir='/home/tswater/projects/neon_aniso/download_prep/textfiles4ex'
 
 sites = {'YELL':'D12','TREE':'D05','STEI':'D05','WREF':'D16',
          'ABBY':'D16','SCBI':'D02','MLBS':'D07','BLAN':'D02',
@@ -27,12 +30,20 @@ sites = {'YELL':'D12','TREE':'D05','STEI':'D05','WREF':'D16',
 
 
 start_date =datetime.date(2017,1,1)
+#start_date =datetime.date(2023,6,1)
+#end_date   =datetime.date(2023,7,1)
 end_date   =datetime.date(2024,1,1)
+
 dt = (end_date-start_date).days
 
-for site in list(sites.keys())[rank::size]:
+sitelist=list(sites.keys())
+sitelist.sort()
+
+sitelist=['ABBY']
+
+for site in sitelist[rank::size]:
     try:
-        subprocess.run('mkdir ../'+'dp04ex/'+site,shell=True)
+        subprocess.run('mkdir '+dwnld_dir+'dp4ex/'+site,shell=True)
     except:
         pass
     fp = open(text_dir+'/'+site+'.txt','w')
@@ -57,13 +68,13 @@ for site in list(sites.keys())[rank::size]:
     print(site+' complete',flush=True)
     fp.close()
 
-#### NOW ACTUALLY DOWNLOAD #### 
-for site in list(sites.keys())[rank::size]:
-    os.chdir('/home/tsw35/soteria/data/NEON/dp04ex/'+site)
+#### NOW ACTUALLY DOWNLOAD ####
+for site in sitelist[rank::size]:
+    os.chdir(dwnld_dir+'dp4ex/'+site)
     cmd = 'wget -i '+text_dir+'/'+site+'.txt'
     print(cmd)
     subprocess.run(cmd,shell=True)
-    
+
 
 
 
