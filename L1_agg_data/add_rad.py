@@ -41,7 +41,7 @@ for site in sites[rank::size]:
     if site == 'zips':
         continue
     print(site+': ',end='',flush=True)
-    
+
     # Identify the base filename
     site_files=os.listdir(neon_dir+site)
     site_files.sort()
@@ -49,7 +49,7 @@ for site in sites[rank::size]:
         rad_base=site_files[0][0:51]
     else:
         rad_base=site_files[-1][0:52]
-    
+
     # Load in the base file
     fp_out=h5py.File(base_dir+site+'_L'+str(dt_)+'.h5','r+')
     time=fp_out['TIME'][:]
@@ -139,7 +139,7 @@ for site in sites[rank::size]:
                 continue
             else:
                 index=a[0]
-        
+
         # now that we have an index, load the data
         out_swin.append(rad_swin[index])
         out_netrad.append(rad_netrad[index])
@@ -213,6 +213,6 @@ for site in sites[rank::size]:
     fp_out.attrs['last_updated_utc']=str(datetime.datetime.utcnow())
 
 
-    
-    
-        
+
+
+

@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.15.2
+#       jupytext_version: 1.16.4
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -412,7 +412,7 @@ for site in sites:
         lam3=np.min(np.linalg.eig(btij[i,:,:])[0])
         ybs0[site].append(np.sqrt(3)/2*(3*lam3+1))
     ybs[site]=np.mean(ybs0[site])
-    
+
 
 # %%
 
@@ -2232,7 +2232,7 @@ y_b=np.zeros((N,))
 for i in range(N):
     lam3=np.min(np.linalg.eig(btij2[i,:,:])[0])
     y_b[i]=np.sqrt(3)/2*(3*lam3+1)
-    
+
 
 # %%
 plt.hist(btij2[:,0,0])

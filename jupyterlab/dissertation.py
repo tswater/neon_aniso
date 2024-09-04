@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.15.2
+#       jupytext_version: 1.16.4
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -112,8 +112,9 @@ d_ani_stb=pickle.load(open('/home/tsw35/soteria/neon_advanced/data/d_ani_stb_v2.
 # # ANI/zL Distribution
 
 # %%
-fps=h5py.File('/home/tsw35/soteria/neon_advanced/qaqc_data/NEON_TW_S_UVWT.h5','r')
-fpu=h5py.File('/home/tsw35/soteria/neon_advanced/qaqc_data/NEON_TW_U_UVWT.h5','r')
+idir='/home/tswater/Documents/Elements_Temp/NEON/neon_processed/L2_qaqc_data/'
+fpu=h5py.File(idir+'/NEON_TW_U_UVWT.h5','r')
+fps=h5py.File(idir+'/NEON_TW_S_UVWT.h5','r')
 
 lmost=fps['L_MOST'][:]
 zzd=fps['tow_height'][:]-fps['zd'][:]
@@ -123,8 +124,8 @@ lmost=fpu['L_MOST'][:]
 zzd=fpu['tow_height'][:]-fpu['zd'][:]
 zL_u=zzd/lmost
 
-ani_u=fpu['ANI_YB'][:]
-ani_s=fps['ANI_YB'][:]
+ani_u=fpu['ANI_XB'][:]
+ani_s=fps['ANI_XB'][:]
 
 # %%
 cmp='cubehelix'
@@ -158,7 +159,7 @@ cb=grid.cbar_axes[0].colorbar(im,label='Valid Points')
 #cb.set_label(label=cbarlabel2,size=lbsize)
 
 #fig.text(0.5, 0.04, r'$\zeta$', ha='center')
-plt.savefig('images/img_2.png', bbox_inches = "tight")
+#plt.savefig('images/img_2.png', bbox_inches = "tight")
 
 # %%
 

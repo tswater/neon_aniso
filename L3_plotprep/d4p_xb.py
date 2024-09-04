@@ -9,11 +9,11 @@ for file in os.listdir('/home/tswater/Documents/Elements_Temp/NEON/neon_1m'):
         sites.append(file[0:4])
 sites.sort()
 
-vmx_a=.7
+vmx_a=.9
 vmn_a=.1
 procdir='/home/tswater/Documents/Elements_Temp/NEON/neon_processed/L2_qaqc_data/'
 
-anibins=np.linspace(vmn_a,vmx_a,11)
+anibins=np.linspace(vmn_a,vmx_a,8)
 zLbins=np.logspace(-4,2,40)[-1:0:-1]
 
 ##### FUNCITONS #####
@@ -39,7 +39,7 @@ def skill(d_0,d_old,d_new):
     ss=1-np.nanmedian(np.abs(d_0-d_new))/np.median(np.abs(d_0-d_old))
     return mad_n,mad_o,ss
 
-def add_species(d_,sp,phi,zL,ani,phi_new,phi_old,m,fpsite,stb=False):
+def add_species(d_,sp,phi,zL,ani,m,fpsite,stb=False):
     d_[sp]['phi']=phi[m]
     d_[sp]['zL']=zL[m]
     d_[sp]['ani']=ani[m]
@@ -50,31 +50,16 @@ def add_species(d_,sp,phi,zL,ani,phi_new,phi_old,m,fpsite,stb=False):
     d_[sp]['p_zL']=x
     d_[sp]['p_cnt']=c
 
-    mlo=np.abs(zL)<.1
-    mhi=np.abs(zL)>.1
-
-    d_[sp]['MAD_SC23'],d_[sp]['MAD_OLD'],d_[sp]['SS']=skill(phi,phi_old,phi_new)
-    d_[sp]['MAD_SC23lo'],d_[sp]['MAD_OLDlo'],d_[sp]['SSlo']=skill(phi[mlo],phi_old[mlo],phi_new[mlo])
-    d_[sp]['MAD_SC23hi'],d_[sp]['MAD_OLDhi'],d_[sp]['SShi']=skill(phi[mhi],phi_old[mhi],phi_new[mhi])
-    d_[sp]['MAD_SC23_s']={}
-    d_[sp]['MAD_SC23lo_s']={}
-    d_[sp]['MAD_SC23hi_s']={}
-    d_[sp]['MAD_OLD_s']={}
-    d_[sp]['MAD_OLDlo_s']={}
-    d_[sp]['MAD_OLDhi_s']={}
-    d_[sp]['SS_s']={}
-    d_[sp]['SSlo_s']={}
-    d_[sp]['SShi_s']={}
+    d_[sp]['p_phi_s']={}
+    d_[sp]['p_zL_s']={}
+    d_[sp]['p_cnt_s']={}
 
     for site in sites:
-        mhis=mhi.copy()
-        mlos=mlo.copy()
-        mlos=mlos&((site.encode('UTF-8'))==fpsite)
-        mhis=mhis&((site.encode('UTF-8'))==fpsite)
         ms=((site.encode('UTF-8'))==fpsite)
-        d_[sp]['MAD_SC23_s'][site],d_[sp]['MAD_OLD_s'][site],d_[sp]['SS_s'][site]=skill(phi[ms],phi_old[ms],phi_new[ms])
-        d_[sp]['MAD_SC23lo_s'][site],d_[sp]['MAD_OLDlo_s'][site],d_[sp]['SSlo_s'][site]=skill(phi[mlos],phi_old[mlos],phi_new[mlos])
-        d_[sp]['MAD_SC23hi_s'][site],d_[sp]['MAD_OLDhi_s'][site],d_[sp]['SShi_s'][site]=skill(phi[mhis],phi_old[mhis],phi_new[mhis])
+        x,y,_,c=binplot1d(zL[ms],phi[ms],ani[ms],stb)
+        d_[sp]['p_phi_s'][site]=y
+        d_[sp]['p_zL_s'][site]=x
+        d_[sp]['p_cnt_s'][site]=c
 
     return d_
 
@@ -143,7 +128,7 @@ d_unst['U']={}
 
 phi=np.sqrt(fp['UU'][:])/fp['USTAR'][:]
 zL=(fp['tow_height'][:]-fp['zd'][:])/fp['L_MOST'][:]
-ani=fp['ANI_YB'][:]
+ani=fp['ANI_XB'][:]
 fpsite=fp['SITE'][:]
 
 m=np.zeros((len(ani),))
@@ -151,46 +136,31 @@ m[0:100000]=1
 np.random.shuffle(m)
 m=m.astype(bool)
 
-a=.784-2.582*np.log10(ani)
-phi_stp=a*(1-3*zL)**(1/3)
-phi_old=2.55*(1-3*zL)**(1/3)
-
-d_unst=add_species(d_unst,'U',phi,zL,ani,phi_stp,phi_old,m,fpsite)
+d_unst=add_species(d_unst,'U',phi,zL,ani,m,fpsite)
 
 #### V ####
 print('Done with U unstable')
 print('Processing V unstable',flush=True)
 d_unst['V']={}
 phi=np.sqrt(fp['VV'][:])/fp['USTAR'][:]
-a=.725-2.702*np.log10(ani)
-phi_stp=a*(1-3*zL)**(1/3)
-phi_old=2.05*(1-3*zL)**(1/3)
 
-d_unst=add_species(d_unst,'V',phi,zL,ani,phi_stp,phi_old,m,fpsite)
+d_unst=add_species(d_unst,'V',phi,zL,ani,m,fpsite)
 
 #### W ####
 print('Done with V unstable')
 print('Processing W unstable',flush=True)
 d_unst['W']={}
 phi=np.sqrt(fp['WW'][:])/fp['USTAR'][:]
-a=1.119-0.019*ani-.065*ani**2+0.028*ani**3
-phi_stp=a*(1-3*zL)**(1/3)
-phi_old=1.35*(1-3*zL)**(1/3)
 
-d_unst=add_species(d_unst,'W',phi,zL,ani,phi_stp,phi_old,m,fpsite)
+d_unst=add_species(d_unst,'W',phi,zL,ani,m,fpsite)
 
 #### T ####
 print('Done with W unstable')
 print('Processing T unstable',flush=True)
 d_unst['T']={}
 phi=np.abs(fp['T_SONIC_SIGMA'][:]/(fp['WTHETA'][:]/fp['USTAR'][:]))
-a=0.017+0.217*ani
-phi_stp=1.07*(0.05+np.abs(zL))**(-1/3)+\
-        (-1.14+a*(np.abs(zL)**(-9/10)))*(1-np.tanh(10*(np.abs(zL))**(2/3)))
-phi_old=.99*(.067-zL)**(-1/3)
-phi_old[zL>-0.05]=.015*(-zL[zL>-0.05])**(-1)+1.76
 
-d_unst=add_species(d_unst,'T',phi,zL,ani,phi_stp,phi_old,m,fpsite)
+d_unst=add_species(d_unst,'T',phi,zL,ani,m,fpsite)
 
 ##### D_ANI_UST #####
 #def add_ani(d_,anix,aniy,zL,lc,fpsites):
@@ -215,7 +185,7 @@ lhv=2500827 - 2360*(fp['T_SONIC'][:]-273)
 phi=np.abs(rr/(fp['LE'][:]/lhv/fp['USTAR'][:]))*kgdry_m3/10**3
 
 zL=(fp['tow_height'][:]-fp['zd'][:])/fp['L_MOST'][:]
-ani=fp['ANI_YB'][:]
+ani=fp['ANI_XB'][:]
 fpsite=fp['SITE'][:]
 
 m=np.zeros((len(ani),))
@@ -223,14 +193,7 @@ m[0:100000]=1
 np.random.shuffle(m)
 m=m.astype(bool)
 
-a=0.017+0.217*ani
-phi_stp=1.07*(0.05+np.abs(zL))**(-1/3)+\
-        (-1.14+a*(np.abs(zL)**(-9/10)))*(1-np.tanh(10*(np.abs(zL))**(2/3)))
-a=0.017+0.217*ani
-phi_old=.99*(.067-zL)**(-1/3)
-phi_old[zL>-0.05]=.15*(-zL[zL>-0.05])**(-1)+1.76
-
-d_unst=add_species(d_unst,'H2O',phi,zL,ani,phi_stp,phi_old,m,fpsite)
+d_unst=add_species(d_unst,'H2O',phi,zL,ani,m,fpsite)
 fp.close()
 print('Done with H2O unstable')
 print('Processing CO2 unstable',flush=True)
@@ -248,7 +211,7 @@ kgdry_m3=fp['RHO'][:]/(fp['H2O'][:]/1000+1)
 moldry_m3=kgdry_m3/moldry
 phi=np.abs(co2/(fp['CO2FX'][:]/fp['USTAR'][:]))*moldry_m3
 zL=(fp['tow_height'][:]-fp['zd'][:])/fp['L_MOST'][:]
-ani=fp['ANI_YB'][:]
+ani=fp['ANI_XB'][:]
 fpsite=fp['SITE'][:]
 
 m=np.zeros((len(ani),))
@@ -256,14 +219,7 @@ m[0:100000]=1
 np.random.shuffle(m)
 m=m.astype(bool)
 
-a=0.017+0.217*ani
-phi_stp=1.07*(0.05+np.abs(zL))**(-1/3)+\
-        (-1.14+a*(np.abs(zL)**(-9/10)))*(1-np.tanh(10*(np.abs(zL))**(2/3)))
-a=0.017+0.217*ani
-phi_old=.99*(.067-zL)**(-1/3)
-phi_old[zL>-0.05]=.15*(-zL[zL>-0.05])**(-1)+1.76
-
-d_unst=add_species(d_unst,'CO2',phi,zL,ani,phi_stp,phi_old,m,fpsite)
+d_unst=add_species(d_unst,'CO2',phi,zL,ani,m,fpsite)
 fp.close()
 
 ###############################################
@@ -279,7 +235,7 @@ d_stbl['U']={}
 
 phi=np.sqrt(fp['UU'][:])/fp['USTAR'][:]
 zL=(fp['tow_height'][:]-fp['zd'][:])/fp['L_MOST'][:]
-ani=fp['ANI_YB'][:]
+ani=fp['ANI_XB'][:]
 fpsite=fp['SITE'][:]
 
 m=np.zeros((len(ani),))
@@ -287,18 +243,7 @@ m[0:100000]=1
 np.random.shuffle(m)
 m=m.astype(bool)
 
-a_=np.array([2.332,-2.047,2.672])
-c_=np.array([.255,-1.76,5.6,-6.8,2.65])
-a=0
-c=0
-for i in range(3):
-    a=a+a_[i]*ani**i
-for i in range(5):
-    c=c+c_[i]*ani**i
-phi_stp=a*(1+3*zL)**(c)
-phi_old=2.06*np.ones((len(phi_stp),))
-
-d_stbl=add_species(d_stbl,'U',phi,zL,ani,phi_stp,phi_old,m,fpsite,stb=True)
+d_stbl=add_species(d_stbl,'U',phi,zL,ani,m,fpsite,stb=True)
 
 #### V ####
 print('Done with U stable')
@@ -306,19 +251,7 @@ print('Processing V stable',flush=True)
 d_stbl['V']={}
 phi=np.sqrt(fp['VV'][:])/fp['USTAR'][:]
 
-a_=np.array([2.385,-2.781,3.771])
-c_=np.array([.654,-6.282,21.975,-31.634,16.251])
-a=0
-c=0
-for i in range(3):
-    a=a+a_[i]*ani**i
-for i in range(5):
-    c=c+c_[i]*ani**i
-phi_stp=a*(1+3*zL)**(c)
-
-phi_old=2.06*np.ones((len(phi_stp),))
-
-d_stbl=add_species(d_stbl,'V',phi,zL,ani,phi_stp,phi_old,m,fpsite,stb=True)
+d_stbl=add_species(d_stbl,'V',phi,zL,ani,m,fpsite,stb=True)
 
 #### W ####
 print('Done with V stable')
@@ -326,19 +259,7 @@ print('Processing W stable',flush=True)
 d_stbl['W']={}
 phi=np.sqrt(fp['WW'][:])/fp['USTAR'][:]
 
-a_=np.array([.953,.188,2.243])
-c_=np.array([.208,-1.935,6.183,-7.485,3.077])
-a=0
-c=0
-for i in range(3):
-    a=a+a_[i]*ani**i
-for i in range(5):
-    c=c+c_[i]*ani**i
-phi_stp=a*(1+3*zL)**(c)
-
-phi_old=1.6*np.ones((len(phi_stp),))
-
-d_stbl=add_species(d_stbl,'W',phi,zL,ani,phi_stp,phi_old,m,fpsite,stb=True)
+d_stbl=add_species(d_stbl,'W',phi,zL,ani,m,fpsite,stb=True)
 
 #### T ####
 print('Done with W stable')
@@ -346,27 +267,7 @@ print('Processing T stable',flush=True)
 d_stbl['T']={}
 phi=np.abs(fp['T_SONIC_SIGMA'][:]/(fp['WTHETA'][:]/fp['USTAR'][:]))
 
-
-a_=[.607,-.754]
-b_=[-.353,3.374,-8.544,6.297]
-c_=[0.195,-1.857,5.042,-3.874]
-d_=[.0763,-1.004,2.836,-2.53]
-a=0
-b=0
-c=0
-d=0
-for i in range(2):
-    a=a+a_[i]*ani**i
-for i in range(4):
-    b=b+b_[i]*ani**i
-    c=c+c_[i]*ani**i
-    d=d+d_[i]*ani**i
-logphi=a+b*np.log10(zL)+c*np.log10(zL)**2+d*np.log10(zL)**3
-phi_stp=10**(logphi)
-
-phi_old=0.00087*(zL)**(-1.4)+2.03
-
-d_stbl=add_species(d_stbl,'T',phi,zL,ani,phi_stp,phi_old,m,fpsite,stb=True)
+d_stbl=add_species(d_stbl,'T',phi,zL,ani,m,fpsite,stb=True)
 
 #### D_ANI_UST #####
 #def add_ani(d_,anix,aniy,zL,lc,fpsites):
@@ -390,7 +291,7 @@ lhv=2500827 - 2360*(fp['T_SONIC'][:]-273)
 
 phi=np.abs(rr/(fp['LE'][:]/lhv/fp['USTAR'][:]))*kgdry_m3/10**3
 zL=(fp['tow_height'][:]-fp['zd'][:])/fp['L_MOST'][:]
-ani=fp['ANI_YB'][:]
+ani=fp['ANI_XB'][:]
 fpsite=fp['SITE'][:]
 
 m=np.zeros((len(ani),))
@@ -398,22 +299,7 @@ m[0:100000]=1
 np.random.shuffle(m)
 m=m.astype(bool)
 
-a=0
-b=0
-c=0
-d=0
-for i in range(2):
-    a=a+a_[i]*ani**i
-for i in range(4):
-    b=b+b_[i]*ani**i
-    c=c+c_[i]*ani**i
-    d=d+d_[i]*ani**i
-logphi=a+b*np.log10(zL)+c*np.log10(zL)**2+d*np.log10(zL)**3
-phi_stp=10**(logphi)
-
-phi_old=0.00087*(zL)**(-1.4)+2.03
-
-d_stbl=add_species(d_stbl,'H2O',phi,zL,ani,phi_stp,phi_old,m,fpsite,stb=True)
+d_stbl=add_species(d_stbl,'H2O',phi,zL,ani,m,fpsite,stb=True)
 
 #### CO2 ####
 print('Done with H2O stable')
@@ -432,30 +318,14 @@ moldry_m3=kgdry_m3/moldry
 phi=np.abs(co2/(fp['CO2FX'][:]/fp['USTAR'][:]))*moldry_m3
 
 zL=(fp['tow_height'][:]-fp['zd'][:])/fp['L_MOST'][:]
-ani=fp['ANI_YB'][:]
+ani=fp['ANI_XB'][:]
 fpsite=fp['SITE'][:]
-
 m=np.zeros((len(ani),))
 m[0:100000]=1
 np.random.shuffle(m)
 m=m.astype(bool)
 
-a=0
-b=0
-c=0
-d=0
-for i in range(2):
-    a=a+a_[i]*ani**i
-for i in range(4):
-    b=b+b_[i]*ani**i
-    c=c+c_[i]*ani**i
-    d=d+d_[i]*ani**i
-logphi=a+b*np.log10(zL)+c*np.log10(zL)**2+d*np.log10(zL)**3
-phi_stp=10**(logphi)
-
-phi_old=0.00087*(zL)**(-1.4)+2.03
-
-d_stbl=add_species(d_stbl,'CO2',phi,zL,ani,phi_stp,phi_old,m,fpsite,stb=True)
+d_stbl=add_species(d_stbl,'CO2',phi,zL,ani,m,fpsite,stb=True)
 
 print('Done with CO2 stable')
 print('Pickling',flush=True)
@@ -463,8 +333,8 @@ print('Pickling',flush=True)
 ####################################
 ######## PICKLE ####################
 ####################################
-pickle.dump(d_unst,open('/home/tswater/Documents/Elements_Temp/NEON/neon_processed/L3_plotting_data/d_unst_v3.p','wb'))
-pickle.dump(d_stbl,open('/home/tswater/Documents/Elements_Temp/NEON/neon_processed/L3_plotting_data/d_stbl_v3.p','wb'))
+pickle.dump(d_unst,open('/home/tswater/Documents/Elements_Temp/NEON/neon_processed/L3_plotting_data/d_unst_xb.p','wb'))
+pickle.dump(d_stbl,open('/home/tswater/Documents/Elements_Temp/NEON/neon_processed/L3_plotting_data/d_stbl_xb.p','wb'))
 #pickle.dump(d_ani_ust,open('/home/tsw35/soteria/neon_advanced/data/d_ani_ust_v2.p','wb'))
 #pickle.dump(d_ani_stb,open('/home/tsw35/soteria/neon_advanced/data/d_ani_stb_v2.p','wb'))
 

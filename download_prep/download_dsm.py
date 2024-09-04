@@ -33,7 +33,7 @@ dt = (end_date-start_date).days
 sitelist=list(sites.keys())
 sitelist.sort()
 
-#sitelist=['ORNL','PUUM','UNDE']
+sitelist=['TOOL','TREE']
 
 for site in sitelist[rank::size]:
     os.chdir(dwnld_dir)

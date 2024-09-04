@@ -27,7 +27,7 @@ def core_q(mask,fp,addvar=[],addq=[]):
         mask=mask&(fp[var][:]!=-9999)
         n1=np.sum(mask)/len(mask)*100
         #print(var+': '+str(n0)+' -> '+str(n1))
-    
+
     return mask
 
 
@@ -41,7 +41,7 @@ start1=True
 start2=True
 for site in sites:
     print(site)
-    
+
     fp1=h5py.File('/home/tsw35/tyche/neon_1m/'+site+'_L1.h5','r')
     fp30=h5py.File('/home/tsw35/tyche/neon_30m/'+site+'_L30.h5','r')
 
@@ -52,7 +52,7 @@ for site in sites:
 
     mu=np.ones((N30,),dtype=bool)
     mu=mu&(fp30['L_MOST'][:]<=0)
-    
+
     mu_t=core_q(mu.copy(),fp30,['Ustr','Vstr','Wstr','UU','VV','WW','T_SONIC_SIGMA','VPT'])
     mu_h=core_q(mu.copy(),fp30,['H2O','H2O_SIGMA','LE','RHO'],['qLE','qH2O'])
     mu_c=core_q(mu.copy(),fp30,['CO2','CO2_SIGMA','H2O','RHO'],['qCO2FX','qCO2'])
@@ -64,12 +64,12 @@ for site in sites:
 
     ms=np.ones((N1,),dtype=bool)
     ms=ms&(fp1['L_MOST'][:]>0)
-    
+
     ms_t=core_q(ms.copy(),fp1,['Ustr','Vstr','Wstr','UU','VV','WW','T_SONIC_SIGMA','VPT'])
     ms_h=core_q(ms.copy(),fp1,['H2O','H2O_SIGMA','LE','RHO'],['qLE','qH2O'])
     ms_c=core_q(ms.copy(),fp1,['CO2','CO2_SIGMA','H2O','RHO'],['qCO2FX','qCO2'])
-    
-    
+
+
     print('   |     |UUUUU|SSSSS|UH2O |UCO2 |UUVWT|SH2O |SCO2 |SUVWT|')
     print('   |PERC |'+str(np.sum(mu)/N30*100)[0:5]+'|'+str(np.sum(ms)/N1*100)[0:5]+'|'+str(np.sum(mu_h)/N30*100)[0:5]+'|'+str(np.sum(mu_c)/N30*100)[0:5]+'|'+str(np.sum(mu_t)/N30*100)[0:5]+'|'+\
                        str(np.sum(ms_h)/N1*100)[0:5]+'|'+str(np.sum(ms_c)/N1*100)[0:5]+'|'+str(np.sum(ms_t)/N1*100)[0:5]+'|',flush=True)
@@ -107,7 +107,7 @@ for site in sites:
         out['S_UVWT'][k].extend([fp1.attrs[k]]*int(np.sum(ms_t)))
         out['S_H2O'][k].extend([fp1.attrs[k]]*int(np.sum(ms_h)))
         out['S_CO2'][k].extend([fp1.attrs[k]]*int(np.sum(ms_c)))
-    
+
     if start2:
         k='SITE'
         out['U_UVWT'][k]=[]

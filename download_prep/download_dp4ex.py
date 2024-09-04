@@ -39,7 +39,7 @@ dt = (end_date-start_date).days
 sitelist=list(sites.keys())
 sitelist.sort()
 
-sitelist=['ABBY']
+sitelist=['NOGP','ORNL','OAES','OSBS','RMNP','SCBI','PUUM']
 
 for site in sitelist[rank::size]:
     try:
