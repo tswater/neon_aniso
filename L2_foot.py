@@ -32,21 +32,23 @@ ctf=.95
 ############# HELPER FUNCTIONS #####################
 def calculate_slope(DEM,xx,yy,dx):
     gdal.DEMProcessing('slope.tif', DEM, 'slope')
+    dxi=int(dx*301/2)
     with rasterio.open('slope.tif') as dataset:
-        slope=dataset.read(1,boundless=True,fill_value=float('nan'),window=Window(xx-int(dx*150.5),yy-int(dx*150.5),dx*301,dx*301))
+        slope=dataset.read(1,boundless=True,fill_value=float('nan'),window=Window(xx-dxi,yy-dxi,dx*301,dx*301))
     run('rm slope.tif',shell=True)
     return slope
 
 def calculate_aspect(DEM,xx,yy,dx):
     gdal.DEMProcessing('aspect.tif', DEM, 'aspect')
+    dxi=int(dx*150.5)
     with rasterio.open('aspect.tif') as dataset:
-        aspect=dataset.read(1,boundless=True,fill_value=float('nan'),window=Window(xx-int(dx*150.5),yy-int(dx*150.5),dx*301,dx*301))
+        aspect=dataset.read(1,boundless=True,fill_value=float('nan'),window=Window(xx-dxi,yy-dxi,dx*301,dx*301))
     run('rm aspect.tif',shell=True)
     return aspect
 
 def load_nlcd(x,y,dx,proj4):
     #xx-int(dx*150.5):xx+int(dx*150.5),yy-int(dx*150.5):yy+int(dx*150.5)
-    ex_str=str(int(x-dx*150.5))+' '+str(int(y-dx*150.5))+' '+str(int(x+dx*150.5))+' '+str(int(y+dx*150.5))
+    ex_str=str(int(x-int(int(dx*301)/2)))+' '+str(int(y-int(int(dx*301)/2)))+' '+str(int(x+int(int(dx*301)/2)))+' '+str(int(y+int(int(dx*301)/2)))
     cmd="gdalwarp -t_srs '"+proj4+"' -tr "+str(dx)+' '+str(dx)+' -te '+ex_str+' '+nlcdf+' temp.tif'
     run(cmd,shell=True)
     nlcd=rasterio.open('temp.tif').read(1)
@@ -55,7 +57,7 @@ def load_nlcd(x,y,dx,proj4):
 
 @jit(nopython=True)
 def databig(data,dx):
-    dout=np.zeros((int(dx*301),int(dx*301)))
+    dout=np.zeros((int(dx*301+.5),int(dx*301+.5)))
     for i in range(data.shape[0]):
         for j in range(data.shape[1]):
             dout[i*dx:(i+1)*dx,j*dx:(j+1)*dx]=data[i,j]
@@ -176,8 +178,10 @@ while ((js<Ns)&(ju<Nu)):
             transformer=Transformer.from_crs('EPSG:4326',fpdsm.crs,always_xy=True)
             xx_,yy_=transformer.transform(lon,lat)
             xx,yy=fpdsm.index(xx_,yy_)
-            dtm=fpdtm.read(1,boundless=True,fill_value=float('nan'),window=Window(xx-int(dx*150.5),yy-int(dx*150.5),dx*301,dx*301))
-            dsm=fpdsm.read(1,boundless=True,fill_value=float('nan'),window=Window(xx-int(dx*150.5),yy-int(dx*150.5),dx*301,dx*301))
+
+            dxi=int(dx*301/2)
+            dtm=fpdtm.read(1,boundless=True,fill_value=float('nan'),window=Window(xx-dxi,yy-dxi,dx*301,dx*301))
+            dsm=fpdsm.read(1,boundless=True,fill_value=float('nan'),window=Window(xx-dxi,yy-dxi,dx*301,dx*301))
 
             ss=str(site)[2:-1]
             slp=calculate_slope(dtmdir+ss+'/dtm_'+ss+'.tif',xx,yy,dx)
@@ -222,9 +226,9 @@ while ((js<Ns)&(ju<Nu)):
             transformer=Transformer.from_crs('EPSG:4326',fpdsm.crs,always_xy=True)
             xx_,yy_=transformer.transform(lon,lat)
             xx,yy=fpdsm.index(xx_,yy_)
-            dtm=fpdtm.read(1,boundless=True,fill_value=float('nan'),window=Window(xx-int(dx*150.5),yy-int(dx*150.5),dx*301,dx*301))
-            dsm=fpdsm.read(1,boundless=True,fill_value=float('nan'),window=Window(xx-int(dx*150.5),yy-int(dx*150.5),dx*301,dx*301))
-
+            dxi=int(dx*301/2)
+            dtm=fpdtm.read(1,boundless=True,fill_value=float('nan'),window=Window(xx-dxi,yy-dxi,dx*301,dx*301))
+            dsm=fpdsm.read(1,boundless=True,fill_value=float('nan'),window=Window(xx-dxi,yy-dxi,dx*301,dx*301))
             ss=str(site)[2:-1]
             slp=calculate_slope(dtmdir+ss+'/dtm_'+ss+'.tif',xx,yy,dx)
             asp=calculate_aspect(dtmdir+ss+'/dtm_'+ss+'.tif',xx,yy,dx)

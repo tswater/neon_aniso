@@ -11,7 +11,7 @@ from calendar import monthrange
 import math
 import warnings
 import tracemalloc
-import gc 
+import gc
 
 tracemalloc.start()
 
@@ -63,7 +63,7 @@ Rbase=importr('base')
 Re4Rq=importr('eddy4R.qaqc')
 Re4Rb=importr('eddy4R.base')
 
-# Setup the list of sites and years 
+# Setup the list of sites and years
 if 'ALL' in sites:
     sites=[]
     for file in os.listdir(raw_dir):
@@ -84,7 +84,7 @@ sites.sort()
 years.sort()
 
 # compile lists of NEON domains and sonic levels
-domain={} #i.e. 16 for ABBY, as in D16 
+domain={} #i.e. 16 for ABBY, as in D16
 s_level={} #i.e. 050 for ABBY, as in 000_050_01m
 for site in sites:
     file=os.listdir(dp4_dir+site)[1]
@@ -103,15 +103,15 @@ for site in sites:
 
 #### CORE LOOP ####
 for sty in st_yr[rank::size]:
-    
-    # get site, year, NEON domain and sonic level 
+
+    # get site, year, NEON domain and sonic level
     site=sty[0:4]
     year=int(sty[5:])
     dt0=datetime(year,1,1,0)
     dom=domain[site]
     lvl=s_level[site]
-    
-    # check to see if this site-year can be skipped 
+
+    # check to see if this site-year can be skipped
     if not overwrite:
         try:
             outlist=os.listdir(out_dir+site+'/')
@@ -152,7 +152,7 @@ for sty in st_yr[rank::size]:
         # otherwise, skip day if no dp4 file available
         # also output data from previous month if available, and initialize new
         if (day==1):
-            
+
             # Initialize output data
             N30m=monthrange(year,dt.month)[1]*n30m
             N1m=monthrange(year,dt.month)[1]*n1m
@@ -195,7 +195,7 @@ for sty in st_yr[rank::size]:
                     angEnuXaxs=fp4[site].attrs['Pf$AngEnuXaxs'][:]
                     angEnuYaxs=fp4[site].attrs['Pf$AngEnuYaxs'][:]
                     pf_ofst=fp4[site].attrs['Pf$Ofst'][:]
-                    
+
                 except Exception as e:
                     print('Skipping '+site+':'+str(rank)+':'+dt_str[0:7]+' due to DP4 missing/filename error...\n'+str(e),flush=True)
                     skip=True
@@ -217,7 +217,7 @@ for sty in st_yr[rank::size]:
                 pf_ofst=0
 
         logstr=site+':'+str(rank)+':'+dt_str+':: '
-        
+
         #### LOAD IN DATA ####
         # load in the raw turbulence file and data
         fname='NEON.D'+dom+'.'+site+'.IP0.00200.001.ecte.'+dt_str[0:10]+'.l0p.h5'
@@ -248,8 +248,8 @@ for sty in st_yr[rank::size]:
         dp0_h2o[dp0_h2o<0]=float('nan')
         dp0_co2[dp0_co2<.00025]=float('nan')
         dp0_co2[dp0_co2>.00055]=float('nan')
-        
-        # check all nans in u,v,w        
+
+        # check all nans in u,v,w
         if (np.sum(np.isnan(dp0_u))>=.995*len(dp0_u)):
             print('Skipping '+site+':'+dt_str+' due to raw data for U missing > 99.5% ',flush=True)
             continue
@@ -264,7 +264,7 @@ for sty in st_yr[rank::size]:
 
 
         #### R Workflow Beginning: DESPIKE and LAG CORRECT ####
-        
+
         # convert to r object
         r_h2o=robjects.FloatVector(dp0_h2o.tolist())
         r_co2=robjects.FloatVector(dp0_co2.tolist())
@@ -298,7 +298,7 @@ for sty in st_yr[rank::size]:
             r_tm=out[-2]
         except Exception as e:
             print(logstr+'ERROR despiking failed; will continue processing \n'+str(e),flush=True)
-        
+
         ### LAG CORRECTION ###
         try:
             ld_pres=np.ones((1728000,))*float('nan')
@@ -316,7 +316,7 @@ for sty in st_yr[rank::size]:
             ld_h2o[0:len(lag_)]=lag_[:]
         except Exception as e:
             print(logstr+'ERROR lag correction H2O failed; no latent heat flux will be computed\n'+str(e),flush=True)
-        
+
         # lag correction for CO2
         try:
             ld_co2=np.ones((1728000,))*float('nan')
@@ -325,11 +325,11 @@ for sty in st_yr[rank::size]:
             ld_co2[0:len(lag_)]=lag_[:]
         except Exception as e:
             print(logstr+'ERROR lag correction H2O failed; no latent heat flux will be computed\n'+str(e),flush=True)
-        
+
         print(logstr+'R Processing complete',flush=True)
-        
+
         #### PLANAR FIT CORRECTION #####
-        
+
         # rotate into meteorological coordinates
         ason=np.radians(anz)-math.pi
         if ason<0:
@@ -340,28 +340,28 @@ for sty in st_yr[rank::size]:
         ld_u=np.array(r_u)*math.cos(amet)-np.array(r_v)*math.sin(amet)
         ld_v=np.array(r_u)*math.sin(amet)+np.array(r_v)*math.cos(amet)
         ld_w=np.array(r_w)
-        
+
         ld_ts=np.array(r_ts)
-        
+
         a_x=float(angEnuXaxs)
         a_y=float(angEnuYaxs)
         ofst=float(pf_ofst)
-        
+
         ld_w=ld_w-ofst
         mat_pitch=np.matrix([[math.cos(a_y),0,-math.sin(a_y)],[0,1,0],[math.sin(a_y),0,math.cos(a_y)]])
         mat_roll=np.matrix([[1,0,0],[0,math.cos(a_x),math.sin(a_x)],[0,-math.sin(a_x),math.cos(a_x)]])
         mat_rot=np.dot(mat_pitch,mat_roll)
-        
+
         combo=np.array([ld_u,ld_v,ld_w])
         [ld_u,ld_v,ld_w]=np.dot(mat_rot,combo)
-        
+
         ld_u=np.squeeze(np.array(ld_u[0,:]).T)
         ld_v=np.squeeze(np.array(ld_v[0,:]).T)
         ld_w=np.squeeze(np.array(ld_w[0,:]).T)
-        
+
 
         #### PREPARE FOR FLUX CALCULATIONS ####
-         
+
         # compute specific humidity
         moldry=28.97*10**(-3)
         molh2o=18.02*10**(-3)
@@ -369,23 +369,23 @@ for sty in st_yr[rank::size]:
         dmolair=ld_pres/Rg/np.array(r_tm)
         dmolairdry=np.array(dmolair)-np.array(r_h2od)
         q=np.array(r_h2od)*molh2o/(dmolairdry*moldry+np.array(r_h2od)*molh2o)
-        
+
         # compute virtual potential temperature
         ld_tvp=ld_ts[:]
 
         # translate sonic temperature to air temperature
         ld_t0=ld_ts[:]
         ld_ts=(ld_ts/(1+.51*q))
-        
+
 
         # compute volumetric heat capacity
         cpdry=1004.64
         cph2o=1846
         cp_=cpdry*dmolairdry*moldry + cph2o*np.array(r_h2od)*molh2o
-        
+
         # compute latent heat of vaporization
         lhv = 2500827 - 2360*(ld_ts-273)
-        
+
         #### LOOP THROUGH THE 1m INTERVALS ####
         # recall day-1= index of day of month
 
@@ -396,7 +396,7 @@ for sty in st_yr[rank::size]:
             # rotate into the mean wind (eddy4R.turb def.rot.ang.zaxs.erth.R)
             uin=ld_u[t*20*60:(t+1)*20*60]
             vin=ld_v[t*20*60:(t+1)*20*60]
-            
+
             a_ert=np.arctan2(vin,uin)
             a_ertm=np.nanmean(a_ert)
 
@@ -408,7 +408,7 @@ for sty in st_yr[rank::size]:
             mat_rot[1,1]=math.cos(a_rot)
             mat_rot[2,2]=1
             mat_rot=mat_rot.T
-        
+
             combo=np.array([ld_v[t*20*60:(t+1)*20*60],ld_u[t*20*60:(t+1)*20*60],ld_w[t*20*60:(t+1)*20*60]])
             [rot_u,rot_v,rot_w]=np.dot(mat_rot,combo)
             rot_u=np.squeeze(np.array(rot_u[0,:]).T)
@@ -427,7 +427,7 @@ for sty in st_yr[rank::size]:
             vp=rot_v-np.nanmean(rot_v)
             thetap=ld_tvp[t*20*60:(t+1)*20*60]
             thetap=thetap-np.nanmean(thetap)
-            
+
             # scalar fluxes
             wT=cp_[t*20*60:(t+1)*20*60] * (wp*tp)
             wq=dmolairdry[t*20*60:(t+1)*20*60]*lhv[t*20*60:(t+1)*20*60]*molh2o * (wp*qp)
@@ -476,7 +476,7 @@ for sty in st_yr[rank::size]:
             gc.collect()
 
         if (rank==0) and (size<=1):
-            print('',flush=True)        
+            print('',flush=True)
         print(logstr+'1 minute flux processing complete',flush=True)
 
         for t in range(n30m):

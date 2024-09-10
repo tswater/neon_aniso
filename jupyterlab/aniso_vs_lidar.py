@@ -39,7 +39,7 @@ import matplotlib.ticker as tck
 import rasterio
 from pyproj import Transformer
 from datetime import datetime,timedelta
-mpl.rcParams['figure.dpi'] = 100ff
+mpl.rcParams['figure.dpi'] = 100
 sns.set_theme()
 plt.rcParams.update({'figure.max_open_warning': 0})
 
@@ -1273,4 +1273,51 @@ plt.ylabel(r'$MAD$')
 xbins
 
 # %%
-d_
+rawdir='/run/media/tswater/Elements/NEON/neon_raw/'
+
+clrs={'ONAQ':'khaki',
+      'NOGP':'greenyellow',
+      'UKFS':'yellowgreen',
+      'MLBS':'forestgreen',
+      'BONA':'mediumaquamarine'}
+domain={'ONAQ':'D15',
+        'NOGP':'D09',
+        'UKFS':'D06',
+        'MLBS':'D07',
+        'BONA':'D19'}
+lvl={'ONAQ':'040',
+     'UKFS':'060',
+     'NOGP':'040',
+     'MLBS':'060',
+     'BONA':'050'}
+nancount=np.zeros((5,30))
+j=0
+for site in ['ONAQ','NOGP','UKFS','MLBS','BONA']:
+    print(site)
+
+    data=np.zeros((1728000*31,))
+    for i in range(1,31):
+        if i<10:
+            istr='0'+str(i)
+        else:
+            istr=str(i)
+        
+        fp=h5py.File(rawdir+site+'/NEON.'+domain[site]+'.'+site+'.IP0.00200.001.ecte.2023-06-'+istr+'.l0p.h5','r')
+        data=fp[site+'/dp0p/data/soni/000_'+lvl[site]+'/veloXaxs'][:]
+        nancount[j,i-1]=np.sum(np.isnan(data))/len(data)
+
+    j=j+1
+
+# %%
+day=np.linspace(1,30,30)
+for j in range(5):
+    site=['ONAQ','NOGP','UKFS','MLBS','BONA'][j]
+    plt.plot(day,nancount[j,:],'-o',color=clrs[site])
+plt.xlim(8,14)
+plt.ylim(-.001,.01)
+plt.legend(['ONAQ','NOGP','UKFS','MLBS','BONA'])
+
+# %%
+list(range(8,15))
+
+# %%
