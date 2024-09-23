@@ -5,7 +5,7 @@ import os
 import inspect
 
 sites=[]
-for file in os.listdir('/home/tsw35/tyche/neon_1m/'):
+for file in os.listdir('/home/tswater/Documents/Elements_Temp/NEON/neon_1m/'):
     if 'L1' in file:
         sites.append(file[0:4])
 sites.sort()
@@ -17,17 +17,23 @@ anibins=np.linspace(vmn_a,vmx_a,11)
 zLbins=np.logspace(-4,2,40)[-1:0:-1]
 
 ##### FUNCITONS #####
-def skill(d_0,d_old,d_new):
+def skill_old(d_0,d_old,d_new):
     return 1-np.nanmedian(np.abs(d_0-d_new))/np.median(np.abs(d_0-d_old))
 
-def add_species(d_,sp,phi,zL,ani,phi_new,phi_old,fpsite,stb=False):
+def skill(d_0,d_old,d_new):
+    mad_n=np.nanmedian(np.abs(d_0-d_new))
+    mad_o=np.median(np.abs(d_0-d_old))
+    ss=1-np.nanmedian(np.abs(d_0-d_new))/np.median(np.abs(d_0-d_old))
+    return mad_n,mad_o,ss
+
+def add_species_old(d_,sp,phi,zL,ani,phi_new,phi_old,fpsite,stb=False):
     d_[sp]['phi']=float('nan')
     d_[sp]['zL']=float('nan')
     d_[sp]['ani']=float('nan')
-    
+
     mlo=np.abs(zL)<.1
     mhi=np.abs(zL)>.1
-    
+
     d_[sp]['SS']=skill(phi,phi_old,phi_new)
     d_[sp]['SSlo']=skill(phi[mlo],phi_old[mlo],phi_new[mlo])
     d_[sp]['SShi']=skill(phi[mhi],phi_old[mhi],phi_new[mhi])
@@ -44,7 +50,36 @@ def add_species(d_,sp,phi,zL,ani,phi_new,phi_old,fpsite,stb=False):
         d_[sp]['SS_s'][site]=skill(phi[ms],phi_old[ms],phi_new[ms])
         d_[sp]['SSlo_s'][site]=skill(phi[mlos],phi_old[mlos],phi_new[mlos])
         d_[sp]['SShi_s'][site]=skill(phi[mhis],phi_old[mhis],phi_new[mhis])
-    
+
+    return d_[sp]
+
+def add_species(d_,sp,phi,zL,ani,phi_new,phi_old,fpsite,stb=False):
+    mlo=np.abs(zL)<.1
+    mhi=np.abs(zL)>.1
+
+    d_[sp]['MAD_SC23'],d_[sp]['MAD_OLD'],d_[sp]['SS']=skill(phi,phi_old,phi_new)
+    d_[sp]['MAD_SC23lo'],d_[sp]['MAD_OLDlo'],d_[sp]['SSlo']=skill(phi[mlo],phi_old[mlo],phi_new[mlo])
+    d_[sp]['MAD_SC23hi'],d_[sp]['MAD_OLDhi'],d_[sp]['SShi']=skill(phi[mhi],phi_old[mhi],phi_new[mhi])
+    d_[sp]['MAD_SC23_s']={}
+    d_[sp]['MAD_SC23lo_s']={}
+    d_[sp]['MAD_SC23hi_s']={}
+    d_[sp]['MAD_OLD_s']={}
+    d_[sp]['MAD_OLDlo_s']={}
+    d_[sp]['MAD_OLDhi_s']={}
+    d_[sp]['SS_s']={}
+    d_[sp]['SSlo_s']={}
+    d_[sp]['SShi_s']={}
+
+    for site in sites:
+        mhis=mhi.copy()
+        mlos=mlo.copy()
+        mlos=mlos&((site.encode('UTF-8'))==fpsite)
+        mhis=mhis&((site.encode('UTF-8'))==fpsite)
+        ms=((site.encode('UTF-8'))==fpsite)
+        d_[sp]['MAD_SC23_s'][site],d_[sp]['MAD_OLD_s'][site],d_[sp]['SS_s'][site]=skill(phi[ms],phi_old[ms],phi_new[ms])
+        d_[sp]['MAD_SC23lo_s'][site],d_[sp]['MAD_OLDlo_s'][site],d_[sp]['SSlo_s'][site]=skill(phi[mlos],phi_old[mlos],phi_new[mlos])
+        d_[sp]['MAD_SC23hi_s'][site],d_[sp]['MAD_OLDhi_s'][site],d_[sp]['SShi_s'][site]=skill(phi[mhis],phi_old[mhis],phi_new[mhis])
+
     return d_[sp]
 
 
@@ -233,7 +268,7 @@ def binplot1d(xx,yy,ani,stb,xbins=-zLbins,anibins=anibins):
 
 #####################
 
-# unstable  -> species -> [p_phi,p_zL,phi,zL,ani,SS,SSlo,SShi,SS_s,SSlo_s,SShi_s]    
+# unstable  -> species -> [p_phi,p_zL,phi,zL,ani,SS,SSlo,SShi,SS_s,SSlo_s,SShi_s]
 # stable    -> species -> [...]
 # aniso_all -> sites   -> [yb,xb] -> [lc,median,pct90,pct10,std]
 # aniso_stb -> sites   -> [yb,xb] -> [full,hi,lo] -> [lc,median,pct90,pct10,std]
@@ -248,7 +283,7 @@ d_stbl={}
 for var in fxns_.keys():
     print(var,flush=True)
     # Identify the filename to load in the data
-    fname='/home/tsw35/soteria/neon_advanced/qaqc_data/NEON_TW_'
+    fname='/home/tswater/Documents/Elements_Temp/NEON/neon_processed/L2_qaqc_data/NEON_TW_'
     if 'u' in var:
         d_=d_unst
         fname=fname+'U_'
@@ -272,17 +307,17 @@ for var in fxns_.keys():
 
 
     phi_,ani_,zL_ = get_phi(fp,var)
-    
+
     mmm=~np.isnan(phi_)
     phi_=phi_[mmm]
     ani_=ani_[mmm]
     zL_=zL_[mmm]
     fpsite=fpsite[mmm]
-    
+
     #def add_species(d_,sp,phi,zL,ani,phi_new,phi_old,m,fpsite,stb=False):
     Np=len(inspect.signature(fxns_[var]).parameters)-1
     pp=get_params(var,ani_)
-    
+
     if Np==1:
         phi_new=fxns_[var](zL_,pp[0])
     elif Np==2:
@@ -291,16 +326,18 @@ for var in fxns_.keys():
         phi_new=fxns_[var](zL_,pp[0],pp[1],pp[2])
     elif Np==4:
         phi_new=fxns_[var](zL_,pp[0],pp[1],pp[2],pp[3])
-    
+
     x_,y_,z_=binplot1d(zL_,phi_,ani_,stb)
 
     d_[var[0:-1]]['p_phi']=y_
     d_[var[0:-1]]['p_zL']=x_
     d_[var[0:-1]]['p_ani']=z_
     d_[var[0:-1]]=add_species(d_,var[0:-1],phi_,zL_,ani_,phi_new,old(var,zL_),fpsite,stb)
-    
 
 
-pickle.dump(d_unst,open('/home/tsw35/soteria/neon_advanced/data/d_unst_tw_v2.p','wb'))
-pickle.dump(d_stbl,open('/home/tsw35/soteria/neon_advanced/data/d_stbl_tw_v2.p','wb'))
+pickle.dump(d_unst,open('/home/tswater/Documents/Elements_Temp/NEON/neon_processed/L3_plotting_data/d_unst_tw_v3.p','wb'))
+pickle.dump(d_stbl,open('/home/tswater/Documents/Elements_Temp/NEON/neon_processed/L3_plotting_data/d_stbl_tw_v3.p','wb'))
+
+#pickle.dump(d_unst,open('/home/tsw35/soteria/neon_advanced/data/d_unst_tw_v2.p','wb'))
+#pickle.dump(d_stbl,open('/home/tsw35/soteria/neon_advanced/data/d_stbl_tw_v2.p','wb'))
 

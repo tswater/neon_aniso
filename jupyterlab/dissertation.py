@@ -60,6 +60,8 @@ def binplot1d(xx,yy,ani,xbins,anibins=np.array([-.05,.05,.15,.25,.35,.45,.55,.65
 
 
 # %%
+vmx_a=.7
+vmn_a=.1
 iva_colors_HEX = ["#410d00","#831901","#983e00","#b56601","#ab8437",
               "#b29f74","#7f816b","#587571","#596c72","#454f51"]
 #Transform the HEX colors to RGB.

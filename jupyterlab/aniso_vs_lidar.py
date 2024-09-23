@@ -90,7 +90,7 @@ fpu=h5py.File(idir+'/NEON_TW_U_UVWT.h5','r')
 mu=fpu['SITE'][:]==bytes('ABBY','utf-8')
 lat=fpu['lat'][mu][0]
 lon=fpu['lon'][mu][0]
-transformer = Transformer.from_crs("EPSG:4326", fpdtm.crs, always_xy=True)
+transformer = Transformer.from_crs("EPSG:4326", fpdsm.crs, always_xy=True)
 xx_, yy_ = transformer.transform(lon, lat)
 xx,yy=fpdsm.index(xx_,yy_)
 
@@ -1184,8 +1184,14 @@ def getbins2D(A,B,n):
 # %%
 def U_ust(zL,a):
      return a*(1-3*zL)**(1/3)
+def U_stb(zL,a,c):
+    phi=a*(1+3*zL)**(c)
+    return phi
 fxns_={}
 fxns_['Uu']=U_ust
+fxns_['Us']=U_stb
+
+# %%
 
 # %%
 from scipy import optimize
@@ -1210,11 +1216,14 @@ bounds={'Uu':([0],[10]),\
          'CO2s':([0,-.1,-.1,-.1],[1,0,.1,.1])}
 
 # %%
-ybine,xbine=getbins2D(fpu['ANI_YB'][:],fpu['ANI_XB'][:],21)
+ybine,xbine=getbins2D(fpu['ANI_YB'][:],fpu['ANI_XB'][:],31)
 phi_=np.sqrt(fpu['UU'][:])/fpu['USTAR'][:]
 zL_=(fpu['tow_height'][:]-fpu['zd'][:])/fpu['L_MOST'][:]
 xb_=fpu['ANI_XB'][:]
 yb_=fpu['ANI_YB'][:]
+
+xbtrue=np.ones((len(ybine)-1,len(xbine[0])-1))*float('nan')
+ybtrue=np.ones((len(ybine)-1,len(xbine[0])-1))*float('nan')
 
 Np=1
 params=np.ones((len(ybine)-1,len(xbine[0])-1,Np))*float('nan')
@@ -1225,6 +1234,8 @@ for i in range(len(ybine)-1):
     for j in range(len(xbine[0])-1):
         print(str(i)+','+str(j)+'   ',end='',flush=True)
         m=(xb_<xbine[i,j+1])&(xb_>xbine[i,j])&(yb_<ybine[i+1])&(yb_>ybine[i])
+        xbtrue[i,j]=np.nanmean(xb_[m])
+        ybtrue[i,j]=np.nanmean(yb_[m])
         try:
             if var in bounds.keys():
                 params[i,j,:],pcov=optimize.curve_fit(fxns_[var],zL_[m],phi_[m],p0s[var],bounds=bounds[var],loss='cauchy')
@@ -1239,14 +1250,255 @@ for i in range(len(ybine)-1):
 # %%
 ybin=(np.array(ybine[0:-1])+np.array(ybine[1:]))/2
 xbin=(np.array(xbine[:,0:-1])+np.array(xbine[:,1:]))/2
+A=params[:,:,0]
 
 # %%
-for i in range(1,20):
-    plt.plot(xbin[i,:],params[i,:],'o-')
+#for i in range(1,30):
+#    plt.plot(xbin[i,:],params[i,:],'o-')
+#plt.xlabel(r'$x_b$')
+#plt.ylabel('a')
+
+# %%
+
+# %%
+
+# %%
+
+# %%
+fig,axs = plt.subplots(1,1,figsize=(8,6),tight_layout=True)
+# plot a triangle
+xc = np.array([0, 1, 0.5])
+yc = np.array([0, 0, np.sqrt(3)*0.5])
+for i in np.arange(3):
+    ip1 = (i+1)%3
+    axs.plot([xc[i], xc[ip1]], [yc[i], yc[ip1]], 'k', linewidth=2)
+# add grid
+nsp = 5
+lc = np.abs(xc[1]-xc[0])
+dc = lc/nsp
+cl = np.zeros([3*(nsp-1), 3])
+for i in np.arange(3):
+    ip1 = (i+1)%3
+    for j in np.arange(nsp-1):
+        k = i * (nsp-1) + j
+        cl[k,i] = dc * (j+1)
+        cl[k,ip1] = dc * (nsp-j-1)
+xl = np.dot(xc, cl.transpose())
+yl = np.dot(yc, cl.transpose())
+nl = xl.size
+#for i in np.arange(3):
+#    ip1 = (i+1)%3
+#    for j in np.arange(nsp-1):
+#        k = i * (nsp-1) + j
+#        kp = (ip1 * (nsp-1) + nsp - j - 2) % nl
+#        axs.plot([xl[k], xl[kp]], [yl[k], yl[kp]], '--k', linewidth=0.75)
+# plain strain limit
+c1ps = np.array([2/3, 1/3, 0])
+x1ps = np.dot(xc, c1ps.transpose())
+y1ps = np.dot(yc, c1ps.transpose())
+c2ps = np.array([0, 0, 1])
+x2ps = np.dot(xc, c2ps.transpose())
+y2ps = np.dot(yc, c2ps.transpose())
+axs.plot([x1ps, x2ps], [y1ps, y2ps], '-k', linewidth=2)
+# add labels
+labels = ['2-comp axi', '1-comp', 'Isotropic']
+lbpx = xc
+dshift = 0.05
+lbpy = [yc[0]-dshift*lc, yc[1]-dshift*lc, yc[2]+dshift*lc]
+for i in np.arange(3):
+    axs.text(lbpx[i], lbpy[i], labels[i], ha='center', fontsize=12)
+label_side1 = 'Prolate'
+label_side2 = 'Oblate'
+label_side3 = 'Two-component'
+#axs.text((xc[1]+xc[2])/2, (yc[0]+yc[2])/2+0.08*lc, label_side1, ha='center', va='center', rotation=-65)
+#axs.text((xc[0]+xc[2])/2, (yc[1]+yc[2])/2+0.08*lc, label_side2, ha='center', va='center', rotation=65)
+#axs.text((xc[0]+xc[1])/2, (yc[0]+yc[1])/2-0.04*lc, label_side3, ha='center', va='center')
+axs.pcolormesh(xbtrue[0:,:],ybtrue[0:,:],A[0:,:],cmap='terrain',shading='gouraud')
+#axs.plot([y2ps,y1ps], [x1ps, x2ps], '-k', linewidth=1)
+#CS = plt.contour(xbtrue[0:,:],ybtrue[0:,:],A[0:,:], levels, colors='w',linewidths=4)
+#CS = plt.contour(xbtrue[0:,:],ybtrue[0:,:],A[0:,:], leve, colors='k',linewidths=2)
+
+# %%
+for i in range(1,30):
+    plt.plot(xbin[i,:],params[i,:,0],'o-')
 plt.xlabel(r'$x_b$')
 plt.ylabel('a')
 
 # %%
+
+# %%
+ybine,xbine=getbins2D(fps['ANI_YB'][:],fps['ANI_XB'][:],31)
+phi_=np.sqrt(fps['UU'][:])/fps['USTAR'][:]
+zL_=(fps['tow_height'][:]-fps['zd'][:])/fps['L_MOST'][:]
+xb_=fps['ANI_XB'][:]
+yb_=fps['ANI_YB'][:]
+
+xbtrue=np.ones((len(ybine)-1,len(xbine[0])-1))*float('nan')
+ybtrue=np.ones((len(ybine)-1,len(xbine[0])-1))*float('nan')
+
+Np=2
+params=np.ones((len(ybine)-1,len(xbine[0])-1,Np))*float('nan')
+p_vars=np.ones((len(ybine)-1,len(xbine[0])-1,Np))*float('nan')
+var='Us'
+
+for i in range(len(ybine)-1):
+    for j in range(len(xbine[0])-1):
+        print(str(i)+','+str(j)+'   ',end='',flush=True)
+        m=(xb_<xbine[i,j+1])&(xb_>xbine[i,j])&(yb_<ybine[i+1])&(yb_>ybine[i])
+        xbtrue[i,j]=np.nanmean(xb_[m])
+        ybtrue[i,j]=np.nanmean(yb_[m])
+        try:
+            if var in bounds.keys():
+                params[i,j,:],pcov=optimize.curve_fit(fxns_[var],zL_[m],phi_[m],p0s[var],bounds=bounds[var],loss='cauchy')
+            else:
+                params[i,j,:],pcov=optimize.curve_fit(fxns_[var],zL_[m],phi_[m],p0s[var])
+            for p in range(Np):
+                p_vars[i,j,p]=pcov[p,p]
+        except Exception as e:
+            print(e)
+
+# %%
+ybin=(np.array(ybine[0:-1])+np.array(ybine[1:]))/2
+xbin=(np.array(xbine[:,0:-1])+np.array(xbine[:,1:]))/2
+A=params[:,:,0]
+C=params[:,:,1]
+
+# %%
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+# %%
+fig,axs = plt.subplots(1,1,figsize=(8,6),tight_layout=True)
+# plot a triangle
+xc = np.array([0, 1, 0.5])
+yc = np.array([0, 0, np.sqrt(3)*0.5])
+for i in np.arange(3):
+    ip1 = (i+1)%3
+    axs.plot([xc[i], xc[ip1]], [yc[i], yc[ip1]], 'k', linewidth=2)
+# add grid
+nsp = 5
+lc = np.abs(xc[1]-xc[0])
+dc = lc/nsp
+cl = np.zeros([3*(nsp-1), 3])
+for i in np.arange(3):
+    ip1 = (i+1)%3
+    for j in np.arange(nsp-1):
+        k = i * (nsp-1) + j
+        cl[k,i] = dc * (j+1)
+        cl[k,ip1] = dc * (nsp-j-1)
+xl = np.dot(xc, cl.transpose())
+yl = np.dot(yc, cl.transpose())
+nl = xl.size
+#for i in np.arange(3):
+#    ip1 = (i+1)%3
+#    for j in np.arange(nsp-1):
+#        k = i * (nsp-1) + j
+#        kp = (ip1 * (nsp-1) + nsp - j - 2) % nl
+#        axs.plot([xl[k], xl[kp]], [yl[k], yl[kp]], '--k', linewidth=0.75)
+# plain strain limit
+c1ps = np.array([2/3, 1/3, 0])
+x1ps = np.dot(xc, c1ps.transpose())
+y1ps = np.dot(yc, c1ps.transpose())
+c2ps = np.array([0, 0, 1])
+x2ps = np.dot(xc, c2ps.transpose())
+y2ps = np.dot(yc, c2ps.transpose())
+#axs.plot([x1ps, x2ps], [y1ps, y2ps], '-k', linewidth=2)
+# add labels
+labels = ['2-comp axi', '1-comp', 'Isotropic']
+lbpx = xc
+dshift = 0.05
+lbpy = [yc[0]-dshift*lc, yc[1]-dshift*lc, yc[2]+dshift*lc]
+for i in np.arange(3):
+    axs.text(lbpx[i], lbpy[i], labels[i], ha='center', fontsize=12)
+label_side1 = 'Prolate'
+label_side2 = 'Oblate'
+label_side3 = 'Two-component'
+#axs.text((xc[1]+xc[2])/2, (yc[0]+yc[2])/2+0.08*lc, label_side1, ha='center', va='center', rotation=-65)
+#axs.text((xc[0]+xc[2])/2, (yc[1]+yc[2])/2+0.08*lc, label_side2, ha='center', va='center', rotation=65)
+#axs.text((xc[0]+xc[1])/2, (yc[0]+yc[1])/2-0.04*lc, label_side3, ha='center', va='center')
+im=axs.pcolormesh(xbtrue[0:,:],ybtrue[0:,:],A[0:,:],cmap='terrain',shading='gouraud')
+CS = plt.contour(xbtrue[0:,:],ybtrue[0:,:],A[0:,:], 8, colors='w',linewidths=4)
+CS = plt.contour(xbtrue[0:,:],ybtrue[0:,:],A[0:,:], 8, colors='k',linewidths=2)
+divider = make_axes_locatable(axs)
+axs.scatter(xp,yp,color='k')
+cax = divider.append_axes('right', size='5%', pad=0.05)
+fig.colorbar(im, cax=cax, orientation='vertical')
+
+# %%
+fig,axs = plt.subplots(1,1,figsize=(8,6),tight_layout=True)
+# plot a triangle
+xc = np.array([0, 1, 0.5])
+yc = np.array([0, 0, np.sqrt(3)*0.5])
+for i in np.arange(3):
+    ip1 = (i+1)%3
+    axs.plot([xc[i], xc[ip1]], [yc[i], yc[ip1]], 'k', linewidth=2)
+# add grid
+nsp = 5
+lc = np.abs(xc[1]-xc[0])
+dc = lc/nsp
+cl = np.zeros([3*(nsp-1), 3])
+for i in np.arange(3):
+    ip1 = (i+1)%3
+    for j in np.arange(nsp-1):
+        k = i * (nsp-1) + j
+        cl[k,i] = dc * (j+1)
+        cl[k,ip1] = dc * (nsp-j-1)
+xl = np.dot(xc, cl.transpose())
+yl = np.dot(yc, cl.transpose())
+nl = xl.size
+#for i in np.arange(3):
+#    ip1 = (i+1)%3
+#    for j in np.arange(nsp-1):
+#        k = i * (nsp-1) + j
+#        kp = (ip1 * (nsp-1) + nsp - j - 2) % nl
+#        axs.plot([xl[k], xl[kp]], [yl[k], yl[kp]], '--k', linewidth=0.75)
+# plain strain limit
+c1ps = np.array([2/3, 1/3, 0])
+x1ps = np.dot(xc, c1ps.transpose())
+y1ps = np.dot(yc, c1ps.transpose())
+c2ps = np.array([0, 0, 1])
+x2ps = np.dot(xc, c2ps.transpose())
+y2ps = np.dot(yc, c2ps.transpose())
+#axs.plot([x1ps, x2ps], [y1ps, y2ps], '-k', linewidth=2)
+# add labels
+labels = ['2-comp axi', '1-comp', 'Isotropic']
+lbpx = xc
+dshift = 0.05
+lbpy = [yc[0]-dshift*lc, yc[1]-dshift*lc, yc[2]+dshift*lc]
+for i in np.arange(3):
+    axs.text(lbpx[i], lbpy[i], labels[i], ha='center', fontsize=12)
+label_side1 = 'Prolate'
+label_side2 = 'Oblate'
+label_side3 = 'Two-component'
+#axs.text((xc[1]+xc[2])/2, (yc[0]+yc[2])/2+0.08*lc, label_side1, ha='center', va='center', rotation=-65)
+#axs.text((xc[0]+xc[2])/2, (yc[1]+yc[2])/2+0.08*lc, label_side2, ha='center', va='center', rotation=65)
+#axs.text((xc[0]+xc[1])/2, (yc[0]+yc[1])/2-0.04*lc, label_side3, ha='center', va='center')
+xp=[.3,.4,.4,.6,.6,.5,.8]
+yp=[.2,.4,.2,.4,.2,.5,.18]
+im=axs.pcolormesh(xbtrue[0:,:],ybtrue[0:,:],C[0:,:],cmap='terrain',shading='gouraud')
+CS = plt.contour(xbtrue[0:,:],ybtrue[0:,:],C[0:,:], levels, colors='w',linewidths=4)
+CS = plt.contour(xbtrue[0:,:],ybtrue[0:,:],C[0:,:], leve, colors='k',linewidths=2)
+axs.scatter(xp,yp,color='k')
+divider = make_axes_locatable(axs)
+cax = divider.append_axes('right', size='5%', pad=0.05)
+fig.colorbar(im, cax=cax, orientation='vertical')
+
+# %%
+zLs=np.logspace(-4,2)
+plt.semilogx(zLs,U_stb(zLs,1.7,.1))
+plt.semilogx(zLs,U_stb(zLs,1.5,.15))
+plt.semilogx(zLs,U_stb(zLs,1.8,.08))
+plt.semilogx(zLs,U_stb(zLs,1.34,.21))
+plt.semilogx(zLs,U_stb(zLs,1.9,.08),'--')
+plt.semilogx(zLs,U_stb(zLs,1.6,.15),'--')
+
+# %% [markdown]
+# #
+
+# %% [markdown]
+# # Iterative Fit: A and C independent
+
+# %%
+# the results imply that it would be possible to have c and a be independent for fitting of the equation
 
 # %% [markdown]
 # # Error by XB
@@ -1260,8 +1512,8 @@ xbins=(np.array(d_s['U']['xbins'][1:])+np.array(d_s['U']['xbins'][:-1]))/2
 plt.scatter(xbins,d_s['U']['MAD_OLD'][:])
 
 # %%
-d_=d_s
-v='H2O'
+d_=d_u
+v='U'
 typ='MAD_SC23_s'
 for site in d_u['U'][typ].keys():
     xbins=(np.array(d_[v]['xbins_s'][site][1:])+np.array(d_[v]['xbins_s'][site][:-1]))/2
@@ -1321,3 +1573,11 @@ plt.legend(['ONAQ','NOGP','UKFS','MLBS','BONA'])
 list(range(8,15))
 
 # %%
+# ls
+
+# %%
+# Look at energetic only yb (specifically, compute yb with only u,v,w variances)
+
+
+# %% [markdown]
+# # Testing Correlation

@@ -839,7 +839,7 @@ def nlcd_plot(d_,zb,stab,bxplt=True,nowhis=True,meansort=False):
                 sd={'med':ani_sorted[i], 'q1':pct25_sorted[i], 'q3':pct75_sorted[i],
                 'whislo':whislo,'whishi':whishi}
             stats.append(sd)
-        return stats, nlcd_sorted, sites_sorted
+        return stats, nlcd_sorted, sites_sortedf
         
     else:
         return ani_sorted, pct25_sorted, pct75_sorted, nlcd_sorted, sites_sorted

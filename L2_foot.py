@@ -22,6 +22,9 @@ dtmdir='/home/tswater/Documents/tyche/data/neon/dtm/'
 footdir='/home/tswater/Documents/tyche/data/neon/dp4ex/'
 idir='/home/tswater/Documents/Elements_Temp/NEON/neon_processed/L2_qaqc_data/'
 nlcdf='/home/tswater/Downloads/nlcd_2021_land_cover_l48_20230630/nlcd_2021_land_cover_l48_20230630.img'
+#nlcdf='/home/tswater/Downloads/NLCD_2016_Land_Cover_AK_20200724.img'
+#nlcdf='/home/tswater/Downloads/pr_landcover_wimperv_10-28-08_se5.img'
+#nlcdf='/home/tswater/Downloads/hi_hawaii_2010_ccap_hr_land_cover20150120.img'
 
 ovar={'slope_dtm':[],'aspect_dtm':[],'std_dsm':[],'std_dtm':[],'std_chm':[],'mean_chm':[],\
         'treecover_lidar':[],'range_dtm':[],'range_chm':[],'std_aspect':[],'std_slope':[],\
@@ -75,7 +78,12 @@ def get_masked_data(foot,dx,dtm,dsm,asp,slp):
     slpf=slp[footbig]
     return dsmf,dtmf,chmf,aspf,slpf
 
-def get_footmask(data,ctf=ctf):
+def get_footmask(ff,idx,ctf=ctf):
+    if ff=='NOFILE':
+        data=np.zeros((301,301))
+        return data
+    else:
+        data=ff['footprint'][idx,:,:]
     val=7
     for i in np.logspace(-2,-8,100):
         sm=np.nansum(data[data>i])
@@ -167,8 +175,11 @@ while ((js<Ns)&(ju<Nu)):
         fname=basename+udt_.strftime('%Y-%m-%d.nc')
         if not fname==oldname:
             oldname=fname
-            ff=nc.Dataset(footdir+str(site)[2:-1]+'/'+fname,'r')
-            dx=ff.dx
+            try:
+                ff=nc.Dataset(footdir+str(site)[2:-1]+'/'+fname,'r')
+                dx=ff.dx
+            except:
+                ff='NOFILE'
 
         if update:
             print(site,flush=True)
@@ -201,7 +212,7 @@ while ((js<Ns)&(ju<Nu)):
 
         # load footprint
         foot_index=int((udt_.hour)*2+udt_.minute/30+.01)
-        foot=get_footmask(ff['footprint'][foot_index,:,:])
+        foot=get_footmask(ff,foot_index)
         dsmf,dtmf,chmf,aspf,slpf=get_masked_data(foot,dx,dtm,dsm,asp,slp)
 
     else:
@@ -247,17 +258,20 @@ while ((js<Ns)&(ju<Nu)):
 
         if not fname==oldname:
             oldname=fname
-            ff=nc.Dataset(footdir+str(site)[2:-1]+'/'+fname,'r')
-            dx=ff.dx
+            try:
+                ff=nc.Dataset(footdir+str(site)[2:-1]+'/'+fname,'r')
+                dx=ff.dx
+            except:
+                ff='NOFILE'
             # load footprint
             foot_index=int((udt_.hour)*2+udt_.minute/30+.01)
-            foot=get_footmask(ff['footprint'][foot_index,:,:])
+            foot=get_footmask(ff,foot_index)
             dsmf,dtmf,chmf,aspf,slpf=get_masked_data(foot,dx,dtm,dsm,asp,slp)
         else:
             fi=int((udt_.hour)*2+udt_.minute/30+.01)
             if not (foot_index==fi):
                 foot_index=fi
-                foot=get_footmask(ff['footprint'][foot_index,:,:])
+                foot=get_footmask(ff,foot_index)
                 dsmf,dtmf,chmf,aspf,slpf=get_masked_data(foot,dx,dtm,dsm,asp,slp)
 
     # now actual analysis
