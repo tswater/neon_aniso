@@ -10,10 +10,10 @@ comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 size = comm.Get_size()
 
-dwnld_dir='/home/tswater/Documents/tyche/data/neon/'
+dwnld_dir='/home/tsw35/soteria/data/NEON/'
 
-#text_dir='/home/tsw35/soteria/data/NEON/download_prep/textfiles4ex'
-text_dir='/home/tswater/projects/neon_aniso/download_prep/textfiles4ex'
+text_dir='/home/tsw35/soteria/neon_aniso/download_prep/textfiles4ex'
+#text_dir='/home/tswater/projects/neon_aniso/download_prep/textfiles4ex'
 
 sites = {'YELL':'D12','TREE':'D05','STEI':'D05','WREF':'D16',
          'ABBY':'D16','SCBI':'D02','MLBS':'D07','BLAN':'D02',
@@ -39,11 +39,11 @@ dt = (end_date-start_date).days
 sitelist=list(sites.keys())
 sitelist.sort()
 
-sitelist=['NOGP','ORNL','OAES','OSBS','RMNP','SCBI','PUUM']
+#sitelist=['NOGP','ORNL','OAES','OSBS','RMNP','SCBI','PUUM']
 
 for site in sitelist[rank::size]:
     try:
-        subprocess.run('mkdir '+dwnld_dir+'dp4ex/'+site,shell=True)
+        subprocess.run('mkdir '+dwnld_dir+'dp04ex2/'+site,shell=True)
     except:
         pass
     fp = open(text_dir+'/'+site+'.txt','w')
@@ -70,7 +70,7 @@ for site in sitelist[rank::size]:
 
 #### NOW ACTUALLY DOWNLOAD ####
 for site in sitelist[rank::size]:
-    os.chdir(dwnld_dir+'dp4ex/'+site)
+    os.chdir(dwnld_dir+'dp04ex2/'+site)
     cmd = 'wget -i '+text_dir+'/'+site+'.txt'
     print(cmd)
     subprocess.run(cmd,shell=True)

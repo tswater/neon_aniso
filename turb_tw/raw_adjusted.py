@@ -28,6 +28,7 @@ size = comm.Get_size()
 raw_dir='/home/tsw35/xSot_shared/NEON_raw_data/'
 dp4_dir='/home/tsw35/soteria/data/NEON/dp04ex/'
 out_dir='/home/tsw35/soteria/data/NEON/raw_streamwise/'
+pfdir='/home/tsw35/soteria/data/NEON/pfvalues/'
 sites=['MLBS','UKFS','SOAP','ONAQ','NOGP','BONA']
 years=[2023]
 dp4type=['expanded','basic'][0]
@@ -110,6 +111,15 @@ for sty in st_yr[rank::size]:
 
     # get site, year, NEON domain and sonic level
     site=sty[0:4]
+    
+    fp4=h5py.File(pfdir+site+'_pfvalues.nc','r')#nc.Dataset(pfdir+site+'_pfvalues.nc','r')
+    _day=fp4['day'][:]
+    _month=fp4['month'][:]
+    _year=fp4['year'][:]
+    _ax=fp4['ax'][:]
+    _ay=fp4['ay'][:]
+    _ofst=fp4['ofst'][:]
+    
     year=int(sty[5:])
     dt0=datetime(year,1,1,0)
     dom=domain[site]
@@ -160,18 +170,13 @@ for sty in st_yr[rank::size]:
             continue
 
         #### LOAD IN IF EXPANDED ####
-        if dp4type=='expanded':
-            fname='NEON.D'+dom+'.'+site+'.DP4.00200.001.nsae.'+dt_str+'.'+dp4type+'.h5'
-            try:
-                fp4=h5py.File(dp4_dir+site+'/'+fname,'r')
-                angEnuXaxs=float(fp4[site].attrs['Pf$AngEnuXaxs'][:][0])
-                angEnuYaxs=float(fp4[site].attrs['Pf$AngEnuYaxs'][:][0])
-                pf_ofst=float(fp4[site].attrs['Pf$Ofst'][:][0])
-            except Exception as e:
-                angEnuXaxs=0
-                angEnuYaxs=0
-                pf_ofst=0
-
+        try:
+            idx=np.where((dt.day==_day)&(dt.year==_year)&(dt.month==_month))[0][0]
+            if (np.sum(np.isnan(_ax[idx]))+np.sum(np.isnan(_ay[idx]))+np.sum(np.isnan(_ofst[idx])))>0:
+                raise Exception('error')
+        except Exception as e:
+            print('Skipping '+site+':'+str(rank)+':'+dt_str+' due to pf missing/filename error...\n'+str(e),flush=True)
+            continue
         logstr=site+':'+str(rank)+':'+dt_str+':: '
 
         #### LOAD IN DATA ####
@@ -239,9 +244,9 @@ for sty in st_yr[rank::size]:
         ld_w=np.array(r_w)
 
 
-        a_x=float(angEnuXaxs)
-        a_y=float(angEnuYaxs)
-        ofst=float(pf_ofst)
+        a_x=float(_ax[idx])
+        a_y=float(_ay[idx])
+        ofst=float(_ofst[idx])
 
         ld_w=ld_w-ofst
         mat_pitch=np.matrix([[math.cos(a_y),0,-math.sin(a_y)],[0,1,0],[math.sin(a_y),0,math.cos(a_y)]])
@@ -272,23 +277,11 @@ for sty in st_yr[rank::size]:
             uin=ld_u[t*20*60:(t+1)*20*60]
             vin=ld_v[t*20*60:(t+1)*20*60]
 
-            a_ert=np.arctan2(vin,uin)
-            a_ertm=np.nanmean(a_ert)
+            a_ertm=np.arctan2(np.nanmean(vin),np.nanmean(uin))
 
-            a_rot=(a_ertm+math.pi)%(2*math.pi)
-            mat_rot=np.matrix(np.zeros((3,3)))
-            mat_rot[0,0]=math.cos(a_rot)
-            mat_rot[0,1]=math.sin(a_rot)
-            mat_rot[1,0]=-math.sin(a_rot)
-            mat_rot[1,1]=math.cos(a_rot)
-            mat_rot[2,2]=1
-            mat_rot=mat_rot.T
-
-            combo=np.array([ld_v[t*20*60:(t+1)*20*60],ld_u[t*20*60:(t+1)*20*60],ld_w[t*20*60:(t+1)*20*60]])
-            [rot_u,rot_v,rot_w]=np.dot(mat_rot,combo)
-            rot_u=np.squeeze(np.array(rot_u[0,:]).T)
-            rot_v=np.squeeze(np.array(rot_v[0,:]).T)
-            rot_w=np.squeeze(np.array(rot_w[0,:]).T)
+            rot_u=uin*np.cos(a_ertm)+vin*np.sin(a_ertm)
+            rot_v=-uin*np.sin(a_ertm)+vin*np.cos(a_ertm)
+            rot_w=np.array(ld_w[t*20*60:(t+1)*20*60])
 
             # load data into output arrays, checking for at least 10% real
             output['Ustr'][((day-1)*n1m+t)*60*20:((day-1)*n1m+t+1)*60*20]=rot_u[:]

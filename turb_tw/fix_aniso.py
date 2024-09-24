@@ -25,9 +25,10 @@ size = comm.Get_size()
 #export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/tsw35/soteria/software/miniconda/envs/eddy4R/lib/R/modules
 
 #### USER INPUT ####
-raw_dir='/home/tsw35/xTyc_shared/NEON_raw_data/'
+raw_dir='/home/tsw35/xSot_shared/NEON_raw_data/'
 dp4_dir='/home/tsw35/soteria/data/NEON/dp04ex/'
-out_dir='/home/tsw35/soteria/data/NEON/aniso_1m/'
+pfdir='/home/tsw35/soteria/data/NEON/pfvalues/'
+out_dir='/home/tsw35/soteria/data/NEON/aniso_1mv2/'
 sites=['ALL']
 years=['ALL']
 dp4type=['expanded','basic'][0]
@@ -110,6 +111,13 @@ for sty in st_yr[rank::size]:
     dt0=datetime(year,1,1,0)
     dom=domain[site]
     lvl=s_level[site]
+    fp4=h5py.File(pfdir+site+'_pfvalues.nc','r')#nc.Dataset(pfdir+site+'_pfvalues.nc','r')
+    _day=fp4['day'][:]
+    _month=fp4['month'][:]
+    _year=fp4['year'][:]
+    _ax=fp4['ax'][:]
+    _ay=fp4['ay'][:]
+    _ofst=fp4['ofst'][:]
 
     # check to see if this site-year can be skipped
     if not overwrite:
@@ -140,8 +148,10 @@ for sty in st_yr[rank::size]:
     else:
         doys=list(range(365))
 
+    
     # core action loop
     skip=False
+    
     for doy in doys:
         dt=dt0+timedelta(days=doy)
         dt_str=dt.strftime('%Y-%m-%d')
@@ -158,63 +168,42 @@ for sty in st_yr[rank::size]:
             N1m=monthrange(year,dt.month)[1]*n1m
 
             output={}
-            output['U_SIGMA_1m']=np.ones((N1m,))*float('nan')
-            output['V_SIGMA_1m']=np.ones((N1m,))*float('nan')
-            output['W_SIGMA_1m']=np.ones((N1m,))*float('nan')
+            output['UU_1m']=np.ones((N1m,))*float('nan')
+            output['VV_1m']=np.ones((N1m,))*float('nan')
+            output['WW_1m']=np.ones((N1m,))*float('nan')
             output['UV_1m']=np.ones((N1m,))*float('nan')
             output['UW_1m']=np.ones((N1m,))*float('nan')
             output['VW_1m']=np.ones((N1m,))*float('nan')
-            if testing:
-                output['U_1m']=np.ones((N1m,))*float('nan')
-                output['V_1m']=np.ones((N1m,))*float('nan')
-                output['W_1m']=np.ones((N1m,))*float('nan')
-                output['H2O_1m']=np.ones((N1m,))*float('nan')
-                output['TA_1m']=np.ones((N1m,))*float('nan')
-                output['CO2_1m']=np.ones((N1m,))*float('nan')
-                output['TS_1m']=np.ones((N1m,))*float('nan')
-                output['TA_SIGMA_1m']=np.ones((N1m,))*float('nan')
-                output['TS_SIGMA_1m']=np.ones((N1m,))*float('nan')
-                output['H2O_SIGMA_1m']=np.ones((N1m,))*float('nan')
+            output['Ustr_1m']=np.ones((N1m,))*float('nan')
+            output['Vstr_1m']=np.ones((N1m,))*float('nan')
+            output['Wstr_1m']=np.ones((N1m,))*float('nan')
 
             output['UV']=np.ones((N30m,))*float('nan')
+            output['UU']=np.ones((N30m,))*float('nan')
+            output['VV']=np.ones((N30m,))*float('nan')
+            output['WW']=np.ones((N30m,))*float('nan')
             output['UW']=np.ones((N30m,))*float('nan')
             output['VW']=np.ones((N30m,))*float('nan')
-
-            output['LE_1m']=np.ones((N1m,))*float('nan')
-            output['H_1m']=np.ones((N1m,))*float('nan')
+            output['Ustr']=np.ones((N30m,))*float('nan')
+            output['Vstr']=np.ones((N30m,))*float('nan')
+            output['Wstr']=np.ones((N30m,))*float('nan')
+            
+            output['USTAR']=np.ones((N30m,))*float('nan')
             output['USTAR_1m']=np.ones((N1m,))*float('nan')
-            output['CO2FX_1m']=np.ones((N1m,))*float('nan')
-            output['L_MOST_1m']=np.ones((N1m,))*float('nan')
-            output['L_MOST']=np.ones((N30m,))*float('nan')
 
             skip=False
-            fname='NEON.D'+dom+'.'+site+'.DP4.00200.001.nsae.'+dt_str[0:7]+'.'+dp4type+'.h5'
-            if dp4type=='basic':
-                try:
-                    fp4=h5py.File(dp4_dir+site+'/'+fname,'r')
-                    angEnuXaxs=fp4[site].attrs['Pf$AngEnuXaxs'][:]
-                    angEnuYaxs=fp4[site].attrs['Pf$AngEnuYaxs'][:]
-                    pf_ofst=fp4[site].attrs['Pf$Ofst'][:]
-
-                except Exception as e:
-                    print('Skipping '+site+':'+str(rank)+':'+dt_str[0:7]+' due to DP4 missing/filename error...\n'+str(e),flush=True)
-                    skip=True
-                    continue
         elif skip:
             continue
 
         #### LOAD IN IF EXPANDED ####
-        if dp4type=='expanded':
-            fname='NEON.D'+dom+'.'+site+'.DP4.00200.001.nsae.'+dt_str+'.'+dp4type+'.h5'
-            try:
-                fp4=h5py.File(dp4_dir+site+'/'+fname,'r')
-                angEnuXaxs=float(fp4[site].attrs['Pf$AngEnuXaxs'][:][0])
-                angEnuYaxs=float(fp4[site].attrs['Pf$AngEnuYaxs'][:][0])
-                pf_ofst=float(fp4[site].attrs['Pf$Ofst'][:][0])
-            except Exception as e:
-                angEnuXaxs=0
-                angEnuYaxs=0
-                pf_ofst=0
+        try:
+            idx=np.where((dt.day==_day)&(dt.year==_year)&(dt.month==_month))[0][0]
+            if (np.sum(np.isnan(_ax[idx]))+np.sum(np.isnan(_ay[idx]))+np.sum(np.isnan(_ofst[idx])))>0:
+                raise Exception('error')
+
+        except Exception as e:
+            print('Skipping '+site+':'+str(rank)+':'+dt_str+' due to pf missing/filename error...\n'+str(e),flush=True)
+            continue
 
         logstr=site+':'+str(rank)+':'+dt_str+':: '
 
@@ -224,12 +213,6 @@ for sty in st_yr[rank::size]:
         try:
             fp0=h5py.File(raw_dir+site+'/'+fname,'r')
             anz=float(fp0[site+'/dp0p/data/soni/'].attrs['AngNedZaxs'][0])
-            dp0_h2od=fp0[site+'/dp0p/data/irgaTurb/000_'+lvl+'/densMoleH2o'][:]
-            dp0_pres=fp0[site+'/dp0p/data/irgaTurb/000_'+lvl+'/presSum'][:]
-            dp0_tm=fp0[site+'/dp0p/data/irgaTurb/000_'+lvl+'/tempMean'][:]
-            dp0_h2o=fp0[site+'/dp0p/data/irgaTurb/000_'+lvl+'/rtioMoleDryH2o'][:]
-            dp0_co2=fp0[site+'/dp0p/data/irgaTurb/000_'+lvl+'/rtioMoleDryCo2'][:]
-            dp0_ts=fp0[site+'/dp0p/data/soni/000_'+lvl+'/veloSoni'][:]
             dp0_u=fp0[site+'/dp0p/data/soni/000_'+lvl+'/veloXaxs'][:]
             dp0_v=fp0[site+'/dp0p/data/soni/000_'+lvl+'/veloYaxs'][:]
             dp0_w=fp0[site+'/dp0p/data/soni/000_'+lvl+'/veloZaxs'][:]
@@ -237,17 +220,10 @@ for sty in st_yr[rank::size]:
             print('Skipping '+site+':'+str(rank)+':'+dt_str+' due to DP0P missing/filename error...\n'+str(e),flush=True)
             continue
 
-        # adjust tvelo to tsoni
-        dp0_ts=dp0_ts**2/1.4/(8.314462175/28.97/10**(-3))
-
         # fix nan situation
         dp0_u[np.abs(dp0_u)>50]=float('nan')
         dp0_v[np.abs(dp0_v)>50]=float('nan')
         dp0_w[np.abs(dp0_w)>50]=float('nan')
-        dp0_ts[dp0_ts<235]=float('nan')
-        dp0_h2o[dp0_h2o<0]=float('nan')
-        dp0_co2[dp0_co2<.00025]=float('nan')
-        dp0_co2[dp0_co2>.00055]=float('nan')
 
         # check all nans in u,v,w
         if (np.sum(np.isnan(dp0_u))>=.995*len(dp0_u)):
@@ -266,65 +242,20 @@ for sty in st_yr[rank::size]:
         #### R Workflow Beginning: DESPIKE and LAG CORRECT ####
 
         # convert to r object
-        r_h2o=robjects.FloatVector(dp0_h2o.tolist())
-        r_co2=robjects.FloatVector(dp0_co2.tolist())
         r_u=robjects.FloatVector(dp0_u.tolist())
         r_v=robjects.FloatVector(dp0_v.tolist())
         r_w=robjects.FloatVector(dp0_w.tolist())
-        r_ts=robjects.FloatVector(dp0_ts.tolist())
-        r_h2od=robjects.FloatVector(dp0_h2od.tolist())
-        r_pres=robjects.FloatVector(dp0_pres.tolist())
-        r_tm=robjects.FloatVector(dp0_tm.tolist())
 
         # despike
         try:
-            out=Re4Rq.def_dspk_br86(r_h2o)
-            r_h2o=out[-2]
-            out=Re4Rq.def_dspk_br86(r_co2)
-            r_co2=out[-2]
             out=Re4Rq.def_dspk_br86(r_u)
             r_u=out[-2]
             out=Re4Rq.def_dspk_br86(r_v)
             r_v=out[-2]
             out=Re4Rq.def_dspk_br86(r_w)
             r_w=out[-2]
-            out=Re4Rq.def_dspk_br86(r_ts)
-            r_ts=out[-2]
-            out=Re4Rq.def_dspk_br86(r_h2od)
-            r_h2od=out[-2]
-            out=Re4Rq.def_dspk_br86(r_pres)
-            r_pres=out[-2]
-            out=Re4Rq.def_dspk_br86(r_tm)
-            r_tm=out[-2]
         except Exception as e:
             print(logstr+'ERROR despiking failed; will continue processing \n'+str(e),flush=True)
-
-        ### LAG CORRECTION ###
-        try:
-            ld_pres=np.ones((1728000,))*float('nan')
-            out=Re4Rb.def_lag(r_w,r_pres,20)
-            lag_=np.array(out[1])
-            ld_pres[0:len(lag_)]=lag_[:]
-        except Exception as e:
-            print(logstr+'ERROR lag correction H2O failed; pressure will be reset\n'+str(e),flush=True)
-            ld_pres=np.array(r_pres)
-
-        try:
-            ld_h2o=np.ones((1728000,))*float('nan')
-            out=Re4Rb.def_lag(r_w,r_h2o,20)
-            lag_=np.array(out[1])
-            ld_h2o[0:len(lag_)]=lag_[:]
-        except Exception as e:
-            print(logstr+'ERROR lag correction H2O failed; no latent heat flux will be computed\n'+str(e),flush=True)
-
-        # lag correction for CO2
-        try:
-            ld_co2=np.ones((1728000,))*float('nan')
-            out=Re4Rb.def_lag(r_w,r_co2,20)
-            lag_=np.array(out[1])
-            ld_co2[0:len(lag_)]=lag_[:]
-        except Exception as e:
-            print(logstr+'ERROR lag correction H2O failed; no latent heat flux will be computed\n'+str(e),flush=True)
 
         print(logstr+'R Processing complete',flush=True)
 
@@ -341,11 +272,9 @@ for sty in st_yr[rank::size]:
         ld_v=np.array(r_u)*math.sin(amet)+np.array(r_v)*math.cos(amet)
         ld_w=np.array(r_w)
 
-        ld_ts=np.array(r_ts)
-
-        a_x=float(angEnuXaxs)
-        a_y=float(angEnuYaxs)
-        ofst=float(pf_ofst)
+        a_x=float(_ax[idx])
+        a_y=float(_ay[idx])
+        ofst=float(_ofst[idx])
 
         ld_w=ld_w-ofst
         mat_pitch=np.matrix([[math.cos(a_y),0,-math.sin(a_y)],[0,1,0],[math.sin(a_y),0,math.cos(a_y)]])
@@ -362,30 +291,6 @@ for sty in st_yr[rank::size]:
 
         #### PREPARE FOR FLUX CALCULATIONS ####
 
-        # compute specific humidity
-        moldry=28.97*10**(-3)
-        molh2o=18.02*10**(-3)
-        Rg=8.314462175
-        dmolair=ld_pres/Rg/np.array(r_tm)
-        dmolairdry=np.array(dmolair)-np.array(r_h2od)
-        q=np.array(r_h2od)*molh2o/(dmolairdry*moldry+np.array(r_h2od)*molh2o)
-
-        # compute virtual potential temperature
-        ld_tvp=ld_ts[:]
-
-        # translate sonic temperature to air temperature
-        ld_t0=ld_ts[:]
-        ld_ts=(ld_ts/(1+.51*q))
-
-
-        # compute volumetric heat capacity
-        cpdry=1004.64
-        cph2o=1846
-        cp_=cpdry*dmolairdry*moldry + cph2o*np.array(r_h2od)*molh2o
-
-        # compute latent heat of vaporization
-        lhv = 2500827 - 2360*(ld_ts-273)
-
         #### LOOP THROUGH THE 1m INTERVALS ####
         # recall day-1= index of day of month
 
@@ -397,8 +302,7 @@ for sty in st_yr[rank::size]:
             uin=ld_u[t*20*60:(t+1)*20*60]
             vin=ld_v[t*20*60:(t+1)*20*60]
 
-            a_ert=np.arctan2(vin,uin)
-            a_ertm=np.nanmean(a_ert)
+            a_ertm=np.arctan2(np.nanmean(vin),np.nanmean(uin))
 
             rot_u=uin*np.cos(a_ertm)+vin*np.sin(a_ertm)
             rot_v=-uin*np.sin(a_ertm)+vin*np.cos(a_ertm)
@@ -406,37 +310,13 @@ for sty in st_yr[rank::size]:
 
             # mean remove
             wp=rot_w-np.nanmean(rot_w)
-            tp=ld_ts[t*20*60:(t+1)*20*60]
-            tp=tp-np.nanmean(tp)
-            qp=ld_h2o[t*20*60:(t+1)*20*60]
-            qp=qp-np.nanmean(qp)
-            cp=ld_co2[t*20*60:(t+1)*20*60]
-            cp=cp-np.nanmean(cp)
             up=rot_u-np.nanmean(rot_u)
             vp=rot_v-np.nanmean(rot_v)
-            thetap=ld_tvp[t*20*60:(t+1)*20*60]
-            thetap=thetap-np.nanmean(thetap)
-
-            # scalar fluxes
-            wT=cp_[t*20*60:(t+1)*20*60] * (wp*tp)
-            wq=dmolairdry[t*20*60:(t+1)*20*60]*lhv[t*20*60:(t+1)*20*60]*molh2o * (wp*qp)
-            wc=dmolairdry[t*20*60:(t+1)*20*60] * (wp*cp)
-            wtheta=wp*thetap
 
             # momentum flux
             ustar=(np.nanmean(up*wp)**2+np.nanmean(vp*wp)**2)**(1/4)
 
-            # MOST Obukhov Length
-            L=-ustar**3*np.nanmean(ld_tvp[t*20*60:(t+1)*20*60])/(.4*9.81*np.nanmean(wtheta))
-
             # load data into output arrays, checking for at least 10% real
-            output['L_MOST_1m'][(day-1)*n1m+t]=L
-            if (np.sum(np.isnan(wT))<.9*20*60):
-                output['H_1m'][(day-1)*n1m+t]=np.nanmean(wT)
-            if (np.sum(np.isnan(wq))<.9*20*60):
-                output['LE_1m'][(day-1)*n1m+t]=np.nanmean(wq)
-            if (np.sum(np.isnan(wc))<.9*20*60):
-                output['CO2FX_1m'][(day-1)*n1m+t]=np.nanmean(wc)
             if (np.sum(np.isnan(up*vp))<.9*20*60):
                 output['UV_1m'][(day-1)*n1m+t]=np.nanmean(up*vp)
             if (np.sum(np.isnan(up*wp))<.9*20*60):
@@ -444,24 +324,16 @@ for sty in st_yr[rank::size]:
             if (np.sum(np.isnan(vp*wp))<.9*20*60):
                 output['VW_1m'][(day-1)*n1m+t]=np.nanmean(vp*wp)
             if (np.sum(np.isnan(up*up))<.9*20*60):
-                output['U_SIGMA_1m'][(day-1)*n1m+t]=np.sqrt(np.nanmean(up*up))
+                output['UU_1m'][(day-1)*n1m+t]=np.nanmean(up*up)
+                output['Ustr_1m'][(day-1)*n1m+t]=np.nanmean(rot_u)
             if (np.sum(np.isnan(vp*vp))<.9*20*60):
-                output['V_SIGMA_1m'][(day-1)*n1m+t]=np.sqrt(np.nanmean(vp*vp))
+                output['VV_1m'][(day-1)*n1m+t]=np.nanmean(vp*vp)
+                output['Vstr_1m'][(day-1)*n1m+t]=np.nanmean(rot_v)
             if (np.sum(np.isnan(up*up))<.9*20*60):
-                output['W_SIGMA_1m'][(day-1)*n1m+t]=np.sqrt(np.nanmean(wp*wp))
+                output['WW_1m'][(day-1)*n1m+t]=np.nanmean(wp*wp)
+                output['Wstr_1m'][(day-1)*n1m+t]=np.nanmean(rot_w)
             if (np.sum(np.isnan(ustar))<.9*20*60):
                 output['USTAR_1m'][(day-1)*n1m+t]=ustar
-            if testing:
-                output['U_1m'][(day-1)*n1m+t]=np.nanmean(ld_u[t*20*60:(t+1)*20*60])
-                output['V_1m'][(day-1)*n1m+t]=np.nanmean(ld_v[t*20*60:(t+1)*20*60])
-                output['W_1m'][(day-1)*n1m+t]=np.nanmean(ld_w[t*20*60:(t+1)*20*60])
-                output['TA_1m'][(day-1)*n1m+t]=np.nanmean(ld_ts[t*20*60:(t+1)*20*60])
-                output['CO2_1m'][(day-1)*n1m+t]=np.nanmean(ld_co2[t*20*60:(t+1)*20*60])
-                output['H2O_1m'][(day-1)*n1m+t]=np.nanmean(ld_h2o[t*20*60:(t+1)*20*60])
-                output['H2O_SIGMA_1m'][(day-1)*n1m+t]=np.nanstd(ld_h2o[t*20*60:(t+1)*20*60])
-                output['TS_1m'][(day-1)*n1m+t]=np.nanmean(ld_t0[t*20*60:(t+1)*20*60])
-                output['TA_SIGMA_1m'][(day-1)*n1m+t]=np.nanstd(ld_ts[t*20*60:(t+1)*20*60])
-                output['TS_SIGMA_1m'][(day-1)*n1m+t]=np.nanstd(ld_t0[t*20*60:(t+1)*20*60])
             gc.collect()
 
         if (rank==0) and (size<=1):
@@ -473,8 +345,7 @@ for sty in st_yr[rank::size]:
             uin=ld_u[t*20*60*30:(t+1)*20*60*30]
             vin=ld_v[t*20*60*30:(t+1)*20*60*30]
 
-            a_ert=np.arctan2(vin,uin)
-            a_ertm=np.nanmean(a_ert)
+            a_ertm=np.arctan2(np.nanmean(vin),np.nanmean(uin))
 
             rot_u=uin*np.cos(a_ertm)+vin*np.sin(a_ertm)
             rot_v=-uin*np.sin(a_ertm)+vin*np.cos(a_ertm)
@@ -482,37 +353,30 @@ for sty in st_yr[rank::size]:
 
             # mean remove
             wp=rot_w-np.nanmean(rot_w)
-            tp=ld_ts[t*20*60*30:(t+1)*20*60*30]
-            tp=tp-np.nanmean(tp)
-            qp=ld_h2o[t*20*60*30:(t+1)*20*60*30]
-            qp=qp-np.nanmean(qp)
-            cp=ld_co2[t*20*60*30:(t+1)*20*60*30]
-            cp=cp-np.nanmean(cp)
             up=rot_u-np.nanmean(rot_u)
             vp=rot_v-np.nanmean(rot_v)
-            thetap=ld_tvp[t*20*60*30:(t+1)*20*60*30]
-            thetap=thetap-np.nanmean(thetap)
-
-            # scalar fluxes
-            wT=cp_[t*20*60*30:(t+1)*20*60*30] * (wp*tp)
-            wq=dmolairdry[t*20*60*30:(t+1)*20*60*30]*lhv[t*20*60*30:(t+1)*20*60*30]*molh2o * (wp*qp)
-            wc=dmolairdry[t*20*60*30:(t+1)*20*60*30] * (wp*cp)
-            wtheta=wp*thetap
 
             # momentum flux
             ustar=(np.nanmean(up*wp)**2+np.nanmean(vp*wp)**2)**(1/4)
 
-            # MOST Obukhov Length
-            L=-np.nanmean(ustar)**3*np.nanmean(ld_tvp[t*20*60*30:(t+1)*20*60*30])/(.4*9.81*np.nanmean(wtheta))
-
             # load data into output arrays, checking for at least 10% real
-            output['L_MOST'][(day-1)*n30m+t]=L
             if (np.sum(np.isnan(up*vp))<.9*20*60*30):
                 output['UV'][(day-1)*n30m+t]=np.nanmean(up*vp)
             if (np.sum(np.isnan(up*wp))<.9*20*60*30):
                 output['UW'][(day-1)*n30m+t]=np.nanmean(up*wp)
             if (np.sum(np.isnan(vp*wp))<.9*20*60*30):
                 output['VW'][(day-1)*n30m+t]=np.nanmean(vp*wp)
+            if (np.sum(np.isnan(up*up))<.9*20*60*30):
+                output['UU'][(day-1)*n30m+t]=np.nanmean(up*up)
+                output['Ustr'][(day-1)*n30m+t]=np.nanmean(rot_u)
+            if (np.sum(np.isnan(vp*vp))<.9*20*60*30):
+                output['VV'][(day-1)*n30m+t]=np.nanmean(vp*vp)
+                output['Vstr'][(day-1)*n30m+t]=np.nanmean(rot_v)
+            if (np.sum(np.isnan(wp*wp))<.9*20*60*30):
+                output['WW'][(day-1)*n30m+t]=np.nanmean(wp*wp)
+                output['Wstr'][(day-1)*n30m+t]=np.nanmean(rot_w)
+            if (np.sum(np.isnan(ustar))<.9*20*60*30):
+                output['USTAR'][(day-1)*n30m+t]=ustar
             gc.collect()
 
 

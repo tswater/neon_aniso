@@ -4,8 +4,10 @@
 #SBATCH --job-name="NEONdwnld"
 #SBATCH --output="dwnld.log"
 
-time python download_soil.py
-printf "\n\n\n #### DONE WITH SOIL #### \n\n\n"
+
+time python download_dp4ex.py
+#time python download_soil.py
+#printf "\n\n\n #### DONE WITH SOIL #### \n\n\n"
 #time python download_rad.py
 #printf "\n\n\n #### DONE WITH RAD #### \n\n\n"
 #time python download_precip.py

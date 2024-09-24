@@ -27,5 +27,6 @@ Thumbs.db
 *.p
 *.png
 *.csv
+*log.*
 *ipynb_checkpoints*
 *.ipynb
