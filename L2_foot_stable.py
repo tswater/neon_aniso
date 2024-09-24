@@ -144,6 +144,8 @@ export=False
 load_site=False
 load_footfile=False
 load_foot=False
+error=False
+noload=False
 buffer=0
 
 sitelist=[]
@@ -249,22 +251,31 @@ for s_ in sitelist[rank::size]:
             idx_sn,idx_we=np.indices([301,301])
             idx_sn=150-idx_sn
             idx_we=idx_we-150
-            dsmf,dtmf,chmf,aspf,slpf=get_masked_data(foot,dx,dtm,dsm,asp,slp)
-
+            try:
+                dsmf,dtmf,chmf,aspf,slpf=get_masked_data(foot,dx,dtm,dsm,asp,slp)
+                error=False
+            except Exception as e:
+                print(e)
+                error=True
 
         # reset all loads
         load_foot=False
         load_site=False
         load_footfile=False
-        noload=False
+        #noload=False
 
-        if noload:
+        if error:
+            noload=False
+            error=False
+            for var in ovars.keys():
+                ovars[var].append(float('nan'))
+        elif noload:
+            noload=False
             for var in ovars.keys():
                 try:
                     ovars[var].append(ovars[var][-1])
                 except:
                     ovars[var].append(float('nan'))
-
         else:
             ovars['center_we'].append(np.mean(idx_we[foot.astype(bool)]))
             ovars['center_sn'].append(np.mean(idx_sn[foot.astype(bool)]))
@@ -286,4 +297,4 @@ for s_ in sitelist[rank::size]:
             ovars['nlcd_dom'].append(stats.mode(nlcds,axis=None)[0])
             ovars['nlcd_2'].append(stats.mode(nlcds[nlcds!=ovars['nlcd_dom'][-1]],axis=None)[0])
             ovars['nlcd_3'].append(stats.mode(nlcds[(nlcds!=ovars['nlcd_dom'][-1])&(nlcds!=ovars['nlcd_2'][-1])],axis=None)[0])
-
+            noload=False
