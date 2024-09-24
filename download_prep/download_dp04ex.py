@@ -1,0 +1,107 @@
+import subprocess
+import os
+from mpi4py import MPI
+import datetime
+
+# Download extended NEON turb files; needed for windshed
+
+# MPI4PY Stuff
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank()
+size = comm.Get_size()
+
+dwnld_dir='/home/tsw35/soteria/data/NEON/'
+
+text_dir='/home/tsw35/soteria/neon_aniso/download_prep/textfiles4ex'
+#text_dir='/home/tswater/projects/neon_aniso/download_prep/textfiles4ex'
+
+sites = {'YELL':'D12','TREE':'D05','STEI':'D05','WREF':'D16',
+         'ABBY':'D16','SCBI':'D02','MLBS':'D07','BLAN':'D02',
+         'ONAQ':'D15','MOAB':'D13','CLBJ':'D11','ORNL':'D07',
+         'GRSM':'D07','LAJA':'D04','GUAN':'D04','OAES':'D11',
+         'WOOD':'D09','NOGP':'D09','DCFS':'D09','JORN':'D14',
+         'BART':'D01','UNDE':'D05','HARV':'D01','SERC':'D02',
+         'UKFS':'D06','KONZ':'D06','KONA':'D06','PUUM':'D20',
+         'JERC':'D03','OSBS':'D03','DSNY':'D03','STER':'D10',
+         'RMNP':'D10','NIWO':'D13','CPER':'D10','TEAK':'D17',
+         'SOAP':'D17','SJER':'D17','SRER':'D14','TOOL':'D18',
+         'HEAL':'D19','DEJU':'D19','BONA':'D19','BARR':'D18',
+         'TALL':'D08','LENO':'D08','DELA':'D08'}
+
+
+start_date =datetime.date(2017,1,1)
+#start_date =datetime.date(2023,6,1)
+#end_date   =datetime.date(2023,7,1)
+end_date   =datetime.date(2024,1,1)
+
+dt = (end_date-start_date).days
+
+sitelist0=list(sites.keys())
+sitelist0.sort()
+
+<<<<<<< HEAD
+nosites=['ABBY',  'BARR' , 'BART',  'BLAN',  'BONA',  'CLBJ',  'CPER',  'DCFS',  'DEJU']
+sitelist=[]
+for site in sitelist0:
+    if site in nosites:
+=======
+#sitelist=['NOGP','ORNL','OAES','OSBS','RMNP','SCBI','PUUM']
+
+for site in sitelist[rank::size]:
+    try:
+        subprocess.run('mkdir '+dwnld_dir+'dp04ex2/'+site,shell=True)
+    except:
+>>>>>>> 5e176fbc12e130ad00cd3432590ded92a7a22a83
+        pass
+    else:
+        sitelist.append(site)
+
+#sitelist=['NOGP','ORNL','OAES','OSBS','RMNP','SCBI','PUUM']
+
+if False:
+    for site in sitelist[rank::size]:
+        try:
+            subprocess.run('mkdir '+dwnld_dir+'dp4ex2/'+site,shell=True)
+        except:
+            pass
+        fp = open(text_dir+'/'+site+'.txt','w')
+        om=0
+        for i in range(dt):
+            m_date=start_date+datetime.timedelta(days=i)
+            if m_date.month==om:
+                continue
+            else:
+                om=m_date.month
+            wstr="https://data.neonscience.org/api/v0/data/package/DP4.00200.001/"
+            mstr=str(m_date.month)
+            if(m_date.month<10):
+                mstr='0'+mstr
+                dstr=str(m_date.day)
+            if(m_date.day<10):
+                dstr='0'+dstr
+            datestr = str(m_date.year)+'-'+mstr
+            outname = site+'-'+datestr+'.zip'
+            wstr=wstr+site+'/'+datestr+'?package=extended'
+            fp.write(wstr+'\n')
+        print(site+' complete',flush=True)
+        fp.close()
+
+#### NOW ACTUALLY DOWNLOAD ####
+for site in sitelist[rank::size]:
+<<<<<<< HEAD
+    try:
+        subprocess.run('mkdir '+dwnld_dir+'dp4ex2/'+site,shell=True)
+    except:
+        pass
+
+    os.chdir(dwnld_dir+'dp4ex2/'+site)
+=======
+    os.chdir(dwnld_dir+'dp04ex2/'+site)
+>>>>>>> 5e176fbc12e130ad00cd3432590ded92a7a22a83
+    cmd = 'wget -i '+text_dir+'/'+site+'.txt'
+    print(cmd)
+    subprocess.run(cmd,shell=True)
+
+
+
+
