@@ -197,7 +197,7 @@ for s_ in sitelist[rank::size]:
         # export then load new site
         if load_site:
             # export if needed
-            if len(ovars['nlcd_dom'][:])>0:
+            if len(ovars['nlcd_dom'][:])>1:
                 print('Exporting '+str(site)[2:-1],flush=True)
                 fpout_s=h5py.File(odir+str(site)[2:-1]+'_S.h5','w')
                 for var in ovars.keys():

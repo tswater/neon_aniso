@@ -9,7 +9,6 @@ import netCDF4 as nc
 import numpy as np
 import h5py
 import datetime
-import ephem
 import rasterio
 import csv
 import subprocess
@@ -27,24 +26,19 @@ if is1m:
 else:
     dt_=30
     ds_='30m'
-base_dir='/home/tsw35/tyche/neon_'+str(dt_)+'m/'
+base_dir='/home/tswater/Documents/Elements_Temp/NEON/neon_'+str(dt_)+'m/'
 
 
 # ------------------------- #
 # USER INPUTS AND CONSTANTS #
 # ------------------------- #
-neon_dir = '/home/tsw35/soteria/data/NEON/aniso_1m/'
+neon_dir = '/home/tswater/tyche/data/neon/fixed_aniso/'
 
-outvar = {'UW':[],'UV':[],'VW':[],'UU':[],'VV':[],'WW':[],'ANI_XB':[],'ANI_YB':[],'L_MOST':[],'Ustr':[],'Vstr':[],'Wstr':[]}
-if is1m:
-    outvar['H']=[]
-    outvar['LE']=[]
-    outvar['CO2FX']=[]
-    outvar['USTAR']=[]
+outvar = {'UW':[],'UV':[],'VW':[],'UU':[],'VV':[],'WW':[],'ANI_XB':[],'ANI_YB':[],'Ustr':[],'Vstr':[],'Wstr':[],'USTAR2':[]}
 
 units={}
 
-desc = {}
+desc = {'USTAR2':'ustar from fixed anisotropy'}
 
 
 ######### ANISOTROPY ###############
@@ -80,6 +74,7 @@ def aniso(uu,vv,ww,uv,uw,vw):
 # MAIN CODE LOOP #
 # -------------- #
 sites=os.listdir(neon_dir)
+sites.sort()
 #sites=['ABBY']
 for site in sites[rank::size]:
     if len(site)>4:
@@ -138,12 +133,6 @@ for site in sites[rank::size]:
             xb[t]=lams[0]-lams[1]+.5*(3*lams[2]+1)
             yb[t]=np.sqrt(3)/2*(3*lams[2]+1)
 
-        ovar['L_MOST'][a:a+N]=fp_in['L_MOST'+add][0:N]
-        if is1m:
-            ovar['H'][a:a+N]=fp_in['H'+add][0:N]
-            ovar['LE'][a:a+N]=fp_in['LE'+add][0:N]
-            ovar['CO2FX'][a:a+N]=fp_in['CO2FX'+add][0:N]
-            ovar['USTAR'][a:a+N]=fp_in['USTAR'+add][0:N]
         ovar['ANI_XB'][a:a+N]=xb[0:N]
         ovar['ANI_YB'][a:a+N]=yb[0:N]
         ovar['Ustr'][a:a+N]=fp_in['Ustr'+add][0:N]
@@ -164,7 +153,7 @@ for site in sites[rank::size]:
         except:
             fp_out[key][:]=np.array(ovar[key][:])
         fp_out[key].attrs['missing_value']=-9999
-        fp_out[key].attrs['source']='NEON_dp04'
+        fp_out[key].attrs['source']='NEON_fixed_aniso'
         if key in units.keys():
             fp_out[key].attrs['units']=units[key]
         if key in desc.keys():

@@ -84,8 +84,8 @@ def add_species(d_,sp,phi,zL,ani,phi_new,phi_old,fpsite,stb=False):
 
 
 def get_phi(fp,var):
-    zL_=(fp['tow_height'][:]-fp['zd'][:])/fp['L_MOST'][:]
-    ani=fp['ANI_YB'][:]
+    zL_=(fp['zzd'][:])/fp['L_MOST'][:]
+    ani=np.sqrt(fp['WW'][:])/fp['Ustr'][:]#fp['ANI_YB'][:]
     if 'U' in var:
         phi=np.sqrt(fp['UU'][:])/fp['USTAR'][:]
     elif 'V' in var:
@@ -228,12 +228,41 @@ prms={'Uu':{'a':[4.3761815131090005,-11.761147930663759,11.094653118471262]},
 'H2Os':{'a':[3.5838553759472704,-25.592585974821585,63.95066854368746,-39.75572561544258],'b':[0.42382342649041355,24.70142140535896,-68.94899093260442,41.594606950484305]},
 'CO2s':{'a':[0.8845657789177256,-0.5835075212388595,2.237996599356271],'b':[3.1701608838942703,-4.123288804470784]}}
 
+# tsw_v4
+prms={'Uu':{'a':[4.123621495800058,-9.019103428856788,7.031233766838203]},
+'Vu':{'a':[4.287424385993223,-11.432206917682109,10.714434337994307]},
+'Wu':{'a':[0.8322246683633081,2.2982094340935624,-5.9245962466602675,4.359932190370337]},
+'Us':{'a':[2.48999325402708,-2.9309894919097794,3.9665235021601855],'b':[-0.014091947587046363,0.4413024489123778,-0.4734026436270551]},
+'Vs':{'a':[1.3330870632847518,0.5841790794590472,1.3070551206541443],'b':[0.22831158178720407,-0.48384488258397285,0.48954414345477587,-0.14416529116966556]},
+'Ws':{'a':[0.8568248498732863,0.3850311195961679,2.398970306113473],'b':[0.08589790229105511,0.09024112195753205,-0.3132154689043823,0.24661181960543574]}}
+
+# tsw_w
+prms={'Uu':{'a':[3.3615175860280218,-6.925700629790642,6.232958203549107]},
+'Vu':{'a':[3.0557922880978188,-6.920145232464449,7.278468425023672]},
+'Wu':{'a':[0.9787894467148208,1.4560953767123934,-5.146119437286295,4.576692940662369]},
+'Us':{'a':[2.313825066597639,-2.5689807078493745,1.9183079661659839],'b':[0.005799653441426352,0.5373072278844293,-0.6884263128616442]},
+'Vs':{'a':[1.828731530567526,-1.1835102171131944,0.9066699531926097],'b':[0.0880768048774914,0.6628429400053683,-2.386858617199514,2.163448436590539]},
+'Ws':{'a':[1.1701429855606926,0.596408748744598,-0.6677632827805118],'b':[0.13975461258799823,0.5982347407850199,-2.367596062889779,2.3076983900316668]}}
+
+# tsw_w (but log)
+prms={'Uu':{'a':[1.0610229608801973,-1.2757524443591375,0.49143888423560594]},
+'Vu':{'a':[1.279919385369563,-1.053292182683859,-1.7795853192407012,-2.167444842040447]},
+'Wu':{'a':[0.9930741960252398,0.21810289143827763,1.1612334093298597,0.8863814525535234]},
+'Us':{'a':[1.1535322771722971,-1.2713070345001816,-0.3427488963602023],'b':[0.07216762468514018,-0.14404086512357264,-0.17237626708802795]},
+'Vs':{'a':[1.2980322066263459,-0.5857409086926993,-0.16275214215115155],'b':[0.06842778845656437,-0.06686439770911787,0.20237632829121496,0.21044999635345177]},
+'Ws':{'a':[1.1701429855606926,0.596408748744598,-0.6677632827805118],'b':[0.13975461258799823,0.5982347407850199,-2.367596062889779,2.3076983900316668]}}
+
 letters=['a','b','c','d']
 
-def get_params(v,ani):
+
+def get_params(v,ani_in):
     outlist=[]
     Np=len(prms[v].keys())
     for i in range(Np):
+        if lg[v][i]:
+            ani=np.log10(ani_in)
+        else:
+            ani=ani_in
         out=0
         for j in range(len(prms[v][letters[i]])):
             out=out+prms[v][letters[i]][j]*ani**j
@@ -274,8 +303,12 @@ def binplot1d(xx,yy,ani,stb,xbins=-zLbins,anibins=anibins):
 # aniso_stb -> sites   -> [yb,xb] -> [full,hi,lo] -> [lc,median,pct90,pct10,std]
 # aniso_ust -> sites   -> [yb,xb] -> [full,hi,lo] -> [lc,median,pct90,pct10,std]
 
-fxns_={'Uu':U_ust,'Vu':U_ust,'Wu':W_ust,'Tu':T_ust,'H2Ou':C_ust,'CO2u':C_ust,\
-       'Us':U_stb,'Vs':U_stb,'Ws':W_stb,'Ts':T_stb,'H2Os':C_stb,'CO2s':C_stb2}
+#fxns_={'Uu':U_ust,'Vu':U_ust,'Wu':W_ust,'Tu':T_ust,'H2Ou':C_ust,'CO2u':C_ust,\
+#       'Us':U_stb,'Vs':U_stb,'Ws':W_stb,'Ts':T_stb,'H2Os':C_stb,'CO2s':C_stb2}
+
+fxns_={'Uu':U_ust,'Vu':U_ust,'Wu':W_ust,\
+       'Us':U_stb,'Vs':U_stb,'Ws':W_stb}
+
 
 d_unst={}
 d_stbl={}
@@ -283,7 +316,7 @@ d_stbl={}
 for var in fxns_.keys():
     print(var,flush=True)
     # Identify the filename to load in the data
-    fname='/home/tswater/Documents/Elements_Temp/NEON/neon_processed/L2_qaqc_data/NEON_TW_'
+    fname='/home/tswater/Documents/Elements_Temp/NEON/neon_processed/L2_qaqc_data_v2/NEON_TW_'
     if 'u' in var:
         d_=d_unst
         fname=fname+'U_'
@@ -335,8 +368,8 @@ for var in fxns_.keys():
     d_[var[0:-1]]=add_species(d_,var[0:-1],phi_,zL_,ani_,phi_new,old(var,zL_),fpsite,stb)
 
 
-pickle.dump(d_unst,open('/home/tswater/Documents/Elements_Temp/NEON/neon_processed/L3_plotting_data/d_unst_tw_v3.p','wb'))
-pickle.dump(d_stbl,open('/home/tswater/Documents/Elements_Temp/NEON/neon_processed/L3_plotting_data/d_stbl_tw_v3.p','wb'))
+pickle.dump(d_unst,open('/home/tswater/Documents/Elements_Temp/NEON/neon_processed/L3_plotting_data/d_unst_tw_w.p','wb'))
+pickle.dump(d_stbl,open('/home/tswater/Documents/Elements_Temp/NEON/neon_processed/L3_plotting_data/d_stbl_tw_w.p','wb'))
 
 #pickle.dump(d_unst,open('/home/tsw35/soteria/neon_advanced/data/d_unst_tw_v2.p','wb'))
 #pickle.dump(d_stbl,open('/home/tsw35/soteria/neon_advanced/data/d_stbl_tw_v2.p','wb'))

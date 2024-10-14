@@ -351,8 +351,8 @@ bytes('ABBY','utf-8')
 # # Test MAD vs site characteristics
 
 # %%
-d_u=pickle.load(open('/home/tswater/Documents/Elements_Temp/NEON/neon_processed/L3_plotting_data/d_unst_v3.p','rb'))
-d_s=pickle.load(open('/home/tswater/Documents/Elements_Temp/NEON/neon_processed/L3_plotting_data/d_stbl_v3.p','rb'))
+d_u=pickle.load(open('/home/tswater/Documents/Elements_Temp/NEON/neon_processed/L3_plotting_data/d_unst_v4.p','rb'))
+d_s=pickle.load(open('/home/tswater/Documents/Elements_Temp/NEON/neon_processed/L3_plotting_data/d_stbl_v4.p','rb'))
 fpst=h5py.File('/home/tswater/tyche/data/neon/static_data.h5','r')
 
 # %%
@@ -629,23 +629,26 @@ def binplot1d(xx,yy,ani,stb,xbins=-zLbins,anibins=anibins):
 #binplot1d(zzd/lmost,sigu/ustar,ani,-(np.logspace(-4,2,21)[-1:0:-1]),np.linspace(vmn_a,vmx_a,11),mincnt=50)
 
 # %%
-fps=h5py.File('/home/tswater/Documents/Elements_Temp/NEON/neon_processed/L2_qaqc_data/NEON_TW_S_UVWT.h5','r')
-fpu=h5py.File('/home/tswater/Documents/Elements_Temp/NEON/neon_processed/L2_qaqc_data/NEON_TW_U_UVWT.h5','r')
+fps=h5py.File('/home/tswater/Documents/Elements_Temp/NEON/neon_processed/L2_qaqc_data_v2/NEON_TW_S_UVWT.h5','r')
+#fpu=h5py.File('/home/tswater/Documents/Elements_Temp/NEON/neon_processed/L2_qaqc_data_v2/NEON_TW_U_UVWT.h5','r')
+fpu=h5py.File('/home/tswater/Documents/Elements_Temp/NEON/neon_processed/L2_qaqc_data_v2/NEON_TW_U_UVWT.h5','r')
 
 # %%
-fpu.keys
+
+# %%
+np.nanmean(fpu_old['UU'][:])
 
 # %%
 minpct=1e-4
-phi=np.sqrt(fpu['VV'][:])/fpu['USTAR'][:]
-zL=(fpu['tow_height'][:]-fpu['zd'][:])/fpu['L_MOST'][:]
+phi=np.sqrt(fpu['UU'][:])/fpu['USTAR'][:]
+zL=(fpu['zzd'][:])/fpu['L_MOST'][:]
 ani=fpu['ANI_YB'][:]
 xplt,yplt,aplt,cnt=binplot1d(zL,phi,ani,False)
 tot=np.sum(cnt)
 yplt[cnt/tot<minpct]=float('nan')
 
-phi=np.sqrt(fps['VV'][:])/fps['USTAR'][:]
-zL=(fps['tow_height'][:]-fps['zd'][:])/fps['L_MOST'][:]
+phi=np.sqrt(fps['UU'][:])/fps['USTAR'][:]
+zL=(fps['zzd'][:])/fps['L_MOST'][:]
 ani=fps['ANI_YB'][:]
 
 minpct=1e-4
@@ -724,27 +727,27 @@ def plotit(xplt,yplt,aplt,xplts,yplts,aplts,old,olds,ylim=[1.5,6]):
 
 
 # %%
-plotit(xplt,yplt,aplt,xplts,yplts,aplts,w_u_old,w_s_old,ylim=[.9,3.5])
+plotit(xplt,yplt,aplt,xplts,yplts,aplts,t_u_old,t_s_old,ylim=[.5,10])
 #plt.gca().invert_xaxis()
 #plt.legend(aplt)
 
 # %%
 minpct=1e-4
-phi=np.sqrt(fpu['VV'][:])/fpu['USTAR'][:]
-zL=(fpu['tow_height'][:]-fpu['zd'][:])/fpu['L_MOST'][:]
+phi=np.sqrt(fpu['UU'][:])/fpu['USTAR'][:]
+zL=(fpu['zzd'][:])/fpu['L_MOST'][:]
 ani=fpu['ANI_YB'][:]
 xb=fpu['ANI_XB'][:]
-m=xb>.7
+m=(xb<.3)&(fpu['NETRAD'][:]>75)&(fpu['NETRAD'][:]>-1000)
 
 xplt,yplt,aplt,cnt=binplot1d(zL[m],phi[m],ani[m],False)
 tot=np.sum(cnt)
 yplt[cnt/tot<minpct]=float('nan')
 
-phi=np.sqrt(fps['VV'][:])/fps['USTAR'][:]
-zL=(fps['tow_height'][:]-fps['zd'][:])/fps['L_MOST'][:]
+phi=np.sqrt(fps['UU'][:])/fps['USTAR'][:]
+zL=(fps['zzd'][:])/fps['L_MOST'][:]
 ani=fps['ANI_YB'][:]
 xb=fps['ANI_XB'][:]
-m=xb>.7
+m=(xb<.3)&(fps['NETRAD'][:]>75)&(fps['NETRAD'][:]>-1000)
 
 minpct=1e-4
 xplts,yplts,aplts,cnts=binplot1d(zL[m],phi[m],ani[m],True)
@@ -752,7 +755,7 @@ tot=np.sum(cnts)
 yplts[cnts/tot<minpct]=float('nan')
 
 # %%
-plotit(xplt,yplt,aplt,xplts,yplts,aplts,v_u_old,v_s_old)
+plotit(xplt,yplt,aplt,xplts,yplts,aplts,u_u_old,u_s_old)
 
 # %%
 minpct=1e-4
@@ -835,7 +838,7 @@ plotit(xplt,yplt,aplt,xplts,yplts,aplts,v_u_old,v_s_old)
 # %%
 minpct=1e-4
 phi=np.sqrt(fpu['VV'][:])/fpu['USTAR'][:]
-zL=(fpu['tow_height'][:]-fpu['zd'][:])/fpu['L_MOST'][:]
+zL=(fpu['zzd'][:])/fpu['L_MOST'][:]
 ani=fpu['ANI_YB'][:]
 xb=fpu['ANI_XB'][:]
 m=(xb>0)&(xb<.3)
@@ -845,7 +848,7 @@ tot=np.sum(cnt)
 yplt[cnt/tot<minpct]=float('nan')
 
 phi=np.sqrt(fps['VV'][:])/fps['USTAR'][:]
-zL=(fps['tow_height'][:]-fps['zd'][:])/fps['L_MOST'][:]
+zL=(fps['zzd'][:])/fps['L_MOST'][:]
 ani=fps['ANI_YB'][:]
 xb=fps['ANI_XB'][:]
 m=(xb>0)&(xb<.3)
@@ -856,7 +859,7 @@ tot=np.sum(cnts)
 yplts[cnts/tot<minpct]=float('nan')
 
 # %%
-plotit(xplt,yplt,aplt,xplts,yplts,aplts,v_u_old,v_s_old)
+plotit(xplt,yplt,aplt,xplts,yplts,aplts,u_u_old,u_s_old)
 
 # %%
 anibins=np.linspace(vmn_a,vmx_a,7)
@@ -950,21 +953,26 @@ import matplotlib.pyplot as pl
 plt.hist(mads)
 
 # %%
-np.max(mads)
+import matplotlib as pl
+d_u=pickle.load(open('/home/tswater/Documents/Elements_Temp/NEON/neon_processed/L3_plotting_data/d_unst_v4.p','rb'))
+d_s=pickle.load(open('/home/tswater/Documents/Elements_Temp/NEON/neon_processed/L3_plotting_data/d_stbl_v4.p','rb'))
+
 
 # %%
 mads=[]
+fpsites=fps['SITE'][:]
 for site in np.unique(fpsites):
     mads.append(d_s['U']['MAD_OLD_s'][str(site)[2:-1]])
 mads=np.array(mads)
 #mad_norm=(mads-.45)/(1.4-.45) UNSTABLE
-mad_norm=(mads-.35)/(.6-.35)
+mad_norm=(mads-.25)/(.52-.3)
 cc=pl.cm.coolwarm(mad_norm)
-sm = plt.cm.ScalarMappable(cmap=pl.cm.coolwarm, norm=plt.Normalize(vmin=.35, vmax=.6))
+sm = plt.cm.ScalarMappable(cmap=pl.cm.coolwarm, norm=plt.Normalize(vmin=.25, vmax=.52))
 i=0
 fig,ax=plt.subplots(1,1,figsize=(4,3),dpi=200)
+fpsites=fps['SITE'][:]
 for site in np.unique(fpsites):
-    m=fpsites2==site
+    m=fpsites==site
     y,binEdges=np.histogram(fps['ANI_XB'][m],bins=np.linspace(0,1),density=True)
     bincenters=.5*(binEdges[1:]+binEdges[:-1])
     ax.plot(bincenters,y,c=cc[i],linewidth=2,alpha=.75)
@@ -978,22 +986,22 @@ fig.colorbar(sm,cax=ax.inset_axes([0.95, 0.1, 0.05, 0.8]),label='$MAD$')
 fig.savefig('trash.png',bbox_inches = "tight")
 
 # %%
-np.max(mads)
 
 # %%
 mads=[]
 for site in np.unique(fpsites):
-    mads.append(d_u['T']['MAD_OLD_s'][str(site)[2:-1]])
+    mads.append(d_u['U']['MAD_OLD_s'][str(site)[2:-1]])
 mads=np.array(mads)
-#mad_norm=(mads-.45)/(1.4-.45) UNSTABLE
-mad_norm=(mads-.35)/(.6-.35)
+fpsites=fpu['SITE'][:]
+mad_norm=(mads-.3)/(1-.3) #UNSTABLE
+#mad_norm=(mads-.35)/(.6-.35)
 cc=pl.cm.coolwarm(mad_norm)
-sm = plt.cm.ScalarMappable(cmap=pl.cm.coolwarm, norm=plt.Normalize(vmin=.2, vmax=1.3))
+sm = plt.cm.ScalarMappable(cmap=pl.cm.coolwarm, norm=plt.Normalize(vmin=.3, vmax=1))
 i=0
 fig,ax=plt.subplots(1,1,figsize=(4,3),dpi=200)
 for site in np.unique(fpsites):
     m=fpsites==site
-    y,binEdges=np.histogram(fpu['ANI_XB'][m],bins=np.linspace(0,1),density=True)
+    y,binEdges=np.histogram(fpu['ANI_XB'][m],bins=np.linspace(0,1,30),density=True)
     bincenters=.5*(binEdges[1:]+binEdges[:-1])
     ax.plot(bincenters,y,c=cc[i],linewidth=2,alpha=.75)
     i=i+1
@@ -1218,7 +1226,7 @@ bounds={'Uu':([0],[10]),\
 # %%
 ybine,xbine=getbins2D(fpu['ANI_YB'][:],fpu['ANI_XB'][:],31)
 phi_=np.sqrt(fpu['UU'][:])/fpu['USTAR'][:]
-zL_=(fpu['tow_height'][:]-fpu['zd'][:])/fpu['L_MOST'][:]
+zL_=(fpu['zzd'][:])/fpu['L_MOST'][:]
 xb_=fpu['ANI_XB'][:]
 yb_=fpu['ANI_YB'][:]
 
@@ -1329,7 +1337,7 @@ plt.ylabel('a')
 # %%
 ybine,xbine=getbins2D(fps['ANI_YB'][:],fps['ANI_XB'][:],31)
 phi_=np.sqrt(fps['UU'][:])/fps['USTAR'][:]
-zL_=(fps['tow_height'][:]-fps['zd'][:])/fps['L_MOST'][:]
+zL_=(fps['zzd'][:])/fps['L_MOST'][:]
 xb_=fps['ANI_XB'][:]
 yb_=fps['ANI_YB'][:]
 
@@ -1416,10 +1424,10 @@ label_side3 = 'Two-component'
 #axs.text((xc[0]+xc[2])/2, (yc[1]+yc[2])/2+0.08*lc, label_side2, ha='center', va='center', rotation=65)
 #axs.text((xc[0]+xc[1])/2, (yc[0]+yc[1])/2-0.04*lc, label_side3, ha='center', va='center')
 im=axs.pcolormesh(xbtrue[0:,:],ybtrue[0:,:],A[0:,:],cmap='terrain',shading='gouraud')
-CS = plt.contour(xbtrue[0:,:],ybtrue[0:,:],A[0:,:], 8, colors='w',linewidths=4)
-CS = plt.contour(xbtrue[0:,:],ybtrue[0:,:],A[0:,:], 8, colors='k',linewidths=2)
+#CS = plt.contour(xbtrue[0:,:],ybtrue[0:,:],A[0:,:], 8, colors='w',linewidths=4)
+#CS = plt.contour(xbtrue[0:,:],ybtrue[0:,:],A[0:,:], 8, colors='k',linewidths=2)
 divider = make_axes_locatable(axs)
-axs.scatter(xp,yp,color='k')
+#axs.scatter(xp,yp,color='k')
 cax = divider.append_axes('right', size='5%', pad=0.05)
 fig.colorbar(im, cax=cax, orientation='vertical')
 
@@ -1475,9 +1483,9 @@ label_side3 = 'Two-component'
 xp=[.3,.4,.4,.6,.6,.5,.8]
 yp=[.2,.4,.2,.4,.2,.5,.18]
 im=axs.pcolormesh(xbtrue[0:,:],ybtrue[0:,:],C[0:,:],cmap='terrain',shading='gouraud')
-CS = plt.contour(xbtrue[0:,:],ybtrue[0:,:],C[0:,:], levels, colors='w',linewidths=4)
-CS = plt.contour(xbtrue[0:,:],ybtrue[0:,:],C[0:,:], leve, colors='k',linewidths=2)
-axs.scatter(xp,yp,color='k')
+#CS = plt.contour(xbtrue[0:,:],ybtrue[0:,:],C[0:,:], levels, colors='w',linewidths=4)
+#CS = plt.contour(xbtrue[0:,:],ybtrue[0:,:],C[0:,:], leve, colors='k',linewidths=2)
+#axs.scatter(xp,yp,color='k')
 divider = make_axes_locatable(axs)
 cax = divider.append_axes('right', size='5%', pad=0.05)
 fig.colorbar(im, cax=cax, orientation='vertical')
@@ -1504,20 +1512,21 @@ plt.semilogx(zLs,U_stb(zLs,1.6,.15),'--')
 # # Error by XB
 
 # %%
-d_u=pickle.load(open('/home/tswater/Documents/Elements_Temp/NEON/neon_processed/L3_plotting_data/d_unst_xbbins.p','rb'))
-d_s=pickle.load(open('/home/tswater/Documents/Elements_Temp/NEON/neon_processed/L3_plotting_data/d_stbl_xbbins.p','rb'))
+d_u2=pickle.load(open('/home/tswater/Documents/Elements_Temp/NEON/neon_processed/L3_plotting_data/d_unst_xbbins_v2.p','rb'))
+d_s2=pickle.load(open('/home/tswater/Documents/Elements_Temp/NEON/neon_processed/L3_plotting_data/d_stbl_xbbins_v2.p','rb'))
 
 # %%
 xbins=(np.array(d_s['U']['xbins'][1:])+np.array(d_s['U']['xbins'][:-1]))/2
 plt.scatter(xbins,d_s['U']['MAD_OLD'][:])
 
 # %%
-d_=d_u
-v='U'
+d_=d_u2
+plt.figure(figsize=(4,2),dpi=200)
+v='W'
 typ='MAD_SC23_s'
-for site in d_u['U'][typ].keys():
+for site in d_u[v][typ].keys():
     xbins=(np.array(d_[v]['xbins_s'][site][1:])+np.array(d_[v]['xbins_s'][site][:-1]))/2
-    plt.plot(xbins,d_[v][typ][site][:],marker='o',markerfacecolor='none',linewidth=.5)
+    plt.plot(xbins,d_[v][typ][site][:],marker='o',markerfacecolor='none',linewidth=.5,markersize=5,alpha=.8)
 plt.xlabel(r'$x_b$')
 plt.ylabel(r'$MAD$')
 

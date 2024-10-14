@@ -78,7 +78,7 @@ def C_ust(zL,a):
     return a*(1-25*zL)**(-1/3)
     #return a*(1+b*zL)**(c)
     #return (-zL)**a
-    
+
 
 #########################################
 # vars/stabs
@@ -91,7 +91,7 @@ def C_ust(zL,a):
 
 
 def get_phi(fp,var):
-    zL_=(fp['tow_height'][:]-fp['zd'][:])/fp['L_MOST'][:]
+    zL_=(fp['zzd'][:])/fp['L_MOST'][:]
     ani=fp['ANI_YB'][:]
     if 'U' in var:
         phi=np.sqrt(fp['UU'][:])/fp['USTAR'][:]
@@ -120,7 +120,7 @@ def get_phi(fp,var):
     return phi, ani, zL_
 
 
-def binit(ani,binsize=float('nan'),n=100):
+def binit(ani,binsize=float('nan'),n=100,vmn_a=vmn_a,vmx_a=vmx_a):
     mmm=(ani>=vmn_a)&(ani<=vmx_a)
     N=np.sum(mmm)
     if np.isnan(binsize):
@@ -131,8 +131,8 @@ def binit(ani,binsize=float('nan'),n=100):
     for i in range(n+1):
         anibins[i]=np.nanpercentile(ani[mmm],i/n*100)
     return anibins,mmm
-    
-        
+
+
 
 
 
@@ -162,22 +162,22 @@ bounds={'Uu':([0],[10]),\
         'CO2s':([0,-.1,-.1,-.1],[1,0,.1,.1])}
 
 sites=[]
-for file in os.listdir('/home/tsw35/tyche/neon_1m/'):
+for file in os.listdir('/home/tswater/Documents/Elements_Temp/NEON/neon_1m/'):
     if 'L1' in file:
         sites.append(file[0:4])
 sites.sort()
 sites.append('ALL')
 
-fp=h5py.File('/home/tsw35/soteria/neon_advanced/qaqc_data/NEON_TW_U_UVWT.h5','r')
+fp=h5py.File('/home/tswater/Documents/Elements_Temp/NEON/neon_processed/L2_qaqc_data_v2/NEON_TW_U_UVWT.h5','r')
 
 varlist=list(fxns_.keys())
 #varlist=['Uu','Vu','Wu','Tu','H2Ou','CO2u','Us','Vs','Ws']
-varlist=['CO2u','H2Ou']
+varlist=['Uu','Vu','Wu','Us','Vs','Ws']
 
 for var in varlist:
     print(var)
     # Identify the filename to load in the data
-    fname='/home/tsw35/soteria/neon_advanced/qaqc_data/NEON_TW_'
+    fname='/home/tswater/Documents/Elements_Temp/NEON/neon_processed/L2_qaqc_data_v2/NEON_TW_'
     if 'u' in var:
         fname=fname+'U_'
         zLbins=-np.logspace(-4,2,40)[-1:0:-1]
@@ -191,11 +191,11 @@ for var in varlist:
     else:
         fname=fname+'CO2.h5'
     fp=h5py.File(fname,'r')
-    
+
     phi_,ani_,zL_ = get_phi(fp,var)
 
     anibins,m=binit(ani_)
-    
+
     # Initialize d_fit structure
     d_fit[var]={'param':[],'param_var':[],\
                 'SS':float('nan'),'SSlo':float('nan'),'SShi':float('nan'),\
@@ -221,4 +221,4 @@ for var in varlist:
     d_fit[var]['param']=params[:]
     d_fit[var]['param_var']=p_vars
 
-pickle.dump(d_fit,open('/home/tsw35/soteria/neon_advanced/data/d_fit_HCuv2.p','wb'))
+pickle.dump(d_fit,open('/home/tswater/Documents/Elements_Temp/NEON/neon_processed/L3_plotting_data/d_fit_v2.p','wb'))

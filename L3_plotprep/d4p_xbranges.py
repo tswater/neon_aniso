@@ -13,7 +13,7 @@ sites.sort()
 
 vmx_a=.7
 vmn_a=.1
-procdir='/home/tswater/Documents/Elements_Temp/NEON/neon_processed/L2_qaqc_data/'
+procdir='/home/tswater/Documents/Elements_Temp/NEON/neon_processed/L2_qaqc_data_v2/'
 
 anibins=np.linspace(vmn_a,vmx_a,11)
 zLbins=np.logspace(-4,2,40)[-1:0:-1]
@@ -169,7 +169,7 @@ fp=h5py.File(procdir+'NEON_TW_U_UVWT.h5','r')
 d_unst['U']={}
 
 phi=np.sqrt(fp['UU'][:])/fp['USTAR'][:]
-zL=(fp['tow_height'][:]-fp['zd'][:])/fp['L_MOST'][:]
+zL=(fp['zzd'][:])/fp['L_MOST'][:]
 ani=fp['ANI_YB'][:]
 xb=fp['ANI_XB'][:]
 fpsite=fp['SITE'][:]
@@ -207,95 +207,6 @@ phi_old=1.35*(1-3*zL)**(1/3)
 
 d_unst=add_species(d_unst,'W',phi,zL,ani,phi_stp,phi_old,m,fpsite,xb)
 
-#### T ####
-print('Done with W unstable')
-print('Processing T unstable',flush=True)
-d_unst['T']={}
-phi=np.abs(fp['T_SONIC_SIGMA'][:]/(fp['WTHETA'][:]/fp['USTAR'][:]))
-a=0.017+0.217*ani
-phi_stp=1.07*(0.05+np.abs(zL))**(-1/3)+\
-        (-1.14+a*(np.abs(zL)**(-9/10)))*(1-np.tanh(10*(np.abs(zL))**(2/3)))
-phi_old=.99*(.067-zL)**(-1/3)
-phi_old[zL>-0.05]=.015*(-zL[zL>-0.05])**(-1)+1.76
-
-d_unst=add_species(d_unst,'T',phi,zL,ani,phi_stp,phi_old,m,fpsite,xb)
-
-##### D_ANI_UST #####
-#def add_ani(d_,anix,aniy,zL,lc,fpsites):
-print('Done with T unstable')
-print('Processing Ani unstable',flush=True)
-
-d_ani_ust=add_ani(d_ani_ust,fp['ANI_XB'][:],fp['ANI_YB'][:],zL,fp['nlcd_dom'][:],fpsite)
-fp.close()
-
-print('Done with Ani unstable')
-print('Processing H2O unstable',flush=True)
-
-#### H2O ####
-fp=h5py.File(procdir+'NEON_TW_U_H2O.h5','r')
-
-d_unst['H2O']={}
-molh2o=18.02*10**(-3)
-moldry=28.97*10**(-3)
-kgdry_m3=fp['RHO'][:]/(fp['H2O'][:]/1000+1)
-rr = fp['H2O_SIGMA'][:]*molh2o/moldry
-lhv=2500827 - 2360*(fp['T_SONIC'][:]-273)
-phi=np.abs(rr/(fp['LE'][:]/lhv/fp['USTAR'][:]))*kgdry_m3/10**3
-
-zL=(fp['tow_height'][:]-fp['zd'][:])/fp['L_MOST'][:]
-ani=fp['ANI_YB'][:]
-xb=fp['ANI_XB'][:]
-fpsite=fp['SITE'][:]
-
-m=np.zeros((len(ani),))
-m[0:100000]=1
-np.random.shuffle(m)
-m=m.astype(bool)
-
-a=0.017+0.217*ani
-phi_stp=1.07*(0.05+np.abs(zL))**(-1/3)+\
-        (-1.14+a*(np.abs(zL)**(-9/10)))*(1-np.tanh(10*(np.abs(zL))**(2/3)))
-a=0.017+0.217*ani
-phi_old=.99*(.067-zL)**(-1/3)
-phi_old[zL>-0.05]=.15*(-zL[zL>-0.05])**(-1)+1.76
-
-d_unst=add_species(d_unst,'H2O',phi,zL,ani,phi_stp,phi_old,m,fpsite,xb)
-fp.close()
-print('Done with H2O unstable')
-print('Processing CO2 unstable',flush=True)
-
-
-#### CO2 ####
-fp=h5py.File(procdir+'NEON_TW_U_CO2.h5','r')
-
-d_unst['CO2']={}
-molh2o=18.02*10**(-3)
-moldry=28.97*10**(-3)
-co2 = fp['CO2_SIGMA'][:]
-
-kgdry_m3=fp['RHO'][:]/(fp['H2O'][:]/1000+1)
-moldry_m3=kgdry_m3/moldry
-phi=np.abs(co2/(fp['CO2FX'][:]/fp['USTAR'][:]))*moldry_m3
-zL=(fp['tow_height'][:]-fp['zd'][:])/fp['L_MOST'][:]
-ani=fp['ANI_YB'][:]
-xb=fp['ANI_XB'][:]
-fpsite=fp['SITE'][:]
-
-m=np.zeros((len(ani),))
-m[0:100000]=1
-np.random.shuffle(m)
-m=m.astype(bool)
-
-a=0.017+0.217*ani
-phi_stp=1.07*(0.05+np.abs(zL))**(-1/3)+\
-        (-1.14+a*(np.abs(zL)**(-9/10)))*(1-np.tanh(10*(np.abs(zL))**(2/3)))
-a=0.017+0.217*ani
-phi_old=.99*(.067-zL)**(-1/3)
-phi_old[zL>-0.05]=.15*(-zL[zL>-0.05])**(-1)+1.76
-
-d_unst=add_species(d_unst,'CO2',phi,zL,ani,phi_stp,phi_old,m,fpsite,xb)
-fp.close()
-
 ###############################################
 #### D_STBL #####
 ###############################################
@@ -308,7 +219,7 @@ fp=h5py.File(procdir+'NEON_TW_S_UVWT.h5','r')
 d_stbl['U']={}
 
 phi=np.sqrt(fp['UU'][:])/fp['USTAR'][:]
-zL=(fp['tow_height'][:]-fp['zd'][:])/fp['L_MOST'][:]
+zL=(fp['zzd'][:])/fp['L_MOST'][:]
 ani=fp['ANI_YB'][:]
 xb=fp['ANI_XB'][:]
 fpsite=fp['SITE'][:]
@@ -371,133 +282,13 @@ phi_old=1.6*np.ones((len(phi_stp),))
 
 d_stbl=add_species(d_stbl,'W',phi,zL,ani,phi_stp,phi_old,m,fpsite,xb,stb=True)
 
-#### T ####
-print('Done with W stable')
-print('Processing T stable',flush=True)
-d_stbl['T']={}
-phi=np.abs(fp['T_SONIC_SIGMA'][:]/(fp['WTHETA'][:]/fp['USTAR'][:]))
-
-
-a_=[.607,-.754]
-b_=[-.353,3.374,-8.544,6.297]
-c_=[0.195,-1.857,5.042,-3.874]
-d_=[.0763,-1.004,2.836,-2.53]
-a=0
-b=0
-c=0
-d=0
-for i in range(2):
-    a=a+a_[i]*ani**i
-for i in range(4):
-    b=b+b_[i]*ani**i
-    c=c+c_[i]*ani**i
-    d=d+d_[i]*ani**i
-logphi=a+b*np.log10(zL)+c*np.log10(zL)**2+d*np.log10(zL)**3
-phi_stp=10**(logphi)
-
-phi_old=0.00087*(zL)**(-1.4)+2.03
-
-d_stbl=add_species(d_stbl,'T',phi,zL,ani,phi_stp,phi_old,m,fpsite,xb,stb=True)
-
-#### D_ANI_UST #####
-#def add_ani(d_,anix,aniy,zL,lc,fpsites):
-print('Done with W stable')
-print('Processing Ani stable',flush=True)
-d_ani_stb=add_ani(d_ani_ust,fp['ANI_XB'][:],fp['ANI_YB'][:],zL,fp['nlcd_dom'][:],fpsite)
-fp.close()
-
-#### H2O ####
-print('Done with Ani stable')
-print('Processing H2O stable',flush=True)
-fp=h5py.File(procdir+'NEON_TW_S_H2O.h5','r')
-
-d_stbl['H2O']={}
-molh2o=18.02*10**(-3)
-moldry=28.97*10**(-3)
-kgdry_m3=fp['RHO'][:]/(fp['H2O'][:]/1000+1)
-
-rr = fp['H2O_SIGMA'][:]*molh2o/moldry
-lhv=2500827 - 2360*(fp['T_SONIC'][:]-273)
-
-phi=np.abs(rr/(fp['LE'][:]/lhv/fp['USTAR'][:]))*kgdry_m3/10**3
-zL=(fp['tow_height'][:]-fp['zd'][:])/fp['L_MOST'][:]
-ani=fp['ANI_YB'][:]
-xb=fp['ANI_XB'][:]
-fpsite=fp['SITE'][:]
-
-m=np.zeros((len(ani),))
-m[0:100000]=1
-np.random.shuffle(m)
-m=m.astype(bool)
-
-a=0
-b=0
-c=0
-d=0
-for i in range(2):
-    a=a+a_[i]*ani**i
-for i in range(4):
-    b=b+b_[i]*ani**i
-    c=c+c_[i]*ani**i
-    d=d+d_[i]*ani**i
-logphi=a+b*np.log10(zL)+c*np.log10(zL)**2+d*np.log10(zL)**3
-phi_stp=10**(logphi)
-
-phi_old=0.00087*(zL)**(-1.4)+2.03
-
-d_stbl=add_species(d_stbl,'H2O',phi,zL,ani,phi_stp,phi_old,m,fpsite,xb,stb=True)
-
-#### CO2 ####
-print('Done with H2O stable')
-print('Processing CO2 stable',flush=True)
-fp=h5py.File(procdir+'NEON_TW_S_CO2.h5','r')
-
-d_stbl['CO2']={}
-molh2o=18.02*10**(-3)
-moldry=28.97*10**(-3)
-co2 = fp['CO2_SIGMA'][:]
-
-co2=co2/10**6
-
-kgdry_m3=fp['RHO'][:]/(fp['H2O'][:]/1000+1)
-moldry_m3=kgdry_m3/moldry
-phi=np.abs(co2/(fp['CO2FX'][:]/fp['USTAR'][:]))*moldry_m3
-
-zL=(fp['tow_height'][:]-fp['zd'][:])/fp['L_MOST'][:]
-ani=fp['ANI_YB'][:]
-xb=fp['ANI_XB'][:]
-fpsite=fp['SITE'][:]
-
-m=np.zeros((len(ani),))
-m[0:100000]=1
-np.random.shuffle(m)
-m=m.astype(bool)
-
-a=0
-b=0
-c=0
-d=0
-for i in range(2):
-    a=a+a_[i]*ani**i
-for i in range(4):
-    b=b+b_[i]*ani**i
-    c=c+c_[i]*ani**i
-    d=d+d_[i]*ani**i
-logphi=a+b*np.log10(zL)+c*np.log10(zL)**2+d*np.log10(zL)**3
-phi_stp=10**(logphi)
-
-phi_old=0.00087*(zL)**(-1.4)+2.03
-
-d_stbl=add_species(d_stbl,'CO2',phi,zL,ani,phi_stp,phi_old,m,fpsite,xb,stb=True)
-
-print('Done with CO2 stable')
 print('Pickling',flush=True)
 
 ####################################
 ######## PICKLE ####################
 ####################################
-pickle.dump(d_unst,open('/home/tswater/Documents/Elements_Temp/NEON/neon_processed/L3_plotting_data/d_unst_xbbins.p','wb'))
-pickle.dump(d_stbl,open('/home/tswater/Documents/Elements_Temp/NEON/neon_processed/L3_plotting_data/d_stbl_xbbins.p','wb'))
+pickle.dump(d_unst,open('/home/tswater/Documents/Elements_Temp/NEON/neon_processed/L3_plotting_data/d_unst_xbbins_v2.p','wb'))
+pickle.dump(d_stbl,open('/home/tswater/Documents/Elements_Temp/NEON/neon_processed/L3_plotting_data/d_stbl_xbbins_v2.p','wb'))
 #pickle.dump(d_ani_ust,open('/home/tsw35/soteria/neon_advanced/data/d_ani_ust_v2.p','wb'))
 #pickle.dump(d_ani_stb,open('/home/tsw35/soteria/neon_advanced/data/d_ani_stb_v2.p','wb'))
 
