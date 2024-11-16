@@ -28,7 +28,13 @@ for k in fpu.keys():
         pass
     elif k in ['WTHETA','VPD','T_SONIC','SW_OUT','SW_IN','LW_OUT','Vstr','WS','DAY']:
         pass
-    elif k in ['U_SIGMA','V_SIGMA','W_SIGMA']:
+    elif 'SIGMA' in k:
+        pass
+    elif 'slope' in k:
+        pass
+    elif k in ['LW_IN','VPT']:
+        pass
+    elif 'CO2' in k:
         pass
     elif k=='SITE':
         pass
@@ -169,69 +175,75 @@ fxns={0:{'D_MOST_U':u_most_u,'D_MOST_V':u_most_v,'D_MOST_W':u_most_w,\
 Nx=len(xvars)
 Ny=len(yvars)
 
-d_unst={'xvars':xvars,'yvars':yvars,'spearmanr':np.ones((Nx,Ny))*float('nan'),'pearsonr':np.ones((Nx,Ny))*float('nan'),'sitelevel':{}}
-d_stbl={'xvars':xvars,'yvars':yvars,'spearmanr':np.ones((Nx,Ny))*float('nan'),'pearsonr':np.ones((Nx,Ny))*float('nan'),'sitelevel':{}}
+d_unst={'xvars':xvars,'yvars':yvars,'spearmanr':np.ones((2,Nx,Ny))*float('nan'),'sitelevel':{}}
+d_stbl={'xvars':xvars,'yvars':yvars,'spearmanr':np.ones((2,Nx,Ny))*float('nan'),'sitelevel':{}}
 
 for site in sites:
-    d_unst['sitelevel'][site]={'spearmanr':np.ones((Nx,Ny))*float('nan'),'pearsonr':np.ones((Nx,Ny))*float('nan')}
-    d_stbl['sitelevel'][site]={'spearmanr':np.ones((Nx,Ny))*float('nan'),'pearsonr':np.ones((Nx,Ny))*float('nan')}
+    d_unst['sitelevel'][site]={'spearmanr':np.ones((2,Nx,Ny))*float('nan')}
+    d_stbl['sitelevel'][site]={'spearmanr':np.ones((2,Nx,Ny))*float('nan')}
 
 
 # need to compute 'ff_cov_chm','ff_cov_dsmchm','tke','z_zd','zL'
-for i in [0,1]:
-    if i==0:
-        d_=d_unst
-        fp=fpu
-    else:
-        d_=d_stbl
-        fp=fps
-    for j in range(Nx):
-        varx=xvars[j]
-        if 'ANI' in varx:
-            xdata=fp[varx][:]
+for i in [0]:
+    for st in [0,1]:
+        if i==0:
+            d_=d_unst
+            fp=fpu
         else:
+            d_=d_stbl
+            fp=fps
+        for j in range(Nx):
+            varx=xvars[j]
             zL=fp['zzd'][:]/fp['L_MOST'][:]
-            ani=fp['ANI_YB'][:]
-            if '_U' in varx:
-                phi=np.sqrt(fp['UU'][:])/fp['USTAR'][:]
-            elif '_V' in varx:
-                phi=np.sqrt(fp['VV'][:])/fp['USTAR'][:]
-            elif '_W' in varx:
-                phi=np.sqrt(fp['WW'][:])/fp['USTAR'][:]
-            phix=fxns[i][varx](zL,ani)
-            xdata=phix-phi
-        for k in range(Ny):
-            vary=yvars[k]
-            if vary=='ff_cov_chm':
-                ydata=fp['std_chm'][:]/(fp['mean_chm'][:]+.001)
-            elif vary=='ff_cov_dsmchm':
-                ydata=fp['std_dsm'][:]/(fp['mean_chm'][:]+.001)
-            elif vary=='tke':
-                ydata=.5*(fp['UU'][:]+fp['VV'][:]+fp['WW'][:])
-            elif vary=='zL':
-                ydata=fp['zzd'][:]-fp['L_MOST'][:]
+            if st==0:
+                mm=np.abs(zL)<.1
+            elif st==1:
+                mm=np.abs(zL)>=.1
+            if 'ANI' in varx:
+                xdata=fp[varx][:]
             else:
-                ydata=fp[vary][:]
-            print(varx+' '+vary,flush=True)
-            if np.sum(np.isnan(ydata))>0:
-                xx,yy=fix(xdata,ydata)
-            else:
-                xx=xdata
-                yy=ydata
-            d_['spearmanr'][j,k]=stats.spearmanr(xx,yy)[0]
-            for site in np.unique(fp['SITE'][:]):
-                print('.',end='',flush=True)
-                m=fp['SITE'][:]==site
-                if np.sum(np.isnan(ydata[m]))>0:
-                    xx,yy=fix(xdata[m],ydata[m])
+                zL=fp['zzd'][:]/fp['L_MOST'][:]
+                ani=fp['ANI_YB'][:]
+                if '_U' in varx:
+                    phi=np.sqrt(fp['UU'][:])/fp['USTAR'][:]
+                elif '_V' in varx:
+                    phi=np.sqrt(fp['VV'][:])/fp['USTAR'][:]
+                elif '_W' in varx:
+                    phi=np.sqrt(fp['WW'][:])/fp['USTAR'][:]
+                phix=fxns[i][varx](zL,ani)
+                xdata=phix-phi
+            for k in range(Ny):
+                vary=yvars[k]
+                if vary=='ff_cov_chm':
+                    ydata=fp['std_chm'][:]/(fp['mean_chm'][:]+.001)
+                elif vary=='ff_cov_dsmchm':
+                    ydata=fp['std_dsm'][:]/(fp['mean_chm'][:]+.001)
+                elif vary=='tke':
+                    ydata=.5*(fp['UU'][:]+fp['VV'][:]+fp['WW'][:])
+                elif vary=='zL':
+                    ydata=fp['zzd'][:]-fp['L_MOST'][:]
                 else:
-                    xx=xdata[m]
-                    yy=ydata[m]
-                d_['sitelevel'][str(site)[2:-1]]['spearmanr'][j,k]=stats.spearmanr(xx,yy)[0]
+                    ydata=fp[vary][:]
+                print(varx+' '+vary,flush=True)
+                if np.sum(np.isnan(ydata))>0:
+                    xx,yy=fix(xdata[mm],ydata[mm])
+                else:
+                    xx=xdata[mm]
+                    yy=ydata[mm]
+                d_['spearmanr'][st,j,k]=stats.spearmanr(xx,yy)[0]
+                for site in np.unique(fp['SITE'][:]):
+                    print('.',end='',flush=True)
+                    m=fp['SITE'][:]==site
+                    if np.sum(np.isnan(ydata[m]))>0:
+                        xx,yy=fix(xdata[m&mm],ydata[m&mm])
+                    else:
+                        xx=xdata[m&mm]
+                        yy=ydata[m&mm]
+                    d_['sitelevel'][str(site)[2:-1]]['spearmanr'][st,j,k]=stats.spearmanr(xx,yy)[0]
     if i==0:
-        pickle.dump(d_unst,open('/home/tswater/Documents/Elements_Temp/NEON/neon_processed/L3_plotting_data/d_corr_ust_v2.p','wb'))
+        pickle.dump(d_unst,open('/home/tswater/Documents/Elements_Temp/NEON/neon_processed/L3_plotting_data/d_corr_ust_zL.p','wb'))
     else:
-        pickle.dump(d_stbl,open('/home/tswater/Documents/Elements_Temp/NEON/neon_processed/L3_plotting_data/d_corr_stb_v2.p','wb'))
+        pickle.dump(d_stbl,open('/home/tswater/Documents/Elements_Temp/NEON/neon_processed/L3_plotting_data/d_corr_stb_zL.p','wb'))
 
 ####################################
 ######## PICKLE ####################

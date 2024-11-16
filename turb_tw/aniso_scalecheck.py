@@ -63,8 +63,8 @@ def aniso(u,v,w):
     return yb,xb
 
 for site in sites[rank::size]:
-    out={'yb1':[],'yb2':[],'yb5':[],'yb10':[],'yb15':[],'yb30':[],
-         'xb1':[],'xb2':[],'xb5':[],'xb10':[],'xb15':[],'xb30':[]}
+    out={'yb1':[],'yb2':[],'yb5':[],'yb10':[],'yb15':[],'yb30':[],'yb60':[],'yb120':[],'yb180':[],
+         'xb1':[],'xb2':[],'xb5':[],'xb10':[],'xb15':[],'xb30':[],'xb60':[],'xb120':[],'xb180':[]}
 
     months=os.listdir(idir+site)
     months.sort()
@@ -73,7 +73,7 @@ for site in sites[rank::size]:
     lmost=(fps.attrs['tow_height']-fps.attrs['zd'])/fps['L_MOST']
     n1=len(lmost)
     dn=20*60
-    for month in months[5:6]:
+    for month in months:
         print(month)
         fp=h5py.File(idir+site+'/'+month,'r')
         u=fp['Ustr'][:]
@@ -90,7 +90,7 @@ for site in sites[rank::size]:
         lmost=(fps.attrs['tow_height']-fps.attrs['zd'])/fps['L_MOST'][m]
         for t in range(n):
             print('.',end='',flush=True)
-            for scl in [1,2,5,10,15,30]:
+            for scl in [1,2,5,10,15,30,60,120,180]:
                 if (t<=(scl+1))|(t>=(n-scl-1)):
                     out['yb'+str(scl)].append(float('nan'))
                     out['xb'+str(scl)].append(float('nan'))

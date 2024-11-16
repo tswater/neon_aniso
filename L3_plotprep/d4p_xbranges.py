@@ -38,8 +38,10 @@ def binplot1d(xx,yy,ani,stb,xbins=-zLbins,anibins=anibins):
 def skill(d_0,d_old,d_new):
     mad_n=np.nanmedian(np.abs(d_0-d_new))
     mad_o=np.median(np.abs(d_0-d_old))
+    md_n=np.nanmedian(d_0-d_new)
+    md_o=np.median(d_0-d_old)
     ss=1-np.nanmedian(np.abs(d_0-d_new))/np.median(np.abs(d_0-d_old))
-    return mad_n,mad_o,ss
+    return md_n,md_o,ss
 
 def getbins(A,n):
     B=np.sort(A)
@@ -67,13 +69,13 @@ def add_species(d_,sp,phi,zL,ani,phi_new,phi_old,m,fpsite,xb,stb=False):
 
     d_[sp]['xbins']=xbi
 
-    d_[sp]['MAD_SC23']=[]
-    d_[sp]['MAD_OLD']=[]
+    d_[sp]['MD_SC23']=[]
+    d_[sp]['MD_OLD']=[]
     d_[sp]['SS']=[]
-    d_[sp]['MAD_SC23_s']={}
+    d_[sp]['MD_SC23_s']={}
     #d_[sp]['MAD_SC23lo_s']={}
     #d_[sp]['MAD_SC23hi_s']={}
-    d_[sp]['MAD_OLD_s']={}
+    d_[sp]['MD_OLD_s']={}
     #d_[sp]['MAD_OLDlo_s']={}
     #d_[sp]['MAD_OLDhi_s']={}
     d_[sp]['SS_s']={}
@@ -82,15 +84,15 @@ def add_species(d_,sp,phi,zL,ani,phi_new,phi_old,m,fpsite,xb,stb=False):
 
 
     for site in sites:
-        d_[sp]['MAD_SC23_s'][site]=[]
-        d_[sp]['MAD_OLD_s'][site]=[]
+        d_[sp]['MD_SC23_s'][site]=[]
+        d_[sp]['MD_OLD_s'][site]=[]
         d_[sp]['SS_s'][site]=[]
     d_[sp]['xbins_s']={}
     for i in range(10):
         mxb=(xb<xbi[i+1])&(xb>xbi[i])
         a,b,c=skill(phi[mxb],phi_old[mxb],phi_new[mxb])
-        d_[sp]['MAD_SC23'].append(a)
-        d_[sp]['MAD_OLD'].append(b)
+        d_[sp]['MD_SC23'].append(a)
+        d_[sp]['MD_OLD'].append(b)
         d_[sp]['SS'].append(c)
 
         for site in sites:
@@ -99,8 +101,8 @@ def add_species(d_,sp,phi,zL,ani,phi_new,phi_old,m,fpsite,xb,stb=False):
             d_[sp]['xbins_s'][site]=xbi2
             ms2=ms&(xb<xbi2[i+1])&(xb>xbi2[i])
             a,b,c=skill(phi[ms2],phi_old[ms2],phi_new[ms2])
-            d_[sp]['MAD_SC23_s'][site].append(a)
-            d_[sp]['MAD_OLD_s'][site].append(b)
+            d_[sp]['MD_SC23_s'][site].append(a)
+            d_[sp]['MD_OLD_s'][site].append(b)
             d_[sp]['SS_s'][site].append(c)
 
     return d_
@@ -287,8 +289,8 @@ print('Pickling',flush=True)
 ####################################
 ######## PICKLE ####################
 ####################################
-pickle.dump(d_unst,open('/home/tswater/Documents/Elements_Temp/NEON/neon_processed/L3_plotting_data/d_unst_xbbins_v2.p','wb'))
-pickle.dump(d_stbl,open('/home/tswater/Documents/Elements_Temp/NEON/neon_processed/L3_plotting_data/d_stbl_xbbins_v2.p','wb'))
+pickle.dump(d_unst,open('/home/tswater/Documents/Elements_Temp/NEON/neon_processed/L3_plotting_data/d_unst_xbbins_v3.p','wb'))
+pickle.dump(d_stbl,open('/home/tswater/Documents/Elements_Temp/NEON/neon_processed/L3_plotting_data/d_stbl_xbbins_v3.p','wb'))
 #pickle.dump(d_ani_ust,open('/home/tsw35/soteria/neon_advanced/data/d_ani_ust_v2.p','wb'))
 #pickle.dump(d_ani_stb,open('/home/tsw35/soteria/neon_advanced/data/d_ani_stb_v2.p','wb'))
 

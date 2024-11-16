@@ -85,7 +85,7 @@ def add_species(d_,sp,phi,zL,ani,phi_new,phi_old,fpsite,stb=False):
 
 def get_phi(fp,var):
     zL_=(fp['zzd'][:])/fp['L_MOST'][:]
-    ani=np.sqrt(fp['WW'][:])/fp['Ustr'][:]#fp['ANI_YB'][:]
+    ani=fp['ANI_YB'][:]
     if 'U' in var:
         phi=np.sqrt(fp['UU'][:])/fp['USTAR'][:]
     elif 'V' in var:
@@ -165,6 +165,10 @@ def T_ust2(zL,a):
 
 def U_stb(zL,a,c):
     phi=a*(1+3*zL)**(c)
+    return phi
+
+def U_stb2(zL,a,b):
+    phi=a*(1+b*zL)**(.06)
     return phi
 
 def U_ust(zL,a):
@@ -252,8 +256,24 @@ prms={'Uu':{'a':[1.0610229608801973,-1.2757524443591375,0.49143888423560594]},
 'Vs':{'a':[1.2980322066263459,-0.5857409086926993,-0.16275214215115155],'b':[0.06842778845656437,-0.06686439770911787,0.20237632829121496,0.21044999635345177]},
 'Ws':{'a':[1.1701429855606926,0.596408748744598,-0.6677632827805118],'b':[0.13975461258799823,0.5982347407850199,-2.367596062889779,2.3076983900316668]}}
 
-letters=['a','b','c','d']
+# tsw_v5
+prms={'Uu':{'a':[0.5003755881285298,-2.959804623542144]},
+      'Vu':{'a':[0.3972669466422134,-2.72146993605693]},
+      'Wu':{'a':[0.8781963394412855,-0.7903441230331336,-0.6884177296285137]},
+      'Us':{'a':[2.48999325402708,-2.9309894919097794,3.9665235021601855],'b':[-0.014091947587046363,0.4413024489123778,-0.4734026436270551]},
+      'Vs':{'a':[1.3330870632847518,0.5841790794590472,1.3070551206541443],'b':[0.2225823294120512,-0.42859347002903014,0.32840958194612313]},
+      'Ws':{'a':[0.8568270381820401,0.38500921564736157,2.399008378516547],'b':[0.09569689610086621,-0.004254222387943103,-0.03760808711271964]}}
 
+# tsw_v5alt
+prms={'Uu':{'a':[4.123621495800058,-9.019103428856788,7.031233766838203]},
+      'Vu':{'a':[4.287424385993223,-11.432206917682109,10.714434337994307]},
+      'Wu':{'a':[0.8322249105998253,2.2982074088860984,-5.924591113145409,4.359928264469673]},
+      'Ws':{'a':[0.7982295272144873,1.3753705297448222,-0.7668648902143614,3.4853953882925715],'b':[-0.08734925186430317,-0.6965129144086187,-1.0448151363479166,-0.46804993241935944]},
+      'Us':{'a':[2.5040234841099136,-2.9135680594318836,3.879724240951841],'b':[9.633916512522173,11.208076650244074]},
+      'Vs':{'a':[1.1215876915839131,1.6584671522267522],'b':[-113.6176737221579,-938.9228856874983,-2312.8838627003097,-1859.8624983507027]}}
+
+letters=['a','b','c','d']
+lg={'Uu':[False],'Vu':[False], 'Wu':[False],'Us':[False,True],'Vs':[False,True],'Ws':[False,True]}
 
 def get_params(v,ani_in):
     outlist=[]
@@ -307,7 +327,7 @@ def binplot1d(xx,yy,ani,stb,xbins=-zLbins,anibins=anibins):
 #       'Us':U_stb,'Vs':U_stb,'Ws':W_stb,'Ts':T_stb,'H2Os':C_stb,'CO2s':C_stb2}
 
 fxns_={'Uu':U_ust,'Vu':U_ust,'Wu':W_ust,\
-       'Us':U_stb,'Vs':U_stb,'Ws':W_stb}
+       'Us':U_stb2,'Vs':U_stb2,'Ws':U_stb2}
 
 
 d_unst={}
@@ -368,8 +388,8 @@ for var in fxns_.keys():
     d_[var[0:-1]]=add_species(d_,var[0:-1],phi_,zL_,ani_,phi_new,old(var,zL_),fpsite,stb)
 
 
-pickle.dump(d_unst,open('/home/tswater/Documents/Elements_Temp/NEON/neon_processed/L3_plotting_data/d_unst_tw_w.p','wb'))
-pickle.dump(d_stbl,open('/home/tswater/Documents/Elements_Temp/NEON/neon_processed/L3_plotting_data/d_stbl_tw_w.p','wb'))
+pickle.dump(d_unst,open('/home/tswater/Documents/Elements_Temp/NEON/neon_processed/L3_plotting_data/d_unst_tw_v5_alt.p','wb'))
+pickle.dump(d_stbl,open('/home/tswater/Documents/Elements_Temp/NEON/neon_processed/L3_plotting_data/d_stbl_tw_v5_alt.p','wb'))
 
 #pickle.dump(d_unst,open('/home/tsw35/soteria/neon_advanced/data/d_unst_tw_v2.p','wb'))
 #pickle.dump(d_stbl,open('/home/tsw35/soteria/neon_advanced/data/d_stbl_tw_v2.p','wb'))
