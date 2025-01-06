@@ -38,6 +38,7 @@ import cmasher as cmr
 import matplotlib.ticker as tck
 from scipy import stats
 import matplotlib
+from datetime import datetime,timedelta
 mpl.rcParams['figure.dpi'] = 300
 sns.set_theme()
 plt.rcParams.update({'figure.max_open_warning': 0})
@@ -269,6 +270,9 @@ plt.savefig('../../plot_output/a1_img_1.png', bbox_inches = "tight")
 # # FIGURE: Anisotropy Binplots
 
 # %%
+anibins=np.linspace(vmn_a,vmx_a,11)
+anilvl=(anibins[0:-1]+anibins[1:])/2
+anic=cani_norm(anilvl)
 
 # %%
 
@@ -279,9 +283,6 @@ ss=.1
 alph=.2
 minpct=1e-04
 
-anibins=np.linspace(vmn_a,vmx_a,11)
-anilvl=(anibins[0:-1]+anibins[1:])/2
-anic=cani_norm(anilvl)
 ylabels=[r'$\Phi_{u}$',r'$\Phi_{v}$',r'$\Phi_{w}$',r'$\Phi_{\theta}$',r'$\Phi_{q}$',r'$\Phi_{C}$']
 
 j=0
@@ -312,6 +313,13 @@ for v in ['U','V','W']:
             axs[j,0].semilogx(-xplt,yplt[i,:],color=anic[i],linewidth=1,path_effects=[pe.Stroke(linewidth=2, foreground='w'), pe.Normal()])
         else:
             axs[j,0].loglog(-xplt,yplt[i,:],color=anic[i],linewidth=1,path_effects=[pe.Stroke(linewidth=2, foreground='w'), pe.Normal()])
+
+    yplt=ust_old[j][0]
+    if v in ['U','V','W']:
+        axs[j,0].semilogx(-zL_u,yplt,'--',color='k',linewidth=1,path_effects=[pe.Stroke(linewidth=2, foreground='w'), pe.Normal()],zorder=5)
+    else:
+        axs[j,0].loglog(-zL_u,yplt,'--',color='k',linewidth=1,path_effects=[pe.Stroke(linewidth=2, foreground='w'), pe.Normal()],zorder=5)
+
     
     # LABELING
     if j==2:
@@ -345,7 +353,12 @@ for v in ['U','V','W']:
             axs[j,1].semilogx(xplt,yplt[i,:],color=anic[i],linewidth=1,path_effects=[pe.Stroke(linewidth=2, foreground='w'), pe.Normal()])
         else:
             axs[j,1].loglog(xplt,yplt[i,:],color=anic[i],linewidth=1,path_effects=[pe.Stroke(linewidth=2, foreground='w'), pe.Normal()])
-    
+    yplt=stb_old[j][0]
+    if v in ['U','V','W']:
+        axs[j,1].semilogx(zL_s,yplt[:],'--',color='k',linewidth=1,path_effects=[pe.Stroke(linewidth=2, foreground='w'), pe.Normal()],zorder=5)
+    else:
+        axs[j,1].loglog(zL_s,yplt[:],'--',color='k',linewidth=1,path_effects=[pe.Stroke(linewidth=2, foreground='w'), pe.Normal()],zorder=5)
+
     # LABELING
     if j==2:
         axs[j,1].tick_params(which="both", bottom=True)
@@ -793,6 +806,7 @@ plt.savefig('../../plot_output/a1_img_6.png', bbox_inches = "tight")
 # # FIGURE: Combined Boxplots
 
 # %%
+sz=1
 fig,axs=plt.subplots(3,1,figsize=(6*sz,6*sz))
 names=['',r'$|\zeta|>.1$','','all','',r'$|\zeta|<.1$','',r'$|\zeta|<.1$','','all','',r'$|\zeta|>.1$']
 ylabels=[r'SS $\Phi_{u}$',r'SS $\Phi_{v}$',r'SS $\Phi_{w}$',r'SS $\Phi_{\theta}$',r'SS $\Phi_{q}$',r'SS $\Phi_{C}$']
@@ -829,6 +843,14 @@ for v in list(d_utw.keys())[0:3]:
     for patch, color in zip(bplot['boxes'], bcolor):
         patch.set_facecolor(color)
         patch.set_alpha(.35)
+
+    ptch1=mpatches.Patch(facecolor=bcolor[0],alpha=.35,label='SC23 Fit',edgecolor='k')
+    ptch2=mpatches.Patch(facecolor=bcolor[1],alpha=.35,label='NEON Fit',edgecolor='k')
+
+    leg=[ptch1,ptch2]
+    if j==0:
+        axs[j].legend(handles=leg)
+    
     axs[j].plot([4,4],[-1,1],'k--')
     if j<2:
         axs[j].set_xticks(pos,[])
@@ -841,10 +863,60 @@ for v in list(d_utw.keys())[0:3]:
     j=j+1
     
 plt.subplots_adjust(hspace=.08,wspace=.02)
-plt.savefig('../../plot_output/a1_img_57.png', bbox_inches = "tight")
+plt.savefig('../../plot_output/a1_img_572.png', bbox_inches = "tight")
 
 # %%
-len([0,1,3,4,6,7,9,10,12,13,15,16])
+sz=1
+fig,axs=plt.subplots(3,1,figsize=(6*sz,6*sz))
+names=['',r'$|\zeta|>.1$','','all','',r'$|\zeta|<.1$','',r'$|\zeta|<.1$','','all','',r'$|\zeta|>.1$']
+ylabels=[r'SS $\Phi_{u}$',r'SS $\Phi_{v}$',r'SS $\Phi_{w}$',r'SS $\Phi_{\theta}$',r'SS $\Phi_{q}$',r'SS $\Phi_{C}$']
+j=0
+pos=[0,.5,1.5,2,3,3.5,4.5,5,6,6.5,7.5,8]
+bcolor=['mediumpurple','goldenrod','mediumpurple','goldenrod','mediumpurple','goldenrod','mediumpurple','goldenrod','mediumpurple','goldenrod','mediumpurple','goldenrod']
+for v in list(d_utw.keys())[0:3]:
+    ss=[]
+
+    ss.append(list(d_u[v]['SShi_s'].values()))
+    ss.append(list(d_utw[v]['SShi_s'].values()))
+    
+    ss.append(list(d_u[v]['SS_s'].values()))
+    ss.append(list(d_utw[v]['SS_s'].values()))
+    
+    ss.append(list(d_u[v]['SSlo_s'].values()))
+    ss.append(list(d_utw[v]['SSlo_s'].values()))
+
+    ss.append(list(d_s[v]['SSlo_s'].values()))
+    ss.append(list(d_stw[v]['SSlo_s'].values()))
+
+    ss.append(list(d_s[v]['SS_s'].values()))
+    ss.append(list(d_stw[v]['SS_s'].values()))
+
+    ss.append(list(d_s[v]['SShi_s'].values()))
+    ss.append(list(d_stw[v]['SShi_s'].values()))
+    
+    ss=np.array(ss)
+    axs[j].plot([-.5,8.5],[0,0],color='w',linewidth=3)
+    print(len(ss))
+    print(len(names))
+    bplot=axs[j].boxplot(ss.T[:,0::2],labels=names[0::2],positions=pos[0::2],patch_artist=True)
+    # fill with colors
+    for patch, color in zip(bplot['boxes'], bcolor[0::2]):
+        patch.set_facecolor(color)
+        patch.set_alpha(.35)
+    axs[j].plot([4,4],[-1,1],'k--')
+    if j<2:
+        axs[j].set_xticks(pos,[])
+    else:
+        axs[j].set_xlabel(r'$\zeta<0$                               $\zeta>0$',fontsize=14)
+        axs[j].set_xticks(pos,names)
+    axs[j].set_ylabel(ylabels[j])
+    axs[j].set_ylim(-.8,.8)
+    axs[j].set_xlim(-.5,8.5)
+    #axs[j].tick_params(axis='x',labelrotation=45)
+    j=j+1
+    
+plt.subplots_adjust(hspace=.08,wspace=.02)
+plt.savefig('../../plot_output/a1_img_57_SC23only.png', bbox_inches = "tight")
 
 
 # %%
@@ -881,7 +953,7 @@ class_colors={11:'royalblue',12:'whitesmoke',21:'pink',22:'lightcoral',23:'red',
               71:'wheat',72:'khaki',73:'darkkhaki',74:'darkseagreen',81:'gold',82:'sandybrown',90:'skyblue',95:'cadetblue',0:'white'}
 
 # %%
-var='U'
+var='V'
 mad_most=[]
 other=[[],[],[],[]]
 fpsite=fpu['SITE'][:]
@@ -901,8 +973,8 @@ for i in range(47):
     other[2].append(stats.mode(ffu['nlcd_dom'])[0])
     #other[3].append(d_u[var]['MAD_SC23_s'][ss])
     #mad_most.append(d_u[var]['MAD_OLD_s'][ss])
-    other[3].append(d_u[var]['MAD_SC23_s'][ss])
-    mad_most.append(d_u[var]['MAD_OLD_s'][ss])
+    other[3].append(-d_uabs[var]['MD_SC23_s'][ss])
+    mad_most.append(-d_uabs[var]['MD_OLD_s'][ss])
 
 # %%
 d_u['U'].keys()
@@ -931,7 +1003,7 @@ a=plt.bar(Y2[0],Y2[3],color=colors,hatch=hatch,edgecolor='black',yerr=yerr,capsi
 plt.xticks(rotation=45)
 plt.xlim(-.5,47)
 #plt.ylim(.2,1.65)
-plt.ylabel(r'$MAD$')
+plt.ylabel(r'$Bias$')
 leg=[]
 for clas in class_names.keys():
     ptch=mpatches.Patch(facecolor=class_colors[clas],label=class_names[clas],edgecolor='k')
@@ -940,8 +1012,8 @@ ptch=mpatches.Patch(label='Complex',hatch='..',edgecolor='k',facecolor='white')
 leg.append(ptch)
 ptch=mpatches.Patch(label='Very Complex',hatch='OO',edgecolor='k',facecolor='white')
 leg.append(ptch)
-plt.legend(handles=leg,ncol=2,loc='lower right',title='Dominant Landcover')
-#plt.savefig('../../plot_output/a1_img_7bias.png', bbox_inches = "tight")
+#plt.legend(handles=leg,ncol=2,loc='upper left',title='Dominant Landcover')
+plt.savefig('../../plot_output/a1_img_7vu_bias.png', bbox_inches = "tight")
 
 # %%
 
@@ -959,14 +1031,14 @@ data=dc_u['spearmanr'][:]
 datas=dc_s['spearmanr'][:]
 xvars=dc_u['xvars'][:]
 yvars=dc_u['yvars'][:]
-yvarnames={'ANI_XB':r'$x_b$','ANI_YB':r'$y_b$','USTAR':r'$u*$','Ustr':'$\overline{U}$','Wstr':r'$\overline{w}$',
+yvarnames={'ANI_XB':r'$x_b$','ANI_YB':r'$y_b$','USTAR':r'$u*$','UU':"$\overline{u'u'}$",'VV':"$\overline{v'v'}$",'WW':"$\overline{w'w'}$",'Ustr':'$\overline{U}$','Wstr':r'$\overline{w}$',
            'mean_chm':r'$h_c$','std_chm':r'$\sigma_{h_c}$','std_dsm':r'$\sigma_{DSM}$','NETRAD':r'$R_{net}$','H':r'$H$','RH':r'$RH$',\
            'TA':r'$T$','PA':r'$P$'}
 ynmlist=[]
 mark=['+','s','^','+','s','^']
 color=['blue','red','green','cornflowerblue','lightcoral','limegreen']
 
-plt.figure(figsize=(7,5),dpi=300)
+plt.figure(figsize=(8,5),dpi=300)
 #reduce data
 datar=np.zeros((6,len(yvarnames.keys())))
 i=0
@@ -997,8 +1069,8 @@ plt.bar(np.linspace(0,N,N),datab,color='black',alpha=.3,zorder=1)
 
 plt.title('')
 plt.xlim(-.5,N+.5)
-plt.ylim(-.65,.65)
-plt.ylabel('Corr. Error (MOST)')
+plt.ylim(-.7,.7)
+plt.ylabel('Corr. Bias (MOST)')
 
 
 #reduce data
@@ -1029,12 +1101,13 @@ for i in range(6):
     plt.xticks(np.linspace(0,N,N),ynmlist)
 plt.title('')
 plt.xlim(-.5,N+.5)
-plt.ylim(-.65,.65)
-plt.ylabel('Corr. Error (SC23)')
+plt.ylim(-.7,.7)
+plt.ylabel('Corr. Bias (SC23)')
 plt.subplots_adjust(hspace=.05)
 plt.savefig('../../plot_output/a1_img_9bias.png', bbox_inches = "tight")
 
 # %%
+yvars
 
 # %%
 np.nanmedian(datas_,axis=0).shape
@@ -1219,7 +1292,7 @@ plt.subplots_adjust(hspace=.05)
 # # Figure: Self Similarity YB
 
 # %%
-def get_random(var,num=10000):
+def get_random(var,num=100000):
     match var:
         case 'Uu': fp=fpu
         case 'Us': fp=fps
@@ -1332,8 +1405,8 @@ def ymx(x,m,b):
 
 # %%
 sz=1
-alpha=.25
-fig=plt.figure(figsize=(9*sz,5*sz))
+alpha=.15
+fig=plt.figure(figsize=(9*sz,5*sz),dpi=500)
 sbf = fig.subfigures(2, 2, hspace=0,wspace=0,frameon=False)
 
 titles={'Uu':r'U: $\zeta <0$', 
@@ -1355,11 +1428,11 @@ for var in ['Uu','Us','Wu','Ws']:
     
     # data loading
     if 's' in var:
-        phir,ybr=get_random(var,num=15000)
+        phir,ybr=get_random(var,num=150000)
     elif 'u' in var:
         phir,ybr=get_random(var)
     N=len(phir)
-    x1,y1=getlines(ybr,phir,np.linspace(0.05,.7,25))
+    x1,y1=getlines(ybr,phir,np.linspace(0.01,.7,25))
     match var:
         case 'Uu': 
             fp=fpu
@@ -1382,23 +1455,40 @@ for var in ['Uu','Us','Wu','Ws']:
             m.sort()
             phi=np.sqrt(fp['WW'][:][m])/fp['USTAR'][:][m]
     yb=fp['ANI_YB'][:][m]
-    x,y=getlines(yb,phi,np.linspace(0.05,.7,25))
+    x,y=getlines(yb,phi,np.linspace(0.01,.7,25))
     
     # plot
-    ax00.scatter(yb,phi,s=.05,alpha=alpha,color='dimgrey')
+    ax00.scatter(yb,phi,s=.025,alpha=alpha,color='dimgrey')
     ax00.set_xlim(0,.8)
     ax00.set_ylim(0,5)
     ax00.plot(x,y,color='k')
     ax00.set_xticks([0,np.sqrt(3)/6,np.sqrt(3)/3],[])
     ax00.set_yticks([0,2,4])
     
-    ax01.scatter(ybr,phir,s=.05,alpha=alpha,color='darkgrey')
+    ax01.scatter(ybr,phir,s=.025,alpha=alpha,color='darkgrey')
     ax01.set_xlim(0,.8)
     ax01.set_ylim(0,5)
     #ax01.plot(x1,y1,color='dimgrey')
     params,pcov=optimize.curve_fit(ymx,ybr,phir,[1,1],bounds=([-10,-2],[10,2]),loss='cauchy')
     y1=ymx(x1,params[0],params[1])
     ax01.plot(x1,y1,color='k')
+
+    ### MAD ####
+    ml=(yb>np.min(x))&(yb<np.max(x))
+    xx=yb[ml]
+    yy=phi[ml]
+    y2=np.interp(xx,x,y)
+    print(np.median(np.abs(y2-yy)))
+    print('    '+str(stats.pearsonr(yy,y2)[0]))
+
+    ml=(ybr>np.min(x1))&(ybr<np.max(x1))
+    xx=ybr[ml]
+    yy=phir[ml]
+    y2=np.interp(xx,x1,y1)
+    print(np.median(np.abs(y2-yy)))
+    print('    '+str(stats.pearsonr(yy,y2)[0]))
+    print()
+    
     #['0',r'$\sqrt{3}/6$',r'$\sqrt{3}/3$']
     if 'U' in var:
         ax01.set_xticks([0,np.sqrt(3)/6,np.sqrt(3)/3],[])
@@ -1413,7 +1503,7 @@ for var in ['Uu','Us','Wu','Ws']:
     
     ax10.plot(x,y-y1,color='k')
     ax10.plot([-1,1],[0,0],color='w',zorder=0,linewidth=3)
-    ax10.scatter(yb,phi-ymx(yb,params[0],params[1]),s=.05,alpha=.5,color='slategrey')
+    ax10.scatter(yb,phi-ymx(yb,params[0],params[1]),s=.025,alpha=.25,color='slategrey')
     ax10.set_xlim(0,.8)
     ax10.set_ylim(-2,2)
     if 'U' in var:
@@ -1433,6 +1523,8 @@ for var in ['Uu','Us','Wu','Ws']:
     
     plt.subplots_adjust(wspace=0.3,hspace=0.1)
 #plt.savefig('../../plot_output/a1_img_selfsim.png', bbox_inches = "tight")
+
+# %%
 
 # %%
 sz=1
@@ -1467,7 +1559,7 @@ for var in ['Uu','Us','Wu','Ws']:
     elif 'u' in var:
         phir,ybr=get_random(var)
     N=len(phir)
-    x1,y1=getlines(ybr,phir,np.linspace(0.05,.7,25))
+    x1,y1=getlines(ybr,phir,np.linspace(0.05,.7,30))
     match var:
         case 'Uu': 
             fp=fpu
@@ -1500,7 +1592,7 @@ for var in ['Uu','Us','Wu','Ws']:
             m.sort()
             phi=np.sqrt(fp['VV'][:][m])/fp['USTAR'][:][m]
     yb=fp['ANI_YB'][:][m]
-    x,y=getlines(yb,phi,np.linspace(0.05,.7,25))
+    x,y=getlines(yb,phi,np.linspace(0.05,.7,30))
     
     # plot
     ax00.scatter(yb,phi,s=1,alpha=alpha,color='slategrey')
@@ -1550,7 +1642,7 @@ for var in ['Uu','Us','Wu','Ws']:
         ax10.legend(handles=legs,labelspacing=.2,borderpad=.2,loc='upper left')
     
     plt.subplots_adjust(wspace=0.3,hspace=0.1)
-    
+
 
 # %%
 sz=1
@@ -1771,7 +1863,7 @@ for var in ['Uu','Us','Wu','Ws']:
 
 # %%
 
-# %% [markdown]
+# %% [markdown] jp-MarkdownHeadingCollapsed=true
 # # XB SCALING
 
 # %%
@@ -2075,7 +2167,7 @@ for i in range(len(vari)):
                 m=(xb_<xbine[ii,jj+1])&(xb_>xbine[ii,jj])&(yb_<ybine[ii+1])&(yb_>ybine[ii])
                 xbtrue[i,j,ii,jj]=np.nanmean(xb_[m])
                 ybtrue[i,j,ii,jj]=np.nanmean(yb_[m])
-                error[i,j,ii,jj]=np.nanmedian(phi_[m]-old[m])
+                error[i,j,ii,jj]=-np.nanmedian(phi_[m]-old[m])
 
 # %%
 
@@ -2151,10 +2243,128 @@ for i in range(len(vari)):
         ax.spines[['left', 'bottom']].set_visible(False)
     plt.subplots_adjust(wspace=.4)
     fig.suptitle('      Unstable ($\zeta<0$)                     Stable ($\zeta>0$)      ')
-plt.savefig('../../plot_output/a1_img_8.png', bbox_inches = "tight")
+plt.savefig('../../plot_output/a1_img_8bias.png', bbox_inches = "tight")
 
 # %%
-np.sqrt(3)/2/5
+
+# %%
+clrs=[]
+xb_u=[]
+xb_s=[]
+yb_u=[]
+yb_s=[]
+k=0
+for site in other[0]:
+    try:
+        color=class_colors[other[2][k]]
+    except:
+        color='darkgreen'
+    m=bytes(site,'utf-8')==fpu['SITE'][:]
+    clrs.append(color)
+    xb_u.append(np.nanmean(fpu['ANI_XB'][m]))
+    yb_u.append(np.nanmean(fpu['ANI_YB'][m]))
+    m=bytes(site,'utf-8')==fps['SITE'][:]
+    xb_s.append(np.nanmean(fps['ANI_XB'][m]))
+    yb_s.append(np.nanmean(fps['ANI_YB'][m]))
+    k=k+1
+
+
+# %%
+
+# %%
+import matplotlib.colors as mcolors
+
+def get_rgb(color_list):
+    out=[]
+    for c_c_ in color_list:
+        out.append(mcolors.to_rgb(c_c_))
+    return out
+clrs=get_rgb(clrs)
+
+# %%
+plt.figure()
+plt.scatter(xb_u,yb_u,c=clrs,s=10,zorder=10)
+plt.figure()
+plt.scatter(xb_s,yb_s,c=clrs,s=10,zorder=10)
+
+# %%
+sz=1.6
+fig,axs=plt.subplots(4,2,figsize=(4*sz,4.5*sz))
+vari=['A','U','V','W']
+stbs=[-1,1]
+for i in range(len(vari)):
+    for j in range(2):
+        vs=vari[i]+str(j)
+        v=vari[i]
+        #match vs:
+        #    case :vmin=;vmax=
+        ax=axs[i,j]
+        xc = np.array([0, 1, 0.5])
+        yc = np.array([0, 0, np.sqrt(3)*0.5])
+        ccc=['k','r','b']
+        for k in np.arange(3):
+            ip1 = (k+1)%3
+            ax.plot([xc[k], xc[ip1]], [yc[k], yc[ip1]], 'k', linewidth=2)
+            ax.fill_between([xc[k], xc[ip1]], [yc[k], yc[ip1]],y2=[0,0],color=(0.9176470588235294, 0.9176470588235294, 0.9490196078431372, 1.0),zorder=0)
+            
+        xbtick=[.2,.4,.6,.8]
+        ybtick=[0,np.sqrt(3)/8,np.sqrt(3)/4,3*np.sqrt(3)/8,np.sqrt(3)/2]
+        for ii in range(5):
+            if ii in[0,2,4]: nm=.05
+            else: nm=0
+            ax.plot([ybtick[ii]/(np.sqrt(3)/2)/2-nm,1-ybtick[ii]/(np.sqrt(3)/2)/2],[ybtick[ii],ybtick[ii]],'--k',linewidth=.5)
+        for ii in range(4):
+            if ii<2:
+                ulim=xbtick[ii]
+            else:
+                ulim=1-xbtick[ii]
+            ax.plot([xbtick[ii],xbtick[ii]],[-0.025,np.sqrt(3)/2*(ulim/.5)],'--k',linewidth=.5)
+
+        c1ps = np.array([2/3, 1/3, 0])
+        x1ps = np.dot(xc, c1ps.transpose())
+        y1ps = np.dot(yc, c1ps.transpose())
+        c2ps = np.array([0, 0, 1])
+        x2ps = np.dot(xc, c2ps.transpose())
+        y2ps = np.dot(yc, c2ps.transpose())
+        ax.plot([x1ps, x2ps], [y1ps, y2ps], '-k', linewidth=2)
+        
+        #for k in np.arange(3):
+        #    ax.text(lbpx[k], lbpy[k], labels[k], ha='center', fontsize=12)
+        label_side1 = 'Prolate'
+        label_side2 = 'Oblate'
+        label_side3 = 'Two-component'
+        #axs.text((xc[1]+xc[2])/2, (yc[0]+yc[2])/2+0.08*lc, label_side1, ha='center', va='center', rotation=-65)
+        #axs.text((xc[0]+xc[2])/2, (yc[1]+yc[2])/2+0.08*lc, label_side2, ha='center', va='center', rotation=65)
+        #axs.text((xc[0]+xc[1])/2, (yc[0]+yc[1])/2-0.04*lc, label_side3, ha='center', va='center')
+        if v=='A':
+            if j==0:
+                ax.scatter(xb_u,yb_u,c=clrs,s=2,zorder=10)
+            else:
+                ax.scatter(xb_s,yb_s,c=clrs,s=2,zorder=10)
+        else:
+            data=error[i-1,j,:,:]
+            vmax=max(np.abs(np.nanpercentile(data,5)),np.abs(np.nanpercentile(data,95)))
+            im=ax.pcolormesh(xbtrue[i-1,j,0:,:],ybtrue[i-1,j,0:,:],data,cmap='Spectral_r',shading='gouraud',vmin=-vmax,vmax=vmax)
+            cb=fig.colorbar(im, cax=ax.inset_axes([0.95, 0.05, 0.05, .92]),label='$Bias$ $\Phi_'+v+'$')
+            cb.ax.zorder=100
+        ax.patch.set_alpha(0)
+        ax.grid(False)
+        if j==0:
+            ax.set_yticks([0,np.sqrt(3)/4,np.sqrt(3)/2],['0',r'$\sqrt{3}/4$',r'$\sqrt{3}/2$'])
+            ax.set_ylabel('$y_b$')
+        if j==1:
+            ax.set_yticks([],[])
+        if i==2:
+            ax.set_xticks([0,.2,.4,.6,.8,1],['',.2,.4,.6,.8,''])
+            ax.set_xlabel('$x_b$')
+        else:
+            ax.set_xticks([],[])
+        ax.spines[['left', 'bottom']].set_visible(False)
+    plt.subplots_adjust(wspace=.4)
+    fig.suptitle('      Unstable ($\zeta<0$)                     Stable ($\zeta>0$)      ')
+#plt.savefig('../../plot_output/a1_img_8bias.png', bbox_inches = "tight")
+
+# %%
 
 # %% [markdown]
 # # Figure XB vs Error all sites
@@ -2207,15 +2417,22 @@ axs[i,j].get_facecolor()
 # # FIGURE XB/YB CORRELATION
 
 # %%
+for i in range(45):
+    print(str(fpst['site'][i])+': '+str(fpst['zd'][i]))
 
 # %%
+grass=[]
+for i in range(45):
+    if (fpst['zd'][i]<2):
+        grass.append(str(fpst['site'][i])[2:-1])
+
 data=dc_u['spearmanr'][:]
 datas=dc_s['spearmanr'][:]
 xvars=dc_u['xvars'][:]
 yvars=dc_u['yvars'][:]
 yvarnames={'zL':r'$\zeta$','USTAR':r'$u*$','Ustr':'$\overline{U}$','Wstr':r'$\overline{w}$',
            'mean_chm':r'$h_c$','std_chm':r'$\sigma_{h_c}$','std_dsm':r'$\sigma_{DSM}$','NETRAD':r'$R_{net}$','H':r'$H$','RH':r'$RH$',\
-           'T_SONIC':r'$T$','PA':r'$P$'}
+           'TA':r'$T$','PA':r'$P$'}
 ynmlist=[]
 mark=['+','s','^','+','s','^']
 color=['blue','red','green','cornflowerblue','lightcoral','limegreen']
@@ -2239,10 +2456,16 @@ for yv in yvarnames.keys():
     datayb[1,i]=datas[1,idx]
     j=0
     for site in dc_u['sitelevel'].keys():
-        dataybs[0,i,j]=dc_u['sitelevel'][site]['spearmanr'][1,idx]
-        dataxbs[0,i,j]=dc_u['sitelevel'][site]['spearmanr'][0,idx]
-        dataybs[1,i,j]=dc_s['sitelevel'][site]['spearmanr'][1,idx]
-        dataxbs[1,i,j]=dc_s['sitelevel'][site]['spearmanr'][0,idx]
+        if (yv in ['mean_chm','std_chm','std_dsm'])&(site in []):
+            dataybs[0,i,j]=float('nan')
+            dataxbs[0,i,j]=float('nan')
+            dataybs[1,i,j]=float('nan')
+            dataxbs[1,i,j]=float('nan')
+        else:
+            dataybs[0,i,j]=dc_u['sitelevel'][site]['spearmanr'][1,idx]
+            dataxbs[0,i,j]=dc_u['sitelevel'][site]['spearmanr'][0,idx]
+            dataybs[1,i,j]=dc_s['sitelevel'][site]['spearmanr'][1,idx]
+            dataxbs[1,i,j]=dc_s['sitelevel'][site]['spearmanr'][0,idx]
         j=j+1
     i=i+1
 
@@ -2263,20 +2486,23 @@ for i in range(2):
     N=len(ynmlist)
     axs[0,i].set_xticks(np.linspace(0,N-1,N),[])
     axs[0,i].legend([r'$\zeta<0$',r'$\zeta>0$'])
-    axs[0,i].plot([-1,N+1],[0,0],'w',linewidth=2,zorder=0)
+    axs[0,i].plot([-1,N+1],[0,0],'w',linewidth=4,zorder=0)
+    axs[0,i].set_ylim(-.55,.61)
     axs[0,i].set_xlim(-1,N)
     axs[0,0].set_ylabel('Correlation')
 
     sns.boxplot(dsite[0,:].T,ax=axs[1,i])
     axs[1,i].set_xticks(np.linspace(0,N,N),[])
-    axs[1,i].plot([-1,N+1],[0,0],'w',linewidth=2,zorder=0)
+    axs[1,i].plot([-1,N+1],[0,0],'w',linewidth=4,zorder=0)
     axs[1,i].set_xlim(-1,N)
+    axs[1,i].set_ylim(-.55,.61)
     axs[1,0].set_ylabel('Site Correlation ($\zeta<0$)')
     
     sns.boxplot(dsite[1,:].T,ax=axs[2,i])
     axs[2,i].set_xticks(np.linspace(0,N-1,N),ynmlist,rotation=45)
-    axs[2,i].plot([-1,N+1],[0,0],'w',linewidth=2,zorder=0)
+    axs[2,i].plot([-1,N+1],[0,0],'w',linewidth=4,zorder=0)
     axs[2,i].set_xlim(-1,N)
+    axs[2,i].set_ylim(-.55,.61)
     axs[2,0].set_ylabel('Site Correlation ($\zeta>0$)')
 
 axs[0,0].set_title('$y_b$')
@@ -2301,12 +2527,63 @@ for k in dc_u['sitelevel'].keys():
         dd.append(d)
 
 # %%
-m=fpu['SITE'][:]==b'RMNP'
+site=b'ABBY'
+color=
+m=~(np.isnan(fpu['ANI_YB'][:])|(np.isnan(fpu['std_dsm'][:])))&(fpu['SITE'][:]==site)
 a=fpu['ANI_YB'][m]
-b=fpu['slope_dtm'][m]
-vmin=np.nanpercentile(b,2)
-vmax=np.nanpercentile(b,95)
-plt.hexbin(a,b,mincnt=2,gridsize=300,cmap='terrain',extent=(0,.7,vmin,vmax))
+b=fpu['std_dsm'][m]
+mp=.33
+counts1,xbins1,ybins1,image = plt.hist2d(a,b,bins=50,density=True)
+counts1=counts1/np.max(counts1)
+plt.clf()
+#levels=np.array([2,10,50,100,200,300,500,750,1000,2000,3000,4000])
+levels=[.005,.15,.3,.45,.6,.75,.9]
+plt.contour(np.transpose(counts1),extent=[xbins1.min(),xbins1.max(),ybins1.min(),ybins1.max()],levels=levels,linewidths=1,cmap=cmp)
+
+# %%
+counts=[]
+clrs=[]
+xbins=[]
+ybins=[]
+k=0
+plt.figure(figsize=(4,8))
+for site in other[0]:
+    #if site not in forest:
+    #    k=k+1
+    #    pass
+    try:
+        color=class_colors[other[2][k]]
+    except:
+        color='darkgreen'
+    k=k+1
+    m=(bytes(site,'utf-8')==fpu['SITE'][:])&(~(np.isnan(fpu['ANI_YB'][:])|(np.isnan(fpu['std_dsm'][:]))))
+    a=fpu['ANI_YB'][m]
+    b=fpu['std_dsm'][m]
+    counts1,xbins1,ybins1,image = plt.hist2d(a,b,bins=50,density=True)
+    counts1=counts1/np.max(counts1)
+
+    counts.append(counts1)
+    xbins.append(xbins1)
+    ybins.append(ybins1)
+    clrs.append(color)
+    
+    plt.clf()
+
+for i in range(len(counts)):
+    #levels=np.array([2,10,50,100,200,300,500,750,1000,2000,3000,4000])
+    levels=[.5]
+    print(other[0][i]+': '+str(np.median(ybins[i])))
+    plt.contour(np.transpose(counts[i]),extent=[xbins[i].min(),xbins[i].max(),ybins[i].min(),ybins[i].max()],levels=levels,linewidths=1,colors=clrs[i],alpha=.75,yscale='log')
+    ax=plt.gca()
+    ax.set_yscale('log')
+
+plt.xlabel('$y_b$')
+plt.ylabel('log($\sigma_{dsm}$)')
+plt.xlim(0,.5)
+plt.ylim(.5,70)
+#plt.savefig('../../plot_output/test.png', bbox_inches = "tight")
+
+# %%
 
 # %%
 plt.boxplot(dd)
@@ -2315,7 +2592,523 @@ plt.boxplot(dd)
 # # Self Similarity 2
 
 # %%
+m=fpu['SITE'][:]==b'DCFS'
+m=m&(fpu['zzd'][:]/fpu['L_MOST'][:]>-.1)
+plt.hist(fpu['ANI_YB'][m]/fpu['ANID_YB'][m],bins=np.linspace(.5,1,100))
+#plt.hist(fpu['ANID_YB'][:],bins=np.linspace(.5,1.2,100))
 
 # %%
+m=fpu['SITE'][:]==b'MLBS'
+m=m&(fpu['zzd'][:]/fpu['L_MOST'][:]>-.1)
+plt.hist(fpu['ANI_YB'][m]/fpu['ANID_YB'][m],bins=np.linspace(.5,1,100))
+
+# %% [markdown]
+# # Diurnal Cycle and Wind Speed
+
+# %% [markdown]
+# ### Diurnal Cycle Prep
 
 # %%
+truehour=[]
+truedoy=[]
+oldsite=b'SAFD'
+s=-1
+for t in range(len(fpu['TIME'][:])):
+    site=fpu['SITE'][t]
+    if site != oldsite:
+        print('.',flush=True,end='')
+        s=s+1
+        try:
+            offset=float(fpst['utc_off'][s])
+        except:
+            if site==b'WREF':
+                offset=-9
+            elif site==b'YELL':
+                offset=-8
+        oldsite=site
+    tt=fpu['TIME'][t]
+    dt=datetime.utcfromtimestamp(tt)+timedelta(hours=offset)
+    truehour.append(dt)
+    truedoy.append(dt.timetuple().tm_yday)
+hour=[]
+sday=[]
+for t in truehour:
+    hour.append(t.hour)
+    sday.append(t.hour*3600+t.minute*60+t.second)
+sday=np.array(sday)
+
+# %%
+truehour=[]
+truedoy=[]
+oldsite=b'SAFD'
+s=-1
+for t in range(len(fps['TIME'][:])):
+    site=fps['SITE'][t]
+    if site != oldsite:
+        print('.',flush=True,end='')
+        s=s+1
+        try:
+            offset=float(fpst['utc_off'][s])
+        except:
+            if site==b'WREF':
+                offset=-9
+            elif site==b'YELL':
+                offset=-8
+        oldsite=site
+    tt=fps['TIME'][t]
+    dt=datetime.utcfromtimestamp(tt)+timedelta(hours=offset)
+    truehour.append(dt)
+    truedoy.append(dt.timetuple().tm_yday)
+hour=[]
+sdays=[]
+for t in truehour:
+    hour.append(t.hour)
+    sdays.append(t.hour*3600+t.minute*60+t.second)
+sdays=np.array(sdays)
+
+# %%
+g1=[]
+g2=[]
+g3=[]
+for site in np.unique(fpu['SITE'][:]):
+    m=fpu['SITE'][:]==site
+    zzd=fpu['zzd'][m][0]
+    if (zzd>8):#&(site not in [b'BONA',b'DEJU',b'SJER']):
+        g1.append(site)
+    elif site in []: #[b'JORN',b'OAES',b'ONAQ',b'SRER',b'MOAB',b'CPER',b'TOOL',b'HEAL']:
+        g2.append(site)
+    else:
+        g3.append(site)
+
+# %% [markdown]
+# ### Plotting
+
+# %%
+sz=2
+fig,axs=plt.subplots(4,1,figsize=(2*sz,5.5*sz))
+
+frst_s=[.296,.321,.347]
+grss_s=[.302,.319,.331]
+
+# masks
+m1=np.zeros((len(fpu['SITE']),),dtype=bool)
+m2=np.zeros((len(fpu['SITE']),),dtype=bool)
+m3=np.zeros((len(fpu['SITE']),),dtype=bool)
+for site in g1:
+    m1=m1|(fpu['SITE'][:]==site)
+for site in g2:
+    m2=m2|(fpu['SITE'][:]==site)
+for site in g3:
+    m3=m3|(fpu['SITE'][:]==site)
+
+ctf=[1,2,4]
+
+mi=[fpu['Ustr'][:]<ctf[0],(fpu['Ustr'][:]>ctf[0])&(fpu['Ustr'][:]<ctf[1]),\
+    (fpu['Ustr'][:]>ctf[1])&(fpu['Ustr'][:]<ctf[2]),fpu['Ustr'][:]>ctf[2]]
+
+#zl=-fpu['zzd'][:]/fpu['L_MOST'][:]
+#ctf=[.01,.1,1]
+#mi=[zl<ctf[0],(zl>ctf[0])&(zl<ctf[1]),\
+#    (zl>ctf[1])&(zl<ctf[2]),zl>ctf[2]]
+
+
+b=fpu['ANI_YB'][:]
+
+for i in range(4):
+
+    xbins=np.unique(sday)
+    a1_25=[]
+    a1_50=[]
+    a1_75=[]
+    a1_std=[]
+    a2_25=[]
+    a2_50=[]
+    a2_75=[]
+    a2_std=[]
+    a3_25=[]
+    a3_50=[]
+    a3_75=[]
+    a3_std=[]
+    heat=[]
+
+    for j in range(len(xbins)):
+        m1_1=m1&(sday==xbins[j])&mi[i]
+        m2_1=m2&(sday==xbins[j])&mi[i]
+        m3_1=m3&(sday==xbins[j])&mi[i]
+        
+        a1_25.append(np.percentile(b[m1_1],25))
+        a1_50.append(np.percentile(b[m1_1],50))
+        a1_75.append(np.percentile(b[m1_1],70))
+        a1_std.append(np.std(b[m1_1]))
+        heat.append(np.nanmedian(-fpu['zzd'][m1_1|m3_1]/fpu['L_MOST'][m1_1|m3_1]))
+
+        a3_25.append(np.percentile(b[m3_1],25))
+        a3_50.append(np.percentile(b[m3_1],50))
+        a3_75.append(np.percentile(b[m3_1],75))
+        a3_std.append(np.std(b[m3_1]))
+
+    a1_50=np.array(a1_50)
+    #a2_50=np.array(a2_50)
+    a3_50=np.array(a3_50)
+    heat=np.array(heat)
+    
+    a1_std=np.array(a1_std)*.5
+    #a2_std=np.array(a2_std)*.5
+    a3_std=np.array(a3_std)*.5
+    
+    axs[i].plot(xbins,a1_50,color='green',label='Forest')
+    axs[i].fill_between(xbins,a1_25,a1_75,color='green',alpha=.1,label='_extra1')
+    #axs[i].fill_between(xbins,a1_50-a1_std,a1_50+a1_std,color='forestgreen',alpha=.2)
+    
+    #axs[i].plot(xbins,a2_50,color='orange')
+    #axs[i].fill_between(xbins,a2_25,a2_75,color='orange',alpha=.1)
+    #axs[i].fill_between(xbins,a2_50-a2_std,a2_50+a2_std,color='orange',alpha=.2)
+
+    axs[i].plot(xbins,a3_50,color='darkorange',label='Non-Forest')
+    axs[i].fill_between(xbins,a3_25,a3_75,color='darkorange',alpha=.1,label='_extra2')
+
+    print(np.max(heat))
+    
+    axs[i].plot(xbins,heat/(2*np.max(heat)),'--',color='indianred',label='$H$')
+    #axs[i].fill_between(xbins,a3_50-a3_std,a3_50+a3_std,color='indianred',alpha=.2)
+
+    #axs[i].plot([0,70000],[frst_s[i],frst_s[i]],'--',color='forestgreen',linewidth=.5)
+    #axs[i].plot([0,70000],[grss_s[i],grss_s[i]],'--',color='orange',linewidth=.5)
+    
+    #axs[i].plot([66500,70000],[frst_s[i],frst_s[i]],color='forestgreen',linewidth=1,path_effects=[pe.Stroke(linewidth=2, foreground='w'), pe.Normal()])
+    #axs[i].plot([66500,70000],[grss_s[i],grss_s[i]],color='orange',linewidth=1,path_effects=[pe.Stroke(linewidth=2, foreground='w'), pe.Normal()])
+                
+    axs[i].set_ylim(0.025,.51)
+    axs[i].set_xlim(18000,68500)
+    axs[i].set_ylabel('$y_b$')
+
+axs[0].legend(loc='upper right',fontsize=10)
+
+axs[0].set_title('$\overline{U}<1\ \ (12.91\%)$')
+axs[1].set_title('$\overline{U}\geq 1$, $\overline{U}<2\ \ (21.4\%)$')
+axs[2].set_title('$\overline{U}\geq 2$, $\overline{U}<4\ \ (37.1\%)$')
+axs[3].set_title('$\overline{U}\geq 4\ \ (28.5\%)$')
+
+axs[0].set_xticks([6*3600,9*3600,12*3600,15*3600,3600*18],[])
+axs[1].set_xticks([6*3600,9*3600,12*3600,15*3600,3600*18],[])
+axs[2].set_xticks([6*3600,9*3600,12*3600,15*3600,3600*18],[])
+axs[3].set_xticks([6*3600,9*3600,12*3600,15*3600,3600*18],['6:00','9:00','12:00','15:00','18:00'])
+axs[3].set_xlabel('Local Time')
+
+plt.subplots_adjust(hspace=.2)
+#plt.savefig('../../plot_output/a1_img_14.png', bbox_inches = "tight")
+
+# %%
+np.sum(mi,axis=1)/np.sum(mi)*100
+
+# %%
+sz=2
+fig,axs=plt.subplots(3,1,figsize=(2*sz,4.5*sz))
+
+frst_s=[.296,.321,.347]
+grss_s=[.302,.319,.331]
+
+# masks
+m1=np.zeros((len(fpu['SITE']),),dtype=bool)
+m2=np.zeros((len(fpu['SITE']),),dtype=bool)
+m3=np.zeros((len(fpu['SITE']),),dtype=bool)
+for site in g1:
+    m1=m1|(fpu['SITE'][:]==site)
+for site in g2:
+    m2=m2|(fpu['SITE'][:]==site)
+for site in g3:
+    m3=m3|(fpu['SITE'][:]==site)
+
+mi=[fpu['Ustr'][:]<1,(fpu['Ustr'][:]>1)&(fpu['Ustr'][:]<2),fpu['Ustr'][:]>4]
+
+b=fpu['ANI_XB'][:]
+
+for i in range(3):
+
+    xbins=np.unique(sday)
+    a1_25=[]
+    a1_50=[]
+    a1_75=[]
+    a1_std=[]
+    a2_25=[]
+    a2_50=[]
+    a2_75=[]
+    a2_std=[]
+    a3_25=[]
+    a3_50=[]
+    a3_75=[]
+    a3_std=[]
+
+    for j in range(len(xbins)):
+        m1_1=m1&(sday==xbins[j])&mi[i]
+        m2_1=m2&(sday==xbins[j])&mi[i]
+        m3_1=m3&(sday==xbins[j])&mi[i]
+        
+        a1_25.append(np.percentile(b[m1_1],25))
+        a1_50.append(np.percentile(b[m1_1],50))
+        a1_75.append(np.percentile(b[m1_1],70))
+        a1_std.append(np.std(b[m1_1]))
+
+        #a2_25.append(np.percentile(b[m2_1],25))
+        #a2_50.append(np.percentile(b[m2_1],50))
+        #a2_75.append(np.percentile(b[m2_1],75))
+        #a2_std.append(np.std(b[m2_1]))
+
+        a3_25.append(np.percentile(b[m3_1],25))
+        a3_50.append(np.percentile(b[m3_1],50))
+        a3_75.append(np.percentile(b[m3_1],75))
+        a3_std.append(np.std(b[m3_1]))
+
+    a1_50=np.array(a1_50)
+    #a2_50=np.array(a2_50)
+    a3_50=np.array(a3_50)
+    
+    a1_std=np.array(a1_std)*.5
+    #a2_std=np.array(a2_std)*.5
+    a3_std=np.array(a3_std)*.5
+    
+    axs[i].plot(xbins,a1_50,color='green',label='Forest')
+    axs[i].fill_between(xbins,a1_25,a1_75,color='green',alpha=.1,label='_extra1')
+    #axs[i].fill_between(xbins,a1_50-a1_std,a1_50+a1_std,color='forestgreen',alpha=.2)
+    
+    #axs[i].plot(xbins,a2_50,color='orange')
+    #axs[i].fill_between(xbins,a2_25,a2_75,color='orange',alpha=.1)
+    #axs[i].fill_between(xbins,a2_50-a2_std,a2_50+a2_std,color='orange',alpha=.2)
+
+    axs[i].plot(xbins,a3_50,color='darkorange',label='Non-Forest')
+    axs[i].fill_between(xbins,a3_25,a3_75,color='darkorange',alpha=.1,label='_extra2')
+    #axs[i].fill_between(xbins,a3_50-a3_std,a3_50+a3_std,color='indianred',alpha=.2)
+
+    #axs[i].plot([0,70000],[frst_s[i],frst_s[i]],'--',color='forestgreen',linewidth=.5)
+    #axs[i].plot([0,70000],[grss_s[i],grss_s[i]],'--',color='orange',linewidth=.5)
+    
+    #axs[i].plot([66500,70000],[frst_s[i],frst_s[i]],color='forestgreen',linewidth=1,path_effects=[pe.Stroke(linewidth=2, foreground='w'), pe.Normal()])
+    #axs[i].plot([66500,70000],[grss_s[i],grss_s[i]],color='orange',linewidth=1,path_effects=[pe.Stroke(linewidth=2, foreground='w'), pe.Normal()])
+                
+    axs[i].set_ylim(0.2,0.8)
+    axs[i].set_xlim(18000,68500)
+    axs[i].set_ylabel('$y_b$')
+    axs[i].legend(loc='upper right')
+    
+axs[0].set_xticks([6*3600,9*3600,12*3600,15*3600,3600*18],[])
+axs[1].set_xticks([6*3600,9*3600,12*3600,15*3600,3600*18],[])
+axs[2].set_xticks([6*3600,9*3600,12*3600,15*3600,3600*18],['6:00','9:00','12:00','15:00','18:00'])
+axs[2].set_xlabel('Local Time')
+
+plt.subplots_adjust(hspace=.1)
+
+# %%
+m1=np.zeros((len(fps['SITE']),),dtype=bool)
+m2=np.zeros((len(fps['SITE']),),dtype=bool)
+m3=np.zeros((len(fps['SITE']),),dtype=bool)
+for site in g1:
+    m1=m1|(fps['SITE'][:]==site)
+for site in g2:
+    m2=m2|(fps['SITE'][:]==site)
+for site in g3:
+    m3=m3|(fps['SITE'][:]==site)
+
+mi=[fps['Ustr'][:]<1,(fps['Ustr'][:]>1)&(fps['Ustr'][:]<2),fps['Ustr'][:]>2]
+for i in range(3):
+    print(np.nanmedian(fps['ANI_YB'][mi[i]&m1]))
+print()
+for i in range(3):
+    print(np.nanmedian(fps['ANI_YB'][mi[i]&m3]))
+
+# %%
+sz=2
+fig,axs=plt.subplots(3,1,figsize=(2*sz,4.5*sz))
+
+# masks
+m1=np.zeros((len(fps['SITE']),),dtype=bool)
+m2=np.zeros((len(fps['SITE']),),dtype=bool)
+m3=np.zeros((len(fps['SITE']),),dtype=bool)
+for site in g1:
+    m1=m1|(fps['SITE'][:]==site)
+for site in g2:
+    m2=m2|(fps['SITE'][:]==site)
+for site in g3:
+    m3=m3|(fps['SITE'][:]==site)
+
+mi=[fps['Ustr'][:]<1,(fps['Ustr'][:]>1)&(fps['Ustr'][:]<2),fps['Ustr'][:]>4]
+
+b=fps['ANI_XB'][:]
+
+for i in range(3):
+
+    xbins=np.unique(sday)
+    xbin_=(xbins[1:]+xbins[0:-1])/2
+    a1_25=[]
+    a1_50=[]
+    a1_75=[]
+    a1_std=[]
+    a2_25=[]
+    a2_50=[]
+    a2_75=[]
+    a2_std=[]
+    a3_25=[]
+    a3_50=[]
+    a3_75=[]
+    a3_std=[]
+
+    for j in range(len(xbins)-1):
+        m1_1=m1&(sdays>xbins[j])&(sdays<xbins[j+1])&mi[i]
+        m2_1=m2&(sdays>xbins[j])&(sdays<xbins[j+1])&mi[i]
+        m3_1=m3&(sdays>xbins[j])&(sdays<xbins[j+1])&mi[i]
+        
+        a1_25.append(np.percentile(b[m1_1],25))
+        a1_50.append(np.percentile(b[m1_1],50))
+        a1_75.append(np.percentile(b[m1_1],70))
+        a1_std.append(np.std(b[m1_1]))
+
+        #a2_25.append(np.percentile(b[m2_1],25))
+        #a2_50.append(np.percentile(b[m2_1],50))
+        #a2_75.append(np.percentile(b[m2_1],75))
+        #a2_std.append(np.std(b[m2_1]))
+
+        a3_25.append(np.percentile(b[m3_1],25))
+        a3_50.append(np.percentile(b[m3_1],50))
+        a3_75.append(np.percentile(b[m3_1],75))
+        a3_std.append(np.std(b[m3_1]))
+
+    a1_50=np.array(a1_50)
+    #a2_50=np.array(a2_50)
+    a3_50=np.array(a3_50)
+    
+    a1_std=np.array(a1_std)*.5
+    #a2_std=np.array(a2_std)*.5
+    a3_std=np.array(a3_std)*.5
+    
+    axs[i].plot(xbin_,a1_50,color='forestgreen')
+    axs[i].fill_between(xbin_,a1_25,a1_75,color='forestgreen',alpha=.1)
+    #axs[i].fill_between(xbins,a1_50-a1_std,a1_50+a1_std,color='forestgreen',alpha=.2)
+    
+    #axs[i].plot(xbin_,a2_50,color='orange')
+    #axs[i].fill_between(xbin_,a2_25,a2_75,color='orange',alpha=.1)
+    #axs[i].fill_between(xbins,a2_50-a2_std,a2_50+a2_std,color='orange',alpha=.2)
+
+    axs[i].plot(xbin_,a3_50,color='indianred')
+    axs[i].fill_between(xbin_,a3_25,a3_75,color='indianred',alpha=.1)
+    #axs[i].fill_between(xbins,a3_50-a3_std,a3_50+a3_std,color='indianred',alpha=.2)
+
+    axs[i].set_ylim(0.3,.75)
+
+# %%
+x=sdays
+xbins=np.linspace(np.nanpercentile(x,1),np.nanpercentile(x,99),47)
+xtrue=[]
+ytrue=[]
+for i in range(46):
+    m=(x>xbins[i])&(x<xbins[i+1])
+    xtrue.append(np.nanmedian(x[m]))
+    ytrue.append(np.sum(m))
+plt.plot(xtrue,ytrue,color='black',linewidth=2)
+
+# %%
+a=sday
+b=fpu['ANI_YB'][:]
+bins=np.unique(a)
+b25=[]
+b50=[]
+b75=[]
+for i in range(len(bins)):
+    m=(a==bins[i])
+    b25.append(np.percentile(b[m],25))
+    b50.append(np.percentile(b[m],50))
+    b75.append(np.percentile(b[m],75))
+
+# %%
+plt.plot(bins,b50)
+plt.fill_between(bins,b25,b75,color='blue',alpha=.2)
+
+# %%
+fpst.keys()
+
+# %%
+std_dsm=[]
+data=[]
+for i in range(45):
+    site=fpst['site'][i]
+    m=fpu['SITE'][:]==site
+    data.append(np.sum(m))
+    std_dsm.append(fpst['std_dsm'][i])
+
+# %%
+plt.scatter(data,std_dsm)
+
+# %%
+zb=np.logspace(-4,2)
+zzd=fpu['zzd'][:]
+zl=-fpu['zzd'][:]/fpu['L_MOST'][:]
+ub=np.linspace(0,15)
+u=fpu['Ustr'][:]
+ani=fpu['ANI_YB'][:]
+f_ani=np.zeros((49,49))
+f_anicv=np.zeros((49,49))
+g_ani=np.zeros((49,49))
+g_anicv=np.zeros((49,49))
+for i in range(49):
+    for j in range(49):
+        m=(zl>zb[i])&(zl<zb[i+1])&(u>ub[j])&(u<ub[j+1])
+        m1=m&(zzd>8)
+        m2=m&(zzd<8)
+        f_ani[i,j]=np.median(ani[m1])
+        f_anicv[i,j]=np.std(ani[m1])/np.mean(ani[m1])
+        g_ani[i,j]=np.median(ani[m2])
+        g_anicv[i,j]=np.std(ani[m2])/np.mean(ani[m2])
+
+# %%
+data=f_ani
+data[3,:]=float('nan')
+
+plt.imshow(f_ani,cmap='terrain',origin='lower',vmin=0,vmax=.5)
+plt.xticks([0,10,20,30,40],[ub[0],ub[10],ub[20],ub[30],ub[40]])
+plt.yticks([0,10,20,30,40],[zb[0],zb[10],zb[20],zb[30],zb[40]])
+plt.colorbar()
+
+# %%
+data=g_ani
+
+plt.imshow(g_ani,cmap='terrain',origin='lower',vmin=0,vmax=.5)
+plt.xticks([0,10,20,30,40],[ub[0],ub[10],ub[20],ub[30],ub[40]])
+plt.yticks([0,10,20,30,40],[zb[0],zb[10],zb[20],zb[30],zb[40]])
+plt.colorbar()
+
+# %%
+zb=np.linspace(0,750)
+zzd=fpu['zzd'][:]
+zl=fpu['H'][:]
+ub=np.linspace(0,2.5)
+u=fpu['USTAR'][:]
+ani=fpu['ANI_XB'][:]
+f_ani=np.zeros((49,49))
+f_anicv=np.zeros((49,49))
+g_ani=np.zeros((49,49))
+g_anicv=np.zeros((49,49))
+for i in range(49):
+    for j in range(49):
+        m=(zl>zb[i])&(zl<zb[i+1])&(u>ub[j])&(u<ub[j+1])
+        m1=m&(zzd>8)
+        m2=m&(zzd<8)
+        f_ani[i,j]=np.median(ani[m1])
+        f_anicv[i,j]=np.std(ani[m1])/np.mean(ani[m1])
+        g_ani[i,j]=np.median(ani[m2])
+        g_anicv[i,j]=np.std(ani[m2])/np.mean(ani[m2])
+
+# %%
+plt.imshow(g_ani,cmap='terrain',origin='lower',vmin=.1,vmax=.75)
+plt.xticks([0,10,20,30,40],[ub[0],ub[10],ub[20],ub[30],ub[40]])
+plt.yticks([0,10,20,30,40],[zb[0],zb[10],zb[20],zb[30],zb[40]])
+plt.colorbar()
+
+# %%
+plt.imshow(f_ani,cmap='terrain',origin='lower',vmin=.1,vmax=.75)
+plt.xticks([0,10,20,30,40],[ub[0],ub[10],ub[20],ub[30],ub[40]])
+plt.yticks([0,10,20,30,40],[zb[0],zb[10],zb[20],zb[30],zb[40]])
+plt.colorbar()
+
+# %%
+plt.hexbin(fpu['H'][:],fpu['ANI_YB'][:],mincnt=1,cmap='terrain')
+
+# %%
+plt.hexbin(fpu['U'][:],fpu['ANI_YB'][:],mincnt=1,cmap='terrain')

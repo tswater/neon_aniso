@@ -340,6 +340,7 @@ plt.colorbar(orientation='horizontal',shrink=.3)
 
 # %%
 from scipy import stats
+from scipy import optimize
 
 # %%
 phi=np.sqrt(fps['UU'][:])/fps['USTAR'][:]
@@ -672,6 +673,14 @@ for var in ['Uu','Us','Wu','Ws']:
     ax00.plot(x,y,color='k')
     ax00.set_xticks([0,np.sqrt(3)/6,np.sqrt(3)/3],[])
     ax00.set_yticks([0,2,4])
+
+    ### MAD ####
+    ml=(yb>np.min(x))&(yb<np.max(x))
+    xx=yb[ml]
+    yy=phi[ml]
+    y2=np.interp(xx,x,y)
+    print(np.median(np.abs(y2-yy)))
+    print('    '+str(stats.spearmanr(yy,y2)[0]))
     
     ax01.scatter(ybr,phir,s=1,alpha=.1,color='darkgrey')
     ax01.set_xlim(0,.8)
@@ -679,6 +688,15 @@ for var in ['Uu','Us','Wu','Ws']:
     params,pcov=optimize.curve_fit(ymx,ybr,phir,[1,1],bounds=([-10,-2],[10,2]),loss='cauchy')
     y1=ymx(x1,params[0],params[1])
     ax01.plot(x1,y1,color='k')
+
+    ml=(ybr>np.min(x1))&(ybr<np.max(x1))
+    xx=ybr[ml]
+    yy=phir[ml]
+    y2=np.interp(xx,x1,y1)
+    print(np.median(np.abs(y2-yy)))
+    print('    '+str(stats.spearmanr(yy,y2)[0]))
+    print()
+    
     #['0',r'$\sqrt{3}/6$',r'$\sqrt{3}/3$']
     if 'U' in var:
         ax01.set_xticks([0,np.sqrt(3)/6,np.sqrt(3)/3],[])
@@ -700,7 +718,7 @@ for var in ['Uu','Us','Wu','Ws']:
         ax10.set_xticks([0,np.sqrt(3)/6,np.sqrt(3)/3],['0',r'$\frac{\sqrt{3}}{6}$',r'$\frac{\sqrt{3}}{3}$'])
     
     plt.subplots_adjust(wspace=0.3,hspace=0.1)
-    
+
 
 # %%
 m
