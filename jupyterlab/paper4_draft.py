@@ -90,6 +90,21 @@ for i, (rgba1, rgba2) in enumerate(zip(colors[:-1], np.roll(colors, -1, axis=0)[
 newcolvals
 cmap_ani = ListedColormap(newcolvals, name='from_list', N=None)
 
+def cani_norm(x):
+    try:
+        x_=x.copy()
+        x_[x_<vmn_a]=vmn_a
+        x_[x_>vmx_a]=vmx_a
+    except:
+        x_=x.copy()
+        if x_>vmx_a:
+            x_=vmx_a
+        elif x_<vmn_a:
+            x_=vmn_a
+    
+    x_=(x_-vmn_a)/(vmx_a-vmn_a)
+    return cmap_ani(x_)
+
 
 # %%
 def cani_norm(x):
@@ -112,7 +127,7 @@ def cani_norm(x):
 
 # %%
 
-# %% [markdown]
+# %% [markdown] jp-MarkdownHeadingCollapsed=true
 # # FIGURE: Anisotropy Distribution
 
 # %% [markdown]
@@ -266,7 +281,7 @@ plt.savefig('../../plot_output/a1_img_1.png', bbox_inches = "tight")
 
 # %%
 
-# %% [markdown]
+# %% [markdown] jp-MarkdownHeadingCollapsed=true
 # # FIGURE: Anisotropy Binplots
 
 # %%
@@ -401,7 +416,7 @@ plt.savefig('../../plot_output/a1_img_2.png', bbox_inches = "tight")
 
 # %%
 
-# %% [markdown]
+# %% [markdown] jp-MarkdownHeadingCollapsed=true
 # # FIGURE: SC23 LINES
 
 # %% [markdown]
@@ -600,7 +615,7 @@ plt.savefig('../../plot_output/a1_img_3.png', bbox_inches = "tight")
 
 # %%
 
-# %% [markdown]
+# %% [markdown] jp-MarkdownHeadingCollapsed=true
 # # FIGURE: SC23 Performance
 
 # %%
@@ -762,7 +777,7 @@ for v in ['U','V','W']:
 plt.subplots_adjust(hspace=.08,wspace=.02)
 plt.savefig('../../plot_output/a1_img_5.png', bbox_inches = "tight")
 
-# %% [markdown]
+# %% [markdown] jp-MarkdownHeadingCollapsed=true
 # # FIGURE: Refit Performance
 
 # %%
@@ -802,7 +817,7 @@ plt.savefig('../../plot_output/a1_img_6.png', bbox_inches = "tight")
 
 # %%
 
-# %% [markdown]
+# %% [markdown] jp-MarkdownHeadingCollapsed=true
 # # FIGURE: Combined Boxplots
 
 # %%
@@ -923,7 +938,7 @@ plt.savefig('../../plot_output/a1_img_57_SC23only.png', bbox_inches = "tight")
 
 # %%
 
-# %% [markdown]
+# %% [markdown] jp-MarkdownHeadingCollapsed=true
 # # FIGURE: Site Level MAD (U unstable only)
 
 # %%
@@ -1021,7 +1036,7 @@ plt.savefig('../../plot_output/a1_img_7vu_bias.png', bbox_inches = "tight")
 
 # %%
 
-# %% [markdown]
+# %% [markdown] jp-MarkdownHeadingCollapsed=true
 # # FIGURE Error Correlation
 
 # %%
@@ -1288,7 +1303,7 @@ plt.subplots_adjust(hspace=.05)
 
 # %%
 
-# %% [markdown]
+# %% [markdown] jp-MarkdownHeadingCollapsed=true
 # # Figure: Self Similarity YB
 
 # %%
@@ -2045,7 +2060,7 @@ plt.savefig('../../plot_output/a1_img_10.png', bbox_inches = "tight",transparent
 
 # %%
 
-# %% [markdown]
+# %% [markdown] jp-MarkdownHeadingCollapsed=true
 # # FIGURE XB Distribution Plot
 
 # %%
@@ -2102,15 +2117,65 @@ plt.subplots_adjust(hspace=0)
 
 #fig.savefig('trash.png',bbox_inches = "tight")
 
-# %%
+# %% [markdown] jp-MarkdownHeadingCollapsed=true
+# # FIGURE YB Distribution Plot
 
 # %%
-70000/100/100
+i=0
+fig=plt.figure(figsize=(3,4))
+sbf = fig.subfigures(2, 1, hspace=0,wspace=0,frameon=False)
+ax=sbf[1].add_subplot(111)
+fpsites=fps['SITE'][:]
+for site in np.unique(fpsites):
+    m=fpsites==site
+    ss=str(site)[2:-1]
+    ffu=h5py.File('/home/tswater/tyche/data/neon/foot_stats/'+ss+'_U.h5','r')
+    c=stats.mode(ffu['nlcd_dom'])[0]
+    try:
+        colors=class_colors[c]
+    except Exception as e:
+        colors='darkgreen'
+        print(e)
+    y,binEdges=np.histogram(fps['ANI_YB'][m],bins=np.linspace(0,.87),density=True)
+    bincenters=.5*(binEdges[1:]+binEdges[:-1])
+    ax.plot(bincenters,y,c=colors,linewidth=1,alpha=.75)
+    i=i+1
+ax.set_xlabel(r'$y_B$')
+ax.set_ylabel('Frequency')
+ax.set_xticks([0,.25,.5,.75])
+ax.set_xlim(-.05,.8)
+
+i=0
+ax=sbf[0].add_subplot(111)
+fpsites=fpu['SITE'][:]
+for site in np.unique(fpsites):
+    m=fpsites==site
+    ss=str(site)[2:-1]
+    ffu=h5py.File('/home/tswater/tyche/data/neon/foot_stats/'+ss+'_U.h5','r')
+    c=stats.mode(ffu['nlcd_dom'])[0]
+    try:
+        colors=class_colors[c]
+    except Exception as e:
+        colors='darkgreen'
+        print(e)
+    y,binEdges=np.histogram(fpu['ANI_YB'][m],bins=np.linspace(0,.87,20),density=True)
+    bincenters=.5*(binEdges[1:]+binEdges[:-1])
+    ax.plot(bincenters,y,c=colors,linewidth=1,alpha=.75)
+    i=i+1
+    #plt.hist(fpu['ANI_XB'][m],bins=np.linspace(0,1))
+    #ss=str(site)[2:-1]
+    #plt.title(str(site)+': '+str(d_u['U']['MAD_OLD_s'][ss])[0:5])
+#ax.set_xlabel(r'$x_B$')
+ax.set_xticks([0,.25,.5,.75],[])
+ax.set_xlim(-.05,.8)
+ax.set_ylabel('Frequency')
+#sbf[0].colorbar(sm,cax=ax.inset_axes([0.95, 0, 0.05, 1]),label='$MAD$')
+plt.savefig('../../plot_output/a1/a1_yb_site_distrib.png', bbox_inches = "tight")
 
 
 # %%
 
-# %% [markdown]
+# %% [markdown] jp-MarkdownHeadingCollapsed=true
 # # FIGURE Lumley Error
 
 # %%
@@ -2366,7 +2431,7 @@ for i in range(len(vari)):
 
 # %%
 
-# %% [markdown]
+# %% [markdown] jp-MarkdownHeadingCollapsed=true
 # # Figure XB vs Error all sites
 
 # %%
@@ -2413,7 +2478,7 @@ axs[i,j].get_facecolor()
 
 # %%
 
-# %% [markdown]
+# %% [markdown] jp-MarkdownHeadingCollapsed=true
 # # FIGURE XB/YB CORRELATION
 
 # %%
@@ -2588,7 +2653,7 @@ plt.ylim(.5,70)
 # %%
 plt.boxplot(dd)
 
-# %% [markdown]
+# %% [markdown] jp-MarkdownHeadingCollapsed=true
 # # Self Similarity 2
 
 # %%
@@ -2602,7 +2667,7 @@ m=fpu['SITE'][:]==b'MLBS'
 m=m&(fpu['zzd'][:]/fpu['L_MOST'][:]>-.1)
 plt.hist(fpu['ANI_YB'][m]/fpu['ANID_YB'][m],bins=np.linspace(.5,1,100))
 
-# %% [markdown]
+# %% [markdown] jp-MarkdownHeadingCollapsed=true
 # # Diurnal Cycle and Wind Speed
 
 # %% [markdown]
@@ -3112,3 +3177,471 @@ plt.hexbin(fpu['H'][:],fpu['ANI_YB'][:],mincnt=1,cmap='terrain')
 
 # %%
 plt.hexbin(fpu['U'][:],fpu['ANI_YB'][:],mincnt=1,cmap='terrain')
+
+# %%
+
+# %% [markdown]
+# # More Windspeed
+
+# %% [markdown]
+# ## Scaling with Windspeed Categories
+
+# %% [markdown]
+# ### Preparation
+
+# %%
+Na=9
+Nz=20
+anibinst=np.array([0,.6,1.2,1.7,2.4,3.3,4.3,5.5,8.1,30])
+#anibinst=np.array([.1,.2,.3,.4,.5,.6,.7,.8])
+anilvlt=(anibinst[0:-1]+anibinst[1:])/2
+
+zLbu=-np.logspace(-3.6,2,Nz+1)
+zLbs=np.logspace(-3.6,2,Nz+1)
+#zLu=(zLbu[0:-1]+zLbu[1:])/2
+#zLs=(zLbs[0:-1]+zLbs[1:])/2
+
+upper=np.zeros((2,3,Na,Nz))
+lower=np.zeros((2,3,Na,Nz))
+mid=np.zeros((2,3,Na,Nz))
+
+atrue=np.zeros((2,3,Na))
+zLtrue=np.zeros((2,3,Na,Nz))
+
+for s in range(2):
+    for v in range(3):
+        vs=['U','V','W'][v]
+        if s==0:
+            vs=vs+'U'
+            zLb=zLbu
+            fp=fpu
+        else:
+            vs=vs+'S'
+            zLb=zLbs
+            fp=fps
+        print(vs)
+        phi,_=get_phi(fp,vs)
+        ani=fp['Ustr'][:]
+        zL=fp['zzd'][:]/fp['L_MOST'][:]
+        for i in range(Na):
+            ma=(ani>anibinst[i])&(ani<anibinst[i+1])
+            atrue[s,v,i]=np.nanmedian(ani[ma])
+            for j in range(Nz):
+                if s==0:
+                    m=ma&(zL<zLb[j])&(zL>zLb[j+1])
+                else:
+                    m=ma&(zL>zLb[j])&(zL<zLb[j+1])
+                if np.nansum(m)<100:
+                    upper[s,v,i,j]=float('nan')
+                    mid[s,v,i,j]=float('nan')
+                    lower[s,v,i,j]=float('nan')
+                    zLtrue[s,v,i,j]=float('nan')
+                else:
+                    phim=phi[m]
+                    upper[s,v,i,j]=np.nanpercentile(phim,75)
+                    mid[s,v,i,j]=np.nanpercentile(phim,50)
+                    lower[s,v,i,j]=np.nanpercentile(phim,25)
+                    zLtrue[s,v,i,j]=np.nanmedian(zL[m])
+
+# %%
+
+# %%
+
+# %% [markdown]
+# ### Plotting
+
+# %%
+sz=1.4
+fig,axs=plt.subplots(3,2,figsize=(5*sz,4.5*sz),gridspec_kw={'width_ratios': [1,1]},dpi=400)
+ss=.05
+alph=.75
+minpct=1e-04
+mrkr='.'
+
+ylabels=[r'$\Phi_{u}$',r'$\Phi_{v}$',r'$\Phi_{w}$']
+
+j=0
+for v in ['U','V','W']:
+    # SETUP
+    if v in ['U','V']:
+        ymax=8
+        ymin=.5
+    else:
+        ymax=3.5
+        ymin=.2
+    
+    ##### UNSTABLE #####
+    # SCATTER UNSTABLE
+    # LINES UNSTABLE
+    yplt=mid[0,j,:,:]
+    for i in range(yplt.shape[0]):
+        if i==0:
+            continue
+        anic=atrue[0,j,i]
+        xplt=zLtrue[0,j,i,:]
+        if v in ['U','V','W','H2O','CO2']:
+            axs[j,0].semilogx(-xplt,yplt[i,:],'-o',color=pl.cm.turbo(anic/10),markersize=2,linewidth=.2)#,linewidth=1,path_effects=[pe.Stroke(linewidth=2, foreground='w'), pe.Normal()])
+        else:
+            axs[j,0].loglog(-xplt,yplt[i,:],'-o',color=cani_norm(anic[i]),markersize=2,linewidth=.2)#,linewidth=1,path_effects=[pe.Stroke(linewidth=2, foreground='w'), pe.Normal()])
+        axs[j,0].fill_between(-xplt, lower[0,j,i,:], upper[0,j,i,:],color=pl.cm.turbo(anic/10),alpha=.15)
+    _,yplt=get_phi(fpu,v+'U',zLbu)
+    if v in ['U','V','W','H2O','CO2']:
+        axs[j,0].semilogx(-zLbu,yplt,'--',color='k',linewidth=1.5,path_effects=[pe.Stroke(linewidth=3, foreground='w'), pe.Normal()],zorder=5)
+    else:
+        axs[j,0].loglog(-zLbu,yplt,'--',color='k',linewidth=1,path_effects=[pe.Stroke(linewidth=2, foreground='w'), pe.Normal()],zorder=5)
+    
+    # LABELING
+    if j==2:
+        axs[j,0].tick_params(which="both", bottom=True)
+        locmin = matplotlib.ticker.LogLocator(base=10.0, subs=(0.1,0.2,0.4,0.6,0.8,1,2,4,6,8,10 )) 
+        axs[j,0].xaxis.set_minor_locator(locmin)
+        axs[j,0].xaxis.set_minor_formatter(matplotlib.ticker.NullFormatter())
+        axs[j,0].set_xticks([10**-3,10**-2,10**-1,1,10],[r'$-10^{-3}$','',r'$-10^{-1}$','',r'$-10^{1}$'])
+        axs[j,0].set_xlim(10**(-3.5),10**(1.3))
+        axs[j,0].set_xlabel(r'$\zeta$')
+    else:
+        axs[j,0].set_xticks([10**-3,10**-2,10**-1,1,10],[])
+        axs[j,0].set_xlim(10**(-3.5),10**(1.3))
+    #axs[j,0].xaxis.set_minor_locator(tck.AutoMinorLocator())
+    axs[j,0].set_ylabel(ylabels[j])
+    axs[j,0].set_ylim(ymin,ymax)
+    axs[j,0].invert_xaxis()
+    
+    ##### STABLE #####
+    # LINES STABLE
+    yplt=mid[1,j,:,:]
+    anic=atrue[1,j,:]
+    for i in range(yplt.shape[0]):
+        if i==0:
+            continue
+        anic=atrue[1,j,i]
+        xplt=zLtrue[1,j,i,:]
+        if v in ['U','V','W','H2O','CO2']:
+            axs[j,1].semilogx(xplt,yplt[i,:],'-o',color=pl.cm.turbo(anic/10),markersize=2,linewidth=.2)#,linewidth=1,path_effects=[pe.Stroke(linewidth=2, foreground='w'), pe.Normal()])
+        else:
+            axs[j,1].loglog(xplt,yplt[i,:],'-o',color=cani_norm(anic[i]),markersize=2,linewidth=.2)#,linewidth=1,path_effects=[pe.Stroke(linewidth=2, foreground='w'), pe.Normal()])
+        axs[j,1].fill_between(xplt, lower[1,j,i,:], upper[1,j,i,:],color=pl.cm.turbo(anic/10),alpha=.15)
+    _,yplt=get_phi(fps,v+'S',zLbs)
+    if v in ['U','V','W','H2O','CO2']:
+        axs[j,1].semilogx(zLbs,yplt[:],'--',color='k',linewidth=1.5,path_effects=[pe.Stroke(linewidth=3, foreground='w'), pe.Normal()],zorder=5)
+    else:
+        axs[j,1].loglog(zLbs,yplt[:],'--',color='k',linewidth=1,path_effects=[pe.Stroke(linewidth=2, foreground='w'), pe.Normal()],zorder=5)
+
+    # LABELING
+    if j==2:
+        axs[j,1].tick_params(which="both", bottom=True)
+        locmin = matplotlib.ticker.LogLocator(base=10.0, subs=(0.1,0.2,0.4,0.6,0.8,1,2,4,6,8,10 )) 
+        axs[j,1].xaxis.set_minor_locator(locmin)
+        axs[j,1].xaxis.set_minor_formatter(matplotlib.ticker.NullFormatter())
+        axs[j,1].set_xticks([10**-3,10**-2,10**-1,1,10],[r'$10^{-3}$','',r'$10^{-1}$','',r'$10^{1}$'])
+        axs[j,1].set_xlim(10**(-3.5),10**(1.3))
+        axs[j,1].set_xlabel(r'$\zeta$')
+    else:
+        locmin = matplotlib.ticker.LogLocator(base=10.0, subs=(0.1,0.2,0.4,0.6,0.8,1,2,4,6,8,10 )) 
+        axs[j,1].xaxis.set_minor_locator(locmin)
+        axs[j,1].xaxis.set_minor_formatter(matplotlib.ticker.NullFormatter())
+        axs[j,1].set_xticks([10**-3,10**-2,10**-1,1,10],[])
+        axs[j,1].set_xlim(10**(-3.5),10**(1.3))
+    axs[j,1].tick_params(labelleft=False)
+    #axs[j,1].grid(False)
+    #axs[j,1].xaxis.grid(True, which='minor')
+    axs[j,1].set_ylim(ymin,ymax)
+    
+    j=j+1
+
+plt.subplots_adjust(hspace=.08,wspace=.02)
+plt.savefig('../../plot_output/a1/a1_wind_scaling_v2.png', bbox_inches = "tight")
+
+# %%
+
+# %% [markdown]
+# ## MAD versus Windspeed for all Relations
+
+# %% [markdown]
+# ### Preparation
+
+# %%
+from sklearn.metrics import mean_squared_error
+def getbins(A,n):
+     B=np.sort(A)
+     bins=[]
+     for i in np.linspace(0,len(A)-1,n):
+         i=int(i)
+         bins.append(B[i])
+     return bins
+def get_phi_sc23(fp,var):
+    zL=fp['zzd'][:]/fp['L_MOST'][:]
+    ani=fp['ANI_YB'][:]
+    match var:
+        case 'UU':
+            a=.784-2.582*np.log10(ani)
+            phin=a*(1-3*zL)**(1/3)
+        case 'VU':
+            a=.725-2.702*np.log10(ani)
+            phin=a*(1-3*zL)**(1/3)
+        case 'WU':
+            a=1.119-0.019*ani-.065*ani**2+0.028*ani**3
+            phin=a*(1-3*zL)**(1/3)
+        case 'US':
+            a_=np.array([2.332,-2.047,2.672])
+            c_=np.array([.255,-1.76,5.6,-6.8,2.65])
+            a=0
+            c=0
+            for i in range(3):
+                a=a+a_[i]*ani**i
+            for i in range(5):
+                c=c+c_[i]*ani**i
+            phin=a*(1+3*zL)**(c)
+        case 'VS':
+            a_=np.array([2.385,-2.781,3.771])
+            c_=np.array([.654,-6.282,21.975,-31.634,16.251])
+            a=0
+            c=0
+            for i in range(3):
+                a=a+a_[i]*ani**i
+            for i in range(5):
+                c=c+c_[i]*ani**i
+            phin=a*(1+3*zL)**(c)
+        case 'WS':
+            a_=np.array([.953,.188,2.243])
+            c_=np.array([.208,-1.935,6.183,-7.485,3.077])
+            a=0
+            c=0
+            for i in range(3):
+                a=a+a_[i]*ani**i
+            for i in range(5):
+                c=c+c_[i]*ani**i
+            phin=a*(1+3*zL)**(c)
+    return phin
+def get_phi_tsw(fp,var):
+    zL=fp['zzd'][:]/fp['L_MOST'][:]
+    ani=fp['ANI_YB'][:]
+    lani=np.log10(ani)
+    match var:
+        case 'UU':
+            a=.5-2.960*lani
+            phin=a*(1-3*zL)**(1/3)
+        case 'VU':
+            a=.397-2.721*lani
+            phin=a*(1-3*zL)**(1/3)
+        case 'WU':
+            a=0.878-.790*lani-.688*lani**2
+            phin=a*(1-3*zL)**(1/3)
+        case 'US':
+            a=2.490-2.931*ani+3.967*ani**2
+            c=-0.014+.441*ani-.473*ani**2
+            phin=a*(1+3*zL)**(c)
+        case 'VS':
+            a=1.333+.584*ani+1.307*ani**2
+            c=.223-.429*ani+.328*ani**2
+            phin=a*(1+3*zL)**(c)
+        case 'WS':
+            a=.857+.385*ani+2.399*ani**2
+            c=.096-.0043*ani-.038*ani**2
+            phin=a*(1+3*zL)**(c)
+    return phin
+
+
+# %%
+Ns=50
+Nu=50
+ubs=fps['Ustr'][:]
+ubu=fpu['Ustr'][:]
+
+ubsb=getbins(ubs,Ns+1)
+ubub=getbins(ubu,Nu+1)
+
+ubr=np.zeros((2,3,Nu))
+mad=np.zeros((2,3,3,Nu))
+md=np.zeros((2,3,3,Nu))
+rmse=np.zeros((2,3,3,Nu))
+rmdse=np.zeros((2,3,3,Nu))
+
+for i in range(3):
+    v=['U','V','W'][i]
+    print(v)
+    # unstable
+    phi,phio=get_phi(fpu,v+'U')
+    phin=get_phi_sc23(fpu,v+'U')
+    phint=get_phi_tsw(fpu,v+'U')
+    for j in range(Nu):
+        m=(ubu>ubub[j])&(ubu<ubub[j+1])
+        phim=phi[m]
+        phiom=phio[m]
+        phinm=phin[m]
+        phin2m=phint[m]
+        md[0,i,0,j]=np.nanmedian(phim-phiom)
+        md[0,i,1,j]=np.nanmedian(phim-phinm)
+        md[0,i,2,j]=np.nanmedian(phim-phin2m)
+        mad[0,i,0,j]=np.nanmedian(np.abs(phim-phiom))
+        mad[0,i,1,j]=np.nanmedian(np.abs(phim-phinm))
+        mad[0,i,2,j]=np.nanmedian(np.abs(phim-phin2m))
+        rmse[0,i,0,j]=np.sqrt(np.mean((phiom-phim)**2))
+        rmse[0,i,1,j]=np.sqrt(np.mean((phinm-phim)**2))
+        rmse[0,i,2,j]=np.sqrt(np.mean((phin2m-phim)**2))
+        rmdse[0,i,0,j]=np.sqrt(np.median((phiom-phim)**2))
+        rmdse[0,i,1,j]=np.sqrt(np.median((phinm-phim)**2))
+        rmdse[0,i,2,j]=np.sqrt(np.median((phin2m-phim)**2))
+        ubr[0,i,j]=np.nanmedian(ubu[m])
+    phi,phio=get_phi(fps,v+'S')
+    phin=get_phi_sc23(fps,v+'S')
+    phint=get_phi_tsw(fps,v+'S')
+    for j in range(Ns):
+        m=(ubs>ubsb[j])&(ubs<ubsb[j+1])
+        phim=phi[m]
+        phiom=phio[m]
+        phinm=phin[m]
+        phin2m=phint[m]
+        md[1,i,0,j]=np.nanmedian(phim-phiom)
+        md[1,i,1,j]=np.nanmedian(phim-phinm)
+        md[1,i,2,j]=np.nanmedian(phim-phin2m)
+        mad[1,i,0,j]=np.nanmedian(np.abs(phim-phiom))
+        mad[1,i,1,j]=np.nanmedian(np.abs(phim-phinm))
+        mad[1,i,2,j]=np.nanmedian(np.abs(phim-phin2m))
+        rmse[1,i,0,j]=np.sqrt(np.mean((phiom-phim)**2))
+        rmse[1,i,1,j]=np.sqrt(np.mean((phinm-phim)**2))
+        rmse[1,i,2,j]=np.sqrt(np.mean((phin2m-phim)**2))
+        rmdse[1,i,0,j]=np.sqrt(np.median((phiom-phim)**2))
+        rmdse[1,i,1,j]=np.sqrt(np.median((phinm-phim)**2))
+        rmdse[1,i,2,j]=np.sqrt(np.median((phin2m-phim)**2))
+        ubr[1,i,j]=np.nanmedian(ubs[m])
+
+
+# %%
+
+# %% [markdown]
+# ### Plotting
+
+# %%
+sz=1
+from matplotlib.ticker import FixedLocator
+fig,axs=plt.subplots(3,2,figsize=(5*sz,4*sz),dpi=500)
+labels=[r'$Bias$ $\Phi_u$',r'$Bias$ $\Phi_v$',r'$Bias$ $\Phi_w$']
+for i in range(3):
+    for s in range(2):
+        ax=axs[i,s]
+        #ax.plot(ubr[s,i,:],[0]*Nu,color='white',linewidth=2)
+        ax.plot(ubr[s,i,:],-md[s,i,0,:],'-o',linewidth=.75,markersize=1.5,zorder=2,color='black',alpha=.3,label='MOST')
+        ax.plot(ubr[s,i,:],-md[s,i,1,:],'-o',linewidth=.75,markersize=1.5,zorder=3,color='mediumpurple',alpha=.5,label='SC23 fit')
+        ax.plot(ubr[s,i,:],-md[s,i,2,:],'-o',linewidth=.75,markersize=1.5,zorder=4,color='goldenrod',alpha=.5,label='Neon fit')
+        #ax.set_xticks([0,1,2,3,4,5,6,7,8,9,10,11,12],[0,'','','','',5,'','','','',10,'',''])
+        ax.set_xticks([0,5,10])
+        ax.xaxis.set_minor_locator(FixedLocator([0,1,2,3,4,5,6,7,8,9,10,11,12]))
+        ax.grid(axis='both', which='major',linewidth=1)
+        ax.grid(which='minor', linestyle='-', alpha=0.5,linewidth=.5)
+        ax.tick_params(axis='both', which='major', labelsize=8,pad=.5)
+        if s==0:
+            ax.set_ylabel(labels[i],fontsize=10)
+            if i==0:
+                ax.set_title('Unstable')
+        elif i==0:
+            ax.set_title('Stable')
+            ax.legend(fontsize=8)
+        if i==2:
+            ax.set_xlabel(r'Windspeed ($m\ s^{-1}$)',fontsize=10)
+plt.subplots_adjust(hspace=.05,wspace=.25)
+plt.savefig('../../plot_output/a1/a1_wind_v_bias.png', bbox_inches = "tight")
+
+# %%
+sz=1
+from matplotlib.ticker import FixedLocator
+fig,axs=plt.subplots(3,2,figsize=(5*sz,4*sz),dpi=500)
+labels=[r'$MAD$ $\Phi_u$',r'$MAD$ $\Phi_v$',r'$MAD$ $\Phi_w$']
+for i in range(3):
+    for s in range(2):
+        ax=axs[i,s]
+        #ax.plot(ubr[s,i,:],[0]*Nu,color='white',linewidth=2)
+        ax.plot(ubr[s,i,:],mad[s,i,0,:],'-o',linewidth=.75,markersize=1.5,zorder=2,color='black',alpha=.3,label='MOST')
+        ax.plot(ubr[s,i,:],mad[s,i,1,:],'-o',linewidth=.75,markersize=1.5,zorder=3,color='mediumpurple',alpha=.5,label='SC23 fit')
+        ax.plot(ubr[s,i,:],mad[s,i,2,:],'-o',linewidth=.75,markersize=1.5,zorder=4,color='goldenrod',alpha=.5,label='Neon fit')
+        #ax.set_xticks([0,1,2,3,4,5,6,7,8,9,10,11,12],[0,'','','','',5,'','','','',10,'',''])
+        ax.set_xticks([0,5,10])
+        ax.xaxis.set_minor_locator(FixedLocator([0,1,2,3,4,5,6,7,8,9,10,11,12]))
+        ax.grid(axis='both', which='major',linewidth=1)
+        ax.grid(which='minor', linestyle='-', alpha=0.5,linewidth=.5)
+        ax.tick_params(axis='both', which='major', labelsize=8,pad=.5)
+        if s==0:
+            ax.set_ylabel(labels[i],fontsize=10)
+            if i==0:
+                ax.set_title('Unstable')
+        elif i==0:
+            ax.set_title('Stable')
+            ax.legend(fontsize=8)
+        if i==2:
+            ax.set_xlabel(r'Windspeed ($m\ s^{-1}$)',fontsize=10)
+plt.subplots_adjust(hspace=.05,wspace=.2)
+plt.savefig('../../plot_output/a1/a1_wind_v_mad.png', bbox_inches = "tight")
+
+# %%
+print(matplotlib.colors.cnames["goldenrod"])
+
+# %% [markdown]
+# # Scratch
+
+# %%
+i=0
+fig=plt.figure(figsize=(3,4))
+sbf = fig.subfigures(2, 1, hspace=0,wspace=0,frameon=False)
+ax=sbf[1].add_subplot(111)
+fpsites=fps['SITE'][:]
+for site in np.unique(fpsites):
+    m=fpsites==site
+    ss=str(site)[2:-1]
+    ffu=h5py.File('/home/tswater/tyche/data/neon/foot_stats/'+ss+'_U.h5','r')
+    c=stats.mode(ffu['nlcd_dom'])[0]
+    try:
+        colors=class_colors[c]
+    except Exception as e:
+        colors='darkgreen'
+        print(e)
+    y,binEdges=np.histogram(fps['Ustr'][m],bins=np.linspace(0,10),density=True)
+    bincenters=.5*(binEdges[1:]+binEdges[:-1])
+    ax.plot(bincenters,y,c=colors,linewidth=1,alpha=.75)
+    i=i+1
+ax.set_xlabel(r'$y_B$')
+ax.set_ylabel('Frequency')
+#ax.set_xticks([0,.25,.5,.75])
+#ax.set_xlim(-.05,.8)
+
+i=0
+ax=sbf[0].add_subplot(111)
+fpsites=fpu['SITE'][:]
+for site in np.unique(fpsites):
+    m=fpsites==site
+    ss=str(site)[2:-1]
+    ffu=h5py.File('/home/tswater/tyche/data/neon/foot_stats/'+ss+'_U.h5','r')
+    c=stats.mode(ffu['nlcd_dom'])[0]
+    try:
+        colors=class_colors[c]
+    except Exception as e:
+        colors='darkgreen'
+        print(e)
+    y,binEdges=np.histogram(fpu['Ustr'][m],bins=np.linspace(0,10),density=True)
+    bincenters=.5*(binEdges[1:]+binEdges[:-1])
+    ax.plot(bincenters,y,c=colors,linewidth=1,alpha=.75)
+    i=i+1
+    #plt.hist(fpu['ANI_XB'][m],bins=np.linspace(0,1))
+    #ss=str(site)[2:-1]
+    #plt.title(str(site)+': '+str(d_u['U']['MAD_OLD_s'][ss])[0:5])
+#ax.set_xlabel(r'$x_B$')
+#ax.set_xticks([0,.25,.5,.75],[])
+#ax.set_xlim(-.05,.8)
+ax.set_ylabel('Frequency')
+#sbf[0].colorbar(sm,cax=ax.inset_axes([0.95, 0, 0.05, 1]),label='$MAD$')
+
+# %%
+plt.hist(fpu['Ustr'][:],bins=np.linspace(0,20,200))
+
+# %%
+dt=list(fpu['Ustr'][:])
+dt.extend(list(fps['Ustr'][::31]))
+print(np.nanpercentile(dt,95))
+
+# %%
+
+# %%
+
+# %%
+.223-.429*.5+.328*.5**2
+
+# %%

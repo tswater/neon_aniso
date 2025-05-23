@@ -559,7 +559,7 @@ for i in range(len(zlb)-1):
     med_yb.append(np.median(fpu['ANI_YB'][m]))
     med_zl.append(np.median(zl[m]))
     med_rtio.append(np.median(fpu['ANI_YB'][m]/fpu['ANID_YB'][m]))
-    
+
 
 # %%
 

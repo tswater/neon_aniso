@@ -39,19 +39,17 @@ dt = (end_date-start_date).days
 sitelist0=list(sites.keys())
 sitelist0.sort()
 
-<<<<<<< HEAD
 nosites=['ABBY',  'BARR' , 'BART',  'BLAN',  'BONA',  'CLBJ',  'CPER',  'DCFS',  'DEJU']
 sitelist=[]
 for site in sitelist0:
     if site in nosites:
-=======
-#sitelist=['NOGP','ORNL','OAES','OSBS','RMNP','SCBI','PUUM']
-
+        pass
+    else:
+        sitelist.append(site)
 for site in sitelist[rank::size]:
     try:
         subprocess.run('mkdir '+dwnld_dir+'dp04ex2/'+site,shell=True)
     except:
->>>>>>> 5e176fbc12e130ad00cd3432590ded92a7a22a83
         pass
     else:
         sitelist.append(site)
@@ -88,16 +86,13 @@ if False:
 
 #### NOW ACTUALLY DOWNLOAD ####
 for site in sitelist[rank::size]:
-<<<<<<< HEAD
     try:
         subprocess.run('mkdir '+dwnld_dir+'dp4ex2/'+site,shell=True)
     except:
         pass
 
     os.chdir(dwnld_dir+'dp4ex2/'+site)
-=======
     os.chdir(dwnld_dir+'dp04ex2/'+site)
->>>>>>> 5e176fbc12e130ad00cd3432590ded92a7a22a83
     cmd = 'wget -i '+text_dir+'/'+site+'.txt'
     print(cmd)
     subprocess.run(cmd,shell=True)
