@@ -477,27 +477,22 @@ soap_mrd=pickle.load(open(mrd_dir+'SOAP_mrd_v2.p','rb'))
 bona_mrd=pickle.load(open(mrd_dir+'BONA_mrd_v2.p','rb'))
 
 # %%
-soap_mrd['unstable']['Mu']
 
 # %%
 
 # %%
-mrd=soap_mrd
+mrd=onaq_mrd
 Mx=0
 dt = 1/20  #Frequency of measurements.
-for i in range(len(mrd['unstable']['Mu'][:])):
-    t = 2**(np.arange(Mx,mrd['unstable']['Mu'][i]+1))*dt
-    f = t
-    plt.loglog(f[1:-1],mrd['unstable']['Du'][i][1:-1],alpha=.5)
-
-day = 1/(24*3600)
-twelveHr = 1/(12*3600)
-sixhour = 1/(6*3600)
-halfhour = 1/(1800)
-fivemin = 1/(5*60)
-
-ymin=1e-4
-ylim_ax2=.2
+for i in range(len(mrd['stable']['Mu'][:])):
+    t = 2**(np.arange(Mx,mrd['stable']['Mu'][i]+1))*dt
+    f = 1/t
+    plt.scatter(f[1:-1],mrd['stable']['Du'][i][1:-1],alpha=.5)
+    plt.xscale('log')
+    plt.yscale('log')
+plt.plot([1/(60),1/(60)],[10**(-4),1],'k--',alpha=.5)
+plt.plot([1/(60*5),1/(60*5)],[10**(-4),1],'k--',alpha=.5)
+plt.plot([1/(60*30),1/(60*30)],[10**(-4),1],'k--',alpha=.5)
 
 # %%
 mx_t=[]
@@ -517,7 +512,7 @@ for i in range(len(mrd['stable']['Mu'][:])):
 # %%
 Mx=0
 dt = 1/20
-mrd=soap_mrd
+mrd=onaq_mrd
 Dm=np.zeros((22,))
 count=np.zeros((22,))
 for i in range(len(mrd['unstable']['Mu'][:])):
@@ -528,7 +523,7 @@ for i in range(len(mrd['unstable']['Mu'][:])):
 
 Dm=Dm/count
 t = 2**(np.arange(Mx,21+1))*dt
-f = t
+f = 1/t
 plt.loglog(f[1:-1],Dm[1:-1]/np.nanmax(Dm),alpha=.5,c='blue')
 
 Dm=np.zeros((22,))
@@ -541,7 +536,7 @@ for i in range(len(mrd['stable']['Mu'][:])):
 
 Dm=Dm/count
 t = 2**(np.arange(Mx,21+1))*dt
-f = t
+f = 1/t
 plt.loglog(f[1:-1],Dm[1:-1]/np.nanmax(Dm),alpha=.5,c='blue',linestyle='--')
 
 mrd=nogp_mrd
@@ -555,7 +550,7 @@ for i in range(len(mrd['unstable']['Mu'][:])):
 
 Dm=Dm/count
 t = 2**(np.arange(Mx,21+1))*dt
-f = t
+f = 1/t
 plt.loglog(f[1:-1],Dm[1:-1]/np.nanmax(Dm),alpha=.5,c='red')
 
 Dm=np.zeros((22,))
@@ -568,15 +563,17 @@ for i in range(len(mrd['stable']['Mu'][:])):
 
 Dm=Dm/count
 t = 2**(np.arange(Mx,21+1))*dt
-f = t
+f = 1/t
 plt.loglog(f[1:-1],Dm[1:-1]/np.nanmax(Dm),alpha=.5,c='red',linestyle='--')
+
+#plt.xticks([60,120,300,600,60*30])
 
 plt.ylim(10e-3,1.1)
 plt.legend(['unstable','stable','unstable','stable'])
 plt.xlabel('seconds')
 
 # %%
-t[-1]
+60*30
 
 # %%
 500/60
