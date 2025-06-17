@@ -14,6 +14,16 @@ def static2full():
 
 #####################################################
 
+############################# NSCALE ###################################
+# Wrapper function; interpolates (ninterp) or upscales (nupscale) as appropriate
+def nscale(tout,tin,din,maxdelta=60):
+    tdelta=tin[1:]-tin[0:-1]
+    toutdelta=tout[1:]-tout[0:-1]
+    if np.nanmin(toutdelta)>np.nanmin(tdelta):
+        return nupscale(tout,tin,din,maxdelta)
+    else:
+        return ninterp(tout,tin,din,maxdelta)
+
 ############################# NEON INTERP ###############################
 # Interpolate data from one timeseries to another
 def ninterp(tout,tin,din,maxdelta=60):

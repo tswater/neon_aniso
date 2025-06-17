@@ -4,7 +4,8 @@ import h5py
 import datetime
 import os
 from subprocess import run
-from nutil import SITES,ninterp
+from nutil import SITES,nscale
+import pytz
 
 ############# "PRIVATE" FUNCTIONS ###################
 def _bij(uu,vv,ww,uv,uw,vw):
@@ -58,6 +59,17 @@ def _out_to_h5(_fp,_ov,overwrite):
                 print('Skipping output of '+str(key))
         _fp[key].attrs['missing_value']=-9999
     _fp.attrs['last_updated_utc']=str(datetime.datetime.utcnow())
+
+# convert NEON timestamp to seconds since 1970 utc
+def _dpt2utc(tm):
+    tm2=[]
+    t0=datetime.datetime(1970,1,1,0,0)
+    t0=pytz.utc.localize(t0)
+    for t in tm:
+        dt=datetime.strptime(str(t)[2:-1],"%Y-%m-%dT%H:%M:%S.000Z")
+        dt=pytz.utc.localize(dt)
+        tm2.append((dt-t0).total_seconds())
+    return np.array(tm2)
 
 ############# MAKE BASE ###############
 # make base h5 file to add onto for L1
@@ -372,7 +384,8 @@ def add_profile(scl,ndir,idir1,idir2=None,new=False,addprof=True,addqaqc=True,\
         addqaqc : if True, will add qaqc flags to L1, if false will skip
     '''
     if new:
-        add_profile_new(scl,ndir,idir1,idir2,addprof,addqaqc,ivars,overwrite,sites)
+        add_profile_wind(scl,ndir,idir2,addprof,addqaqc,ivars,overwrite,sites)
+        add_profile_tqc(scl,ndir,idir1,addprof,addqaqc,ivars,overwrite,sites)
     else:
         add_profile_old(scl,ndir,idir1,addprof,addqaqc,ivars,overwrite,sites)
 
@@ -416,21 +429,134 @@ def add_profile_old(scl,ndir,idir,addprof=True,addqaqc=True,\
 
 
 
-def add_profile_new(scl,ndir,dp4dir,wdir,addprof=True,addqaqc=True,ivars=None,\
+def add_profile_tqc(scl,ndir,dp4dir,addprof=True,addqaqc=True,ivars=None,\
                     overwrite=False,sites=SITES):
     ''' Add profile information '''
     # add profiles from scratch
-    _ivars = ['profile_t','profile_q','profile_c','profile_u']
+    _ivars = ['profile_t','profile_q','profile_c']
     if ivars in [None]:
         ivars=_ivars
     outvar={}
     for var in ivars:
         if var in _ivars:
-            outvar[var]=[]
+            if addprof:
+                outvar[var]={}
+            if addqaqc:
+                outvar['q'+var]={}
 
-    #### RUN ALL
+
+    #### RUN ALL (TQC)
     for site in sites:
-        pass
+        ovar=outvar.copy()
+        fpo=h5py.File(ndir+site+'_L'+str(scl)+'.h5','r+')
+        time=fpo['TIME'][:]
+        dlt=int(np.min(time[1:]-time[:-1])/60)
+        filelist=os.listdir(dp4dir+site)
+        filelist.sort()
+        inp={'t':{},'q':{},'c':{},'qq':{},'qt':{},'qc':{},\
+                't_t':{},'t_q':{},'t_c':{},'ttop':[],'t_ttop':[],'qttop':[]}
+
+        # identify levels, initiate full input arrays
+        fpi=h5py.File(dp4dir+site+'/'+filelist[-1],'r')
+        lvltqc0=fpi[site].attrs['DistZaxsLvlMeasTow'][:]
+        lvltqc=[]
+        for x in lvltqc0:
+            lvltqc.append(float(x))
+        lvltqc.sort()
+        for i in range(len(lvltqc)-1):
+            inp['t'][i]=[]
+            inp['q'][i]=[]
+            inp['c'][i]=[]
+            inp['qq'][i]=[]
+            inp['qt'][i]=[]
+            inp['qc'][i]=[]
+            inp['t_t'][i]=[]
+            inp['t_q'][i]=[]
+            inp['t_c'][i]=[]
+
+        # determine input scale appropriate
+        if dlt==30:
+            s1='000_0'+str(i+1)+'0_30m'
+            s2='000_0'+str(i+1)+'0_2m'
+        else:
+            s1='000_0'+str(i+1)+'0_1m'
+            s2='000_0'+str(i+1)+'0_2m'
+
+
+        # fill input arrays
+        ts='temp'
+        qs='rtioMoleDryH2o'
+        cs='rtioMoleDryCo2'
+        for file in filelist:
+            if '2024' in file:
+                continue
+            if '.h5.gz' in file:
+                continue
+            fpi=h5py.File(dp4dir+site+'/'+file,'r')
+            for i in range(len(lvltqc)-1):
+                if dlt==30:
+                    s1='000_0'+str(i+1)+'0_30m'
+                    s2='000_0'+str(i+1)+'0_02m'
+                else:
+                    s1='000_0'+str(i+1)+'0_01m'
+                    s2='000_0'+str(i+1)+'0_02m'
+                inp['t'][i].extend(fpi[site]['dp01/data/tempAirLvl'][s1][ts][:]['mean'])
+                inp['q'][i].extend(fpi[site]['dp01/data/h2oStor'][s2][qs][:]['mean'])
+                inp['c'][i].extend(fpi[site]['dp01/data/co2Stor'][s2][cs][:]['mean'])
+                inp['qq'][i].extend(fpi[site]['dp01/qfqm/h2oStor'][s2][qs][:]['qfFinl'])
+                inp['qt'][i].extend(fpi[site]['dp01/qfqm/tempAirLvl'][s1][ts][:]['qfFinl'])
+                inp['qc'][i].extend(fpi[site]['dp01/qfqm/co2Stor'][s2][cs][:]['qfFinl'])
+                tt1=_dpt2utc(fpi[site]['dp01/data/tempAirLvl'][s1][ts][:]['timeBgn'][:])
+                tt2=_dpt2utc(fpi[site]['dp01/data/tempAirLvl'][s1][ts][:]['timeEnd'][:])
+                tq1=_dpt2utc(fpi[site]['dp01/data/h2oStor'][s2][qs][:]['timeBgn'][:])
+                tq2=_dpt2utc(fpi[site]['dp01/data/h2oStor'][s2][qs][:]['timeEnd'][:])
+                tc1=_dpt2utc(fpi[site]['dp01/data/co2Stor'][s2][cs][:]['timeBgn'][:])
+                tc2=_dpt2utc(fpi[site]['dp01/data/co2Stor'][s2][cs][:]['timeEnd'][:])
+                inp['t_t'][i].extend(list((tt1+tt2)/2))
+                inp['t_q'][i].extend(list((tq1+tq2)/2))
+                inp['t_c'][i].extend(list((tc1+tc2)/2))
+            if dlt==30:
+                s1='000_0'+str(len(lvltqc))+'0_30m'
+            else:
+                s1='000_0'+str(len(lvltqc))+'0_01m'
+            inp['ttop'].extend(fpi[site]['dp01/data/tempAirTop'][s1][ts][:]['mean'])
+            inp['qttop'].extend(fpi[site]['dp01/qfqm/tempAirTop'][s1][ts][:]['qfFinl'])
+            tt1=_dpt2utc(fpi[site]['dp01/data/tempAirTop'][s1][ts][:]['timeBgn'][:])
+            tt2=_dpt2utc(fpi[site]['dp01/data/tempAirTop'][s1][ts][:]['timeEnd'][:])
+            inp['t_ttop'].extend(list((tt1+tt2)/2))
+
+        # make time middle not begining time
+        time2=time+scl/2*60
+
+        # Interpolate
+        vs=[]
+        for k in ovar.keys():
+            a=k[-1]
+            if a not in vs:
+                vs.append(a)
+
+        for v in vs:
+            v_long='profile_'+v
+            for i in range(len(lvltqc)-1):
+                if addprof:
+                    ovar[v_long][v.upper()+str(i)]=nscale(time2,inp['t_'+v][:],inp[v][:])
+                if addqaqc:
+                    ovar['q'+v_long][v.upper()+str(i)]=nscale(time2,inp['t_'+v][:],inp['q'+v][:])
+        if 't' in vs:
+            v_long='profile_t'
+            if addprof:
+                ovar[v_long][v.upper()+str(len(lvltqc)-1)]=\
+                        nscale(time2,inp['t_ttop'][:],inp['ttop'][:])
+            if addqaqc:
+                ovar['q'+v_long][v.upper()+str(len(lvltqc)-1)]=\
+                        nscale(time2,inp['t_ttop'][:],inp['qttop'][:])
+
+        # Output
+        # need to output both types of qprofiles, create structure etc.
+
+
+
+
 
     # FIXME
     print('From scratch not yet implemented; see L1_add_profiles.py')
@@ -439,6 +565,8 @@ def add_profile_new(scl,ndir,dp4dir,wdir,addprof=True,addqaqc=True,ivars=None,\
     # interp to data timeseries
     # that should be it not Hard??
 
+def add_profile_wind(scl,ndir,wndir,addprof=True,addqaqc=True,ivars=None,\
+                    overwrite=False,sites=SITES):
 
 
 ##################################################################
