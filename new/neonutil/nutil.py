@@ -39,16 +39,58 @@ def ninterp(tout,tin,din,maxdelta=60):
     tdelta=tin[1:]-tin[0:-1]
     toutdelta=tout[1:]-tout[0:-1]
     if np.nanmin(toutdelta)>np.nanmin(tdelta):
-        print('WARNING! Output resolution bigger than input; averaging with nupscale suggested')
+        print('WARNING! Output resolution coarser than input; averaging with nupscale suggested')
 
     # split into smaller timeseries based on gaps
-    splits=np.where(tdelta>maxdelta*60)
-    # FIXME
+    splt_idi=np.where(tdelta>maxdelta*60)[0]
+    splt_tmin=tin(splt_idi)
+    # convert split to indicies in tout space
+    splt_ido=np.interp(splt_tmin,tout,np.linspace(0,len(tout)-1,lent(tout)))
+    t0=int(tin[0],tout,np.linspace(0,len(tout)-1,lent(tout)))
+    t0i=0
+
+    out=np.ones((len(tout),))*float('nan')
+
+    # loop and interate through to interpolate
+    for i in range(len(splt_idi)):
+        tf=splt_ido[i]
+        tfi=splt_idi[i]
+        out[t0:tf]=np.interp(tout[t0:tf],tin[t0i:tfi],din[t0i:tfi],\
+                             left=float('nan'),right=float('nan'))
+        t0=tf
+        t0i=tfi
+
+    # do final interpolation
+    tf=-1
+    tfi=-1
+    out[t0:tf]=np.interp(tout[t0:tf],tin[t0i:tfi],din[t0i:tfi],\
+                         left=float('nan'),right=float('nan'))
+    return out
+
 
 ############################ NEON UPSCALE ################################
 # turn a higher resolution time series into a lower resolution time series
 # by averaging
 # FIXME
-def nupscale(tout,tin,din):
-    return
+def nupscale(tout,tin,din,maxdelta=60):
+    # if input is continous
+    if np.min(tout[1:]-tout[0:-1])==np.max(tout[1:]-tout[0:-1]):
+        outscl=int(np.min(tout[1:]-tout[0:-1])/60)
+
+        # interpolate to 1 minute, then average up
+        tmid=np.linspace(tout[0],tout[-1],outscl*len(tout))
+        dmid=ninterp(tmid,tin,din,maxdelta=max(maxdelta,outscl))
+
+        out=np.zeros((len(tout),))
+        for i in range(outscl):
+            out=out+dmid[i::outscl]/outscl
+    else:
+        raise RuntimeError('Output timeseries is either non-continuous, or uses variable delta')
+
+    return out
+
+
+
+
+
 
