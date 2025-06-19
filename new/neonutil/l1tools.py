@@ -6,6 +6,7 @@ import os
 from subprocess import run
 from nutil import SITES,nscale
 import pytz
+import csv
 
 ############# "PRIVATE" FUNCTIONS ###################
 def _bij(uu,vv,ww,uv,uw,vw):
@@ -32,6 +33,65 @@ def _bij(uu,vv,ww,uv,uw,vw):
     ani[m,2,1]=vw[m]/k
     return ani
 
+# convert NEON timestamp to seconds since 1970 utc
+def _dpt2utc(tm):
+    tm2=[]
+    t0=datetime.datetime(1970,1,1,0,0)
+    t0=pytz.utc.localize(t0)
+    for t in tm:
+        dt=datetime.strptime(str(t)[2:-1],"%Y-%m-%dT%H:%M:%S.000Z")
+        dt=pytz.utc.localize(dt)
+        tm2.append((dt-t0).total_seconds())
+    return np.array(tm2)
+
+def _load_csv_data(innames,idir,req):
+    # innames is a list of names to input
+    # idir is directory of input
+    # req is a list of file name requirements; i.e. req=['_30min'] will only
+    #   load files that contain that _30min in file name
+    # WARNING: will not work for phenocam
+    out={}
+    pos={}
+    for i in innames:
+        out[i]=[]
+    out['startDateTime']=[]
+    out['endDateTime']=[]
+    flist=os.listdir(idir)
+    flist.sort()
+    for file in filelist:
+        with open(idir+'/'+file,encoding='latin-1') as read_r:
+            read_r = csv.reader(read_r)
+            header = read_r.next()
+            for k in out.keys():
+                try:
+                    pos[k]=header.index(k)
+                except Exception as e:
+                    print('ERROR in CSV reading with '+k+\
+                            ' variable not in csv for '+idir+'/'+file)
+                    raise e
+            for row in read_r:
+                if row[0]=='startDateTime':
+                    continue
+                for k in out.keys():
+                    try:
+                        a=row[pos[k]]
+                    except Exception:
+                        a='nan'
+                    try:
+                        b=float(a)
+                    except Exception:
+                        if 'Time' in k:
+                            b=a
+                        else:
+                            b=float('nan')
+                    out[k].append(b)
+    
+    # final checks
+    for k in out.keys():
+        if 'Time' in k:
+            out[k]=_dpt2utc(out[k])
+
+
 def _aniso(bij):
     N=bij.shape[0]
     yb=np.ones((N,))*-9999
@@ -50,26 +110,25 @@ def _aniso(bij):
 
 def _out_to_h5(_fp,_ov,overwrite):
     for k in _ov.keys():
-        try:
-            _fp.create_dataset(key,data=np.array(_ov[key][:]))
-        except:
-            if overwrite:
-                _fp[key][:]=np.array(_ov[key][:])
+        if type(_ov[k]) is dict:
+            ov2=_ov[k]
+            if k not in _fp.keys():
+                _f=_fp.create_group(k)
             else:
-                print('Skipping output of '+str(key))
-        _fp[key].attrs['missing_value']=-9999
-    _fp.attrs['last_updated_utc']=str(datetime.datetime.utcnow())
+                _f=_fp[k]
+            _out_to_h5(_f,ov2,overwrite)
 
-# convert NEON timestamp to seconds since 1970 utc
-def _dpt2utc(tm):
-    tm2=[]
-    t0=datetime.datetime(1970,1,1,0,0)
-    t0=pytz.utc.localize(t0)
-    for t in tm:
-        dt=datetime.strptime(str(t)[2:-1],"%Y-%m-%dT%H:%M:%S.000Z")
-        dt=pytz.utc.localize(dt)
-        tm2.append((dt-t0).total_seconds())
-    return np.array(tm2)
+        else:
+            try:
+                _fp.create_dataset(key,data=np.array(_ov[key][:]))
+            except:
+                if overwrite:
+                    _fp[key][:]=np.array(_ov[key][:])
+                else:
+                    print('Skipping output of '+str(key))
+            _fp[key].attrs['missing_value']=-9999
+    _fp.attrs['last_updated_utc']=str(datetime.datetime.utcnow())
+    return None
 
 ############# MAKE BASE ###############
 # make base h5 file to add onto for L1
@@ -374,7 +433,9 @@ def add_core_attrs(scl,ndir,nbdir=None,bscl=30,ivars=None,sites=SITES):
 
 
 ##################################################################
-def add_profile(scl,ndir,idir1,idir2=None,new=False,addprof=True,addqaqc=True,\
+################### ADD PROFILE WRAPPER ##########################
+# Wrapper that calls appropriate add profile based on desired method
+def add_profile(scl,ndir,idir1,idir2=None,new=True,addprof=True,addqaqc=True,\
                 ivars=None,overwrite=False,sites=SITES):
     ''' Add profile information (new or old)
         idir1   : if new, dp4 directory, else 1m L1 directory
@@ -399,6 +460,7 @@ def add_profile_old(scl,ndir,idir,addprof=True,addqaqc=True,\
     for var in ivars:
         if var in _ivars:
             outvar[var]={}
+    raise Exception('To Be Implemented; use add_profile_tqc or add_profile_wind')
 
     #### RUN ALL
     for site in sites:
@@ -425,10 +487,12 @@ def add_profile_old(scl,ndir,idir,addprof=True,addqaqc=True,\
                 pass
             for v2 in fpi[var].keys():
                 # FIXME
-                raise Exception('I gave up implementing this; use add_profile_tqc or add_profile_wind')
+                pass
     # FIXME I gave up implementing this
 
-
+########################################################################
+################## ADD PROFILE TQC ####################################
+# Adds the vertical profiles of temperature, water vapor and co2
 def add_profile_tqc(scl,ndir,dp4dir,addprof=True,addqaqc=True,ivars=None,\
                     overwrite=False,sites=SITES):
     ''' Add profile information '''
@@ -444,7 +508,10 @@ def add_profile_tqc(scl,ndir,dp4dir,addprof=True,addqaqc=True,ivars=None,\
             if addqaqc:
                 outvar['q'+var]=[]
                 outvar['q'+var+'_upper']=[]
-
+    
+    if len(outvar.keys())==0:
+        print('No valid variables in ivars')
+        return None
 
     #### RUN ALL (TQC)
     for site in sites:
@@ -535,40 +602,254 @@ def add_profile_tqc(scl,ndir,dp4dir,addprof=True,addqaqc=True,ivars=None,\
             a=k[-1]
             if a not in vs:
                 vs.append(a)
-
+            if 'qprofile' in k:
+                ovar[k]=np.zeros((len(time),))
+        
         for v in vs:
             v_long='profile_'+v
+            if addqaqc:
+                tmp['q'+v_long]={}
             for i in range(len(lvltqc)-1):
                 if addprof:
                     ovar[v_long][v.upper()+str(i)]=nscale(time2,inp['t_'+v][:],inp[v][:])
                 if addqaqc:
-                    ovar['q'+v_long][v.upper()+str(i)]=nscale(time2,inp['t_'+v][:],inp['q'+v][:])
+                    tmp=nscale(time2,inp['t_'+v][:],inp['q'+v][:])
+                    ovar['q'+v_long]=ovar['q'+v_long][:]+tmp[:]
+                    if i in [len(lvltqc)-2,len(lvltqc)-3]:
+                        ovar['q'+v_long+'_upper']=ovar['q'+v_long+'_upper'][:]+tmp[:]
+        
+        # Interpolate top point in temperature profile
         if 't' in vs:
             v_long='profile_t'
             if addprof:
                 ovar[v_long][v.upper()+str(len(lvltqc)-1)]=\
                         nscale(time2,inp['t_ttop'][:],inp['ttop'][:])
             if addqaqc:
-                ovar['q'+v_long][v.upper()+str(len(lvltqc)-1)]=\
-                        nscale(time2,inp['t_ttop'][:],inp['qttop'][:])
+                tmp=nscale(time2,inp['t_ttop'][:],inp['qttop'][:])
+                ovar['q'+v_long]=ovar['q'+v_long]+tmp[:]
+                ovar['q'+v_long+'_upper']=ovar['q'+v_long+'_upper'][:]+tmp[:]
 
         # Output
-        # need to output both types of qprofiles, create structure etc
-        # FIXME need to remove qprofile from ovar as this 2D series is
-        #       not what we want to output, rather 2 1D series
-        # FIXME write output
+        _out_to_h5(fpo,ovar,overwrite)
 
-
-
-
-
+#############################################################################
+########################### ADD PROFILE WIND ################################
+# Adds the profile of windspeed
 def add_profile_wind(scl,ndir,wndir,addprof=True,addqaqc=True,ivars=None,\
                     overwrite=False,sites=SITES):
 
 
-##################################################################
-def add_radiation():
-    ''' Add radiation information '''
+#############################################################################
+######################## ADD RADIATION ######################################
+# Adds radiation information (longwave, shortwave, etc.)
+def add_radiation(scl,ndir,idir,adddata=True,addqaqc=True,ivars=None,overwrite=False,sites=SITES):
+    ''' Add radiation information
+        scl   : averaging scale in minutes
+        ndir  : directory of L1 base files
+        ivars : variables to process; None will add all
+    '''
+    #### SETUP
+    _ivars = ['SW_IN', 'SW_OUT', 'LW_IN', 'LW_OUT', 'NETRAD']
+    if ivars in [None]:
+        ivars=_ivars
+    outvar={}
+    for var in ivars:
+        if var in _ivars:
+            outvar[var]=[]
+    if len(outvar.keys())==0:
+        print('No valid variables in ivars')
+        return None
+    readlist=[]
+    if adddata:
+        readlist.extend(['inSWMean','inLWMean','outSWMean','outLWMean'])
+    if addqaqc:
+        readlist.extend(['inSWFinalQF','inLWFinalQF','outSWFinalQF','outLWFinalQF'])
+
+    #### SITE LOOP
+    for site in sites:
+        # Setup
+        fpo=h5py.File(ndir+site+'_L'+str(scl)+'.h5','r+')
+        time=fpo['TIME'][:]
+        time2=time+scl/2*60
+        ovar=outvar.copy()
+
+        # Load Data
+        N=len(readlist)+2
+        d=_load_csv_data(readlist,idir+site,['_1min'])
+        tm=(d['startDateTime'][:]+d['endDateTime'][:])/2
+        
+        # Interpolate Data
+        if adddata:
+            swin=nscale(time2,tm,d['inSWMean'])
+            swout=nscale(time2,tm,d['outSWMean'])
+            lwin=nscale(time2,tm,d['inLWMean'])
+            lwout=nscale(time2,tm,d['outLWMean'])
+            for v in ovar.keys():
+                match v:
+                    case 'SW_IN':
+                        ovar[v]=swin
+                    case 'SW_OUT':
+                        ovar[v]=swout
+                    case 'LW_IN':
+                        ovar[v]=lwin
+                    case 'LW_OUT':
+                        ovar[v]=lwout
+                    case 'NETRAD':
+                        ovar[v]=swin-swout+lwin-lwout
+        if addqaqc:
+            radq=nscale(time2,tm,d['inSWFinalQF'])
+            radq=radq+nscale(time2,tm,d['outSWFinalQF'])
+            radq=radq+nscale(time2,tm,d['inLWFinalQF'])
+            radq=radq+nscale(time2,tm,d['outLWFinalQF'])
+            ovar['qNETRAD']=radq
+        
+        _out_to_h5(fpo,ovar,overwrite)
+
+#############################################################################
+####################### ADD GROUND HEAT FLUX ################################
+# Add Ground heat flux 
+def add_ghflx(scl,ndir,idir,adddata=True,addqaqc=True,ivars=None,overwrite=False,sites=SITES):
+    ''' Add radiation information
+        scl   : averaging scale in minutes
+        ndir  : directory of L1 base files
+        ivars : variables to process; None will add all
+    '''
+    #### SETUP
+    _ivars = ['G']
+    if ivars in [None]:
+        ivars=_ivars
+    outvar={}
+    for var in ivars:
+        if var in _ivars:
+            outvar[var]=[]
+
+    if len(outvar.keys())==0:
+        print('No valid variables in ivars')
+        return None
+
+    readlist=[]
+    if adddata:
+        readlist.extend(['SHFMean'])
+    readlist.extend(['finalQF'])
+
+    #### SITE LOOP
+    for site in sites:
+        # Setup
+        fpo=h5py.File(ndir+site+'_L'+str(scl)+'.h5','r+')
+        time=fpo['TIME'][:]
+        time2=time+scl/2*60
+        ovar=outvar.copy()
+
+        if scl==30:
+            st1='_30min'
+        else:
+            st1='_1min'
+
+        # Load Data
+        N=len(readlist)+2 
+        d1=_load_csv_data(readlist,idir+site,[st1,'001.001']) #001.001, 001.003, 001.005
+        tm1=(d1['startDateTime'][:]+d1['endDateTime'][:])/2
+
+        d2=_load_csv_data(readlist,idir+site,[st1,'001.003']) #001.001, 001.003, 001.005
+        tm2=(d2['startDateTime'][:]+d2['endDateTime'][:])/2
+
+        d3=_load_csv_data(readlist,idir+site,[st1,'001.005']) #001.001, 001.003, 001.005
+        tm3=(d3['startDateTime'][:]+d3['endDateTime'][:])/2
+
+        # Interpolate Data
+        qgg=np.zeros((3,len(time2)))
+        qgg[0,:]=nscale(time2,tm1,d1['finalQF'])
+        qgg[1,:]=nscale(time2,tm2,d2['finalQF'])
+        qgg[2,:]=nscale(time2,tm3,d3['finalQF'])
+
+        if adddata:
+            gg=np.zeros((3,len(time2)))
+            gg[0,:]=nscale(time2,tm1,d1['SHFMean'])
+            gg[1,:]=nscale(time2,tm2,d2['SHFMean'])
+            gg[2,:]=nscale(time2,tm3,d3['SHFMean'])
+            gg[gg<=-999]=float('nan')
+            gcnt=np.sum(~np.isnan(gg),axis=0)+.00001
+            ovar['G_full']=np.nansum(gg,axis=0)/gcnt
+            gg[qgg==1]=float('nan')
+            gcnt=np.sum(~np.isnan(gg),axis=0)+.00001
+            ovar['G']=np.nansum(gg,axis=0)/gcnt
+            
+        if addqaqc:
+            qgg[np.isnan(qgg)]=1
+            gsum=np.sum(qgg,axis=0)
+            ovar['qG']=gsum
+
+        _out_to_h5(fpo,ovar,overwrite)
+
+#############################################################################
+####################### ADD PRECIPITATION ###################################
+# Add Precipitation
+def add_precip(scl,ndir,idir1,idir2,adddata=True,addqaqc=False,ivars=None,overwrite=False,sites=SITES):
+    ''' Add radiation information
+        scl   : averaging scale in minutes
+        ndir  : directory of L1 base files
+        ivars : variables to process; None will add all
+        idir1 : input directory primary precip
+        idir2 : input directory secondary precip
+    '''
+    #### SETUP
+    _ivars = ['P']
+    if ivars in [None]:
+        ivars=_ivars
+    outvar={}
+    for var in ivars:
+        if var in _ivars:
+            outvar[var]=[]
+    if len(outvar.keys())==0:
+        print('No valid variables in ivars')
+        return None
+
+    if addqaqc:
+        print('No QF currently implemented; skipping adding qaqc for precipitation')
+
+    # precipBulk (primary)
+    # secPrecipBulk
+
+    #### SITE LOOP
+    for site in sites:
+        # Setup
+        fpo=h5py.File(ndir+site+'_L'+str(scl)+'.h5','r+')
+        time=fpo['TIME'][:]
+        time2=time+scl/2*60
+        ovar=outvar.copy()
+
+        # check if primary or secondary or both
+        prime=False
+        secnd=False
+        if len(os.listdir(idir1+'/'+site))>0:
+            prime=True
+        if len(os.listdir(idir2+'/'+site))>0:
+            secnd=True
+
+        # Load Data and Interpolate
+        if prime:
+            dp=_load_csv_data(['precipBulk'],idir1+site,['_60min'])
+            tmp=(dp['startDateTime'][:]+dp['endDateTime'][:])/2
+            if adddata:
+                p1=nscale(time2,tmp,dp['precipBulk'],nearest=True)
+        if secnd:
+            ds=_load_csv_data(['secPrecipBulk'],idir2+site,['_1min'])
+            tms=(ds['startDateTime'][:]+ds['endDateTime'][:])/2
+            if adddata:
+                p2=nscale(time2,tmp,dp['secPrecipBulk'])
+        
+        # if we have both, use p1 to set ammount of rain and p2 to set timing
+        if prime and secnd:
+            ovar['P']=p1.copy()
+            ovar['P'][np.isnan(p1)]=p2[np.isnan(p1)]
+            ovar['P'][p2==0]=0
+        elif prime:
+            ovar['P']=p1
+        elif secnd:
+            ovar['P']=p2
+
+
+        _out_to_h5(fpo,ovar,overwrite)
 
 
 ##################################################################
@@ -588,10 +869,6 @@ def remove_variable():
 ##################################################################
 def update_variable():
     ''' Update a variable name, add description or units'''
-
-##################################################################
-def add_precip():
-    ''' Add precipitation information '''
 
 ##################################################################
 def add_aop():

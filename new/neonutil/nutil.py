@@ -1,5 +1,6 @@
 # Core tools to be imported and used elsewhere
 import numpy as np
+from scipy.interpolate import interp1d
 
 ############## CONSTANTS ################
 SITES =['ABBY', 'BARR', 'BART', 'BLAN', 'BONA', 'CLBJ', 'CPER', 'DCFS', 'DEJU',  'DELA', 'DSNY', 'GRSM', 'GUAN', 'HARV', 'HEAL', 'JERC', 'JORN', 'KONA', 'KONZ',  'LAJA', 'LENO', 'MLBS', 'MOAB', 'NIWO', 'NOGP', 'OAES', 'ONAQ', 'ORNL', 'OSBS',  'PUUM', 'RMNP', 'SCBI', 'SERC', 'SJER', 'SOAP', 'SRER', 'STEI', 'STER', 'TALL',  'TEAK', 'TOOL', 'TREE', 'UKFS', 'UNDE', 'WOOD', 'WREF', 'YELL']
@@ -16,23 +17,24 @@ def static2full():
 
 ############################# NSCALE ###################################
 # Wrapper function; interpolates (ninterp) or upscales (nupscale) as appropriate
-def nscale(tout,tin,din,maxdelta=60):
+def nscale(tout,tin,din,maxdelta=60,nearest=False:
     tdelta=tin[1:]-tin[0:-1]
     toutdelta=tout[1:]-tout[0:-1]
     if np.nanmin(toutdelta)>np.nanmin(tdelta):
         return nupscale(tout,tin,din,maxdelta)
     else:
-        return ninterp(tout,tin,din,maxdelta)
+        return ninterp(tout,tin,din,maxdelta,nearest)
 
 ############################# NEON INTERP ###############################
 # Interpolate data from one timeseries to another
-def ninterp(tout,tin,din,maxdelta=60):
+def ninterp(tout,tin,din,maxdelta=60,nearest=False):
     ''' Interpolate data, with a special mind for gaps
         tout     : timeseries to interpolate to
         tin      : time of data
         din      : data; all non-usable data should be 'NaN'
         maxdelta : maximum gap to interpolate with; larger will be filled
                    with NaN
+        nearest  : if true, will use nearest neighbor interpolation
     '''
 
     # check if the output time resolution is bigger than input
@@ -55,7 +57,11 @@ def ninterp(tout,tin,din,maxdelta=60):
     for i in range(len(splt_idi)):
         tf=splt_ido[i]
         tfi=splt_idi[i]
-        out[t0:tf]=np.interp(tout[t0:tf],tin[t0i:tfi],din[t0i:tfi],\
+        if nearest:
+            interp=interp1d(tin[t0i:tfi],din[t0i:tfi])
+            out[t0:tf]=interp(tout[t0:tf])
+        else:
+            out[t0:tf]=np.interp(tout[t0:tf],tin[t0i:tfi],din[t0i:tfi],\
                              left=float('nan'),right=float('nan'))
         t0=tf
         t0i=tfi
@@ -63,7 +69,11 @@ def ninterp(tout,tin,din,maxdelta=60):
     # do final interpolation
     tf=-1
     tfi=-1
-    out[t0:tf]=np.interp(tout[t0:tf],tin[t0i:tfi],din[t0i:tfi],\
+    if nearest:
+        interp=interp1d(tin[t0i:tfi],din[t0i:tfi])
+        out[t0:tf]=interp(tout[t0:tf])
+    else:
+        out[t0:tf]=np.interp(tout[t0:tf],tin[t0i:tfi],din[t0i:tfi],\
                          left=float('nan'),right=float('nan'))
     return out
 
