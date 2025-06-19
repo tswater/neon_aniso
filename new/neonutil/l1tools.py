@@ -425,8 +425,8 @@ def add_profile_old(scl,ndir,idir,addprof=True,addqaqc=True,\
                 pass
             for v2 in fpi[var].keys():
                 # FIXME
-                print('ERROR')
-
+                raise Exception('I gave up implementing this; use add_profile_tqc or add_profile_wind')
+    # FIXME I gave up implementing this
 
 
 def add_profile_tqc(scl,ndir,dp4dir,addprof=True,addqaqc=True,ivars=None,\
@@ -442,7 +442,8 @@ def add_profile_tqc(scl,ndir,dp4dir,addprof=True,addqaqc=True,ivars=None,\
             if addprof:
                 outvar[var]={}
             if addqaqc:
-                outvar['q'+var]={}
+                outvar['q'+var]=[]
+                outvar['q'+var+'_upper']=[]
 
 
     #### RUN ALL (TQC)
@@ -552,18 +553,14 @@ def add_profile_tqc(scl,ndir,dp4dir,addprof=True,addqaqc=True,ivars=None,\
                         nscale(time2,inp['t_ttop'][:],inp['qttop'][:])
 
         # Output
-        # need to output both types of qprofiles, create structure etc.
+        # need to output both types of qprofiles, create structure etc
+        # FIXME need to remove qprofile from ovar as this 2D series is
+        #       not what we want to output, rather 2 1D series
+        # FIXME write output
 
 
 
 
-
-    # FIXME
-    print('From scratch not yet implemented; see L1_add_profiles.py')
-    return None
-    # get each level a timeseries
-    # interp to data timeseries
-    # that should be it not Hard??
 
 def add_profile_wind(scl,ndir,wndir,addprof=True,addqaqc=True,ivars=None,\
                     overwrite=False,sites=SITES):
