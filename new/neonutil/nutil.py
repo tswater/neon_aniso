@@ -99,7 +99,26 @@ def nupscale(tout,tin,din,maxdelta=60):
 
     return out
 
-
+############################## SORT TOGETHER #############################
+# Sort 2 or more lists (arrays) based on the content of one array
+def sort_together(X,Y):
+    # X is an N length array to sort based on. Y is an M x N array of things that will sort
+    X=X.copy()
+    dic={}
+    for i in range(len(X)):
+        dic[X[i]]=[]
+    for i in range(len(Y)):
+        for j in range(len(X)):
+            dic[X[j]].append(Y[i][j])
+    X=np.array(X)
+    X.sort()
+    Yout=[]
+    for i in range(len(Y)):
+        Yout.append([])
+    for i in range(len(Y)):
+        for j in range(len(X)):
+            Yout[i].append(dic[X[j]][i])
+    return X,Yout
 
 
 

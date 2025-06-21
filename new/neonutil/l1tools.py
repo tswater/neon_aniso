@@ -4,7 +4,7 @@ import h5py
 import datetime
 import os
 from subprocess import run
-from nutil import SITES,nscale
+from nutil import SITES,nscale,sort_together
 import pytz
 import csv
 
@@ -43,7 +43,7 @@ def _dpt2utc(tm,source='neon'):
         if source=='neon':
             dt=datetime.strptime(str(t)[2:-1],"%Y-%m-%dT%H:%M:%S.000Z")
         elif source=='pheno':
-            print()
+            dt=datetime.strptime(str(t),"%Y-%m-%d")
         dt=pytz.utc.localize(dt)
         tm2.append((dt-t0).total_seconds())
     return np.array(tm2)
@@ -120,7 +120,23 @@ def _load_csv_data_pheno(innames,ifile):
     # timetype 1: convert date to datetime, add local time, then offset by utc
     # timetype 2: same as timetype 0 but with a different name
     # ALL: load into time
-
+    if timetype in [0]:
+        tme = dpt2utc(tmp['date'],source='pheno') - datetime.timedelta(hours=utcoff)
+        tme = tme + datetime.timedelta(hours=12)
+    if timetype in [1]:
+        tme = dpt2utc(tmp['date'],source='pheno') - datetime.timedelta(hours=utcoff)
+        hrs[]
+        mins=[]
+        for i in range(len(tmp['local_std_time'])):
+            hrs.append(int(tmp['local_std_time'][i][0:2]))
+            mins.append(int(tmp['local_std_time'][i][3:5]))
+        tme = tme+ datetime.timedelta(hours=hrs)
+        tme = tme+ datetime.timedelta(minutes=mins)
+    if timetype in [2]:
+        tme = dpt2utc(tmp['transition_10'],source='pheno') - datetime.timedelta(hours=utcoff)
+        tme = tme + datetime.timedelta(hours=12)
+    out['time']=tme
+    return out
 
 
 def _load_csv_data_neon(innames,idir,req):
@@ -965,6 +981,139 @@ def add_pheno(scl,ndir,idir,ivars=None,overwrite=False,sites=SITES):
         time=fpo['TIME'][:]
         time2=time+scl/2*60
         ovar=outvar.copy()
+        for va in ovar.keys():
+            ovar[va]=np.ones((len(time2),))*float('nan')
+
+        # solar angle
+        if 'SOLAR_ALTITUDE' in ovar.keys():
+            files=os.listdir(idir+'data_record_3')
+            sfiles=[]
+            inp=[]
+            for file in files:
+                if (site in file) and ('00033' in file):
+                    dm=file[5:8]
+                    fnm=idir+'data_record_3'+'/'+file
+                    inp.append(_load_csv_data(['solar_elev'],fnm,req=None))
+            N=len(inp)
+            sangles=np.zeros((N,len(time)))
+            for i in range(N):
+                sangles[i,:]=nscale(time2,inp[i]['time'],inp[i]['solar_elev'])
+            ovar['SOLAR_ALTITUDE']=np.nanmean(sangles,axis=0)
+
+        # GCC
+        if ('GCC90_C' in ovar.keys())|('GCC90_D' in ovar.keys()):
+            dlist=['GR','AG','SH','TN']
+            elist=['EN','EB']
+            files=os.listdir(neon_dir+'data_record_4')
+            dinp=[]
+            einp=[]
+            for file in files:
+                if '3day' in file:
+                    continue
+                if site in file:
+                    typ=file[24:26]
+                    fnm=idir+'data_record_4'+'/'+file
+                    if typ in dlist:
+                        dinp.append(_load_csv_data(['gcc90'],fnm))
+                    elif typ in elist:
+                        einp.append(_load_csv_data(['gcc90'],fnm))
+                    else:
+                        continue
+            Nd=len(dinp)
+            Ne=len(einp)
+            dgcc=np.zeros((Nd,len(time)))
+            egcc=np.zeros((Ne,len(time)))
+            for i in range(Nd):
+                dgcc[i,:]=nscale(time2,dinp[i]['time'],dinp[i]['gcc90'])
+            for i in range(Ne):
+                egcc[i,:]=nscale(time2,inp[i]['time'],inp[i]['gcc90'])
+            cgcc=np.concatenate((dgcc,egcc))
+            ovar['GCC90_C']=np.nanmean(cgcc,axis=0)
+            if (Nd>0) & ('GCC90_D' in ovar.keys()):
+                ovar['GCC90_D'][:]=np.nanmean(dgcc,axis=0)
+            if (Ne>0) and ('GCC90_E' in ovar.keys()):
+                ovar['GCC90_E'][:]=np.nanmean(egcc,axis=0)
+
+        # growing period
+        if 'GROWING' in ovar.keys():
+            dlist=['GR','AG','SH','TN']
+            elist=['EN','EB']
+            files=os.listdir(neon_dir+'data_record_5')
+            dinp=[]
+            einp=[]
+            for file in files:
+                if '3day' in file:
+                    continue
+                if site in file:
+                    typ=file[24:26]
+                    fnm=idir+'data_record_4'+'/'+file
+                    if typ in dlist:
+                        dinp.append(_load_csv_data(['direction'],fnm))
+                    elif typ in elist:
+                        einp.append(_load_csv_data(['direction'],fnm))
+                    else:
+                        continue
+            Nd=len(dinp)
+            Ne=len(einp)
+            grd=np.ones((Nd,len(time2)))*float('nan')
+            gre=np.ones((Ne,len(time2)))*float('nan')
+            for i in range(len(dinp)):
+                dii=np.zeros((len(dinp[i]['time']),))
+                for indx in range(len(dinp[i]['time'])):
+                    val=dinp[i]['direction'][indx]
+                    if val=='rising':
+                        dii[indx]=1
+                tm,di=sort_together(dinp[i]['time'],dii)
+                for it in range(len(tm)):
+                    t=tm[it]
+                    grd[time2>t]=di[it]
+
+            for i in range(len(einp)):
+                dii=np.zeros((len(einp[i]['time']),))
+                for indx in range(len(einp[i]['time'])):
+                    val=einp[i]['direction'][indx]
+                    if val=='rising':
+                        dii[indx]=1
+                tm,di=sort_together(einp[i]['time'],dii)
+                for it in range(len(tm)):
+                    t=tm[it]
+                    gre[time2>t]=di[it]
+            if Nd>0:
+                grd=np.round(np.nanmean(grd,axis=0))
+            if Ne>0:
+                gre=np.round(np.nanmean(gre,axis=0))
+
+            gr=np.zeros((len(time2),))
+            if (Ne>0)&(Nd>0):
+                gr[(grd==1)&(gre==0)]=1
+                gr[(grd==0)&(gre==1)]=2
+                gr[(grd==1)&(gre==1)]=3
+            elif (Ne>0):
+                gr[(gre==1)]=3
+            else:
+                gr[(grd==1)]=3
+            ovar['GROWING'][:]=gr[:]
+
+        # NDVI
+        if 'NDVI90' in ovar.keys():
+            files=os.listdir(idir+'data_record_6')
+            inp=[]
+            for file in files:
+                if (site in file):
+                    typ=file[24:26]
+                    if typ=='UN':
+                        continue
+                    fnm=idir+'data_record_6'+'/'+file
+                    inp.append(_load_csv_data(['ndvi90'],fnm,req=None))
+            N=len(inp)
+            sangles=np.zeros((N,len(time)))
+            for i in range(N):
+                sangles[i,:]=nscale(time2,inp[i]['time'],inp[i]['ndvi90'])
+            ovar['NDVI90']=np.nanmean(sangles,axis=0)
+
+        desc={'GROWING':'0: not growing period, 1: growing period deciduous, 2: growing period evergreen, 3: growing period all vegetation (3 is also the value for growing season if there is only evergreen or only deciduous)'}
+
+        _out_to_h5(fpo,ovar,overwrite,desc)
 
 ##################################################################
 def remove_variable():
