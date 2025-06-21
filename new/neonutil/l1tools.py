@@ -34,17 +34,96 @@ def _bij(uu,vv,ww,uv,uw,vw):
     return ani
 
 # convert NEON timestamp to seconds since 1970 utc
-def _dpt2utc(tm):
+def _dpt2utc(tm,source='neon'):
+    # source of data should be neon or pheno (for phenocam network)
     tm2=[]
     t0=datetime.datetime(1970,1,1,0,0)
     t0=pytz.utc.localize(t0)
     for t in tm:
-        dt=datetime.strptime(str(t)[2:-1],"%Y-%m-%dT%H:%M:%S.000Z")
+        if source=='neon':
+            dt=datetime.strptime(str(t)[2:-1],"%Y-%m-%dT%H:%M:%S.000Z")
+        elif source=='pheno':
+            print()
         dt=pytz.utc.localize(dt)
         tm2.append((dt-t0).total_seconds())
     return np.array(tm2)
 
-def _load_csv_data(innames,idir,req):
+def _load_csv_data(innames,inp,req=None):
+    if (req!=None) & (os.path.isdir(inp)):
+        return _load_csv_data_neon(innames,inp,req)
+    elif (not os.path.isdir(inp)) & (req==None):
+        return _load_csv_data_pheno(innames,inp)
+
+def _load_csv_data_pheno(innames,ifile):
+    # find header (first row without "#" in beginning)
+    # find values (filtering NA)
+    # convert what you can to floats
+    # adjust time by utcoffset (if its daily, we want the time to be middle of day local time)
+    out={}
+    pos={}
+    tmp={}
+    for i in innames:
+        out[i]=[]
+    out['time']=[]
+    with open(ifile) as read_r:
+        read_r = csv.reader(read_r)
+        head=True
+        utcoff=0
+        for row in read_r:
+            if head:
+                if len(row)<3:
+                    if 'UTC' in row[0]:
+                        try:
+                            utcoff=float(row[0][-3:])
+                        except Exception:
+                            pass
+                else:
+                    head=False
+                    header=row.copy()
+                    # get positions in row for variables and get time type
+                    for k in out.keys():
+                        if k=='time':
+                            # 3 options for time: transition_10 [2], date [0], (local_std_time + date) [1]
+                            try:
+                                pos['date']=header.index('date')
+                                tmp['date']=[]
+                                timetype=0
+                            except Exception:
+                                pos['transition_10']=header.index('transition_10')
+                                tmp['transition_10']=[]
+                                timetype=2
+                            try:
+                                pos['local_std_time']=header.index('local_std_time')
+                                tmp['local_std_time']=[]
+                                timetype=1
+                            except Exception:
+                                pass
+                        else:
+                            pos[k]=header.index(k)
+            # we are past the header
+            else:
+                for k in pos.keys:
+                    # load in the data
+                    val=row[pos[k]]
+                    if val in ['NA',' NA','NA ','']:
+                        val=float('nan')
+                    if k not in ['direction','date','transition_10','local_std_time']:
+                        val=float(val)
+
+                    # place the data
+                    if k in tmp.keys():
+                        tmp[k].append(val)
+                    if k in out.keys():
+                        out[k].append(val)
+    # now deal with time shit
+    # timetype 0: convert to datetime, then offset by utc
+    # timetype 1: convert date to datetime, add local time, then offset by utc
+    # timetype 2: same as timetype 0 but with a different name
+    # ALL: load into time
+
+
+
+def _load_csv_data_neon(innames,idir,req):
     # innames is a list of names to input
     # idir is directory of input
     # req is a list of file name requirements; i.e. req=['_30min'] will only
@@ -85,7 +164,7 @@ def _load_csv_data(innames,idir,req):
                         else:
                             b=float('nan')
                     out[k].append(b)
-    
+
     # final checks
     for k in out.keys():
         if 'Time' in k:
@@ -108,7 +187,7 @@ def _aniso(bij):
         yb[t]=np.sqrt(3)/2*(3*lams[2]+1)
     return yb,xb
 
-def _out_to_h5(_fp,_ov,overwrite):
+def _out_to_h5(_fp,_ov,overwrite,desc={}):
     for k in _ov.keys():
         if type(_ov[k]) is dict:
             ov2=_ov[k]
@@ -127,6 +206,8 @@ def _out_to_h5(_fp,_ov,overwrite):
                 else:
                     print('Skipping output of '+str(key))
             _fp[key].attrs['missing_value']=-9999
+            if key in desc.keys():
+                _fp[key].attrs['description']=desc[key]
     _fp.attrs['last_updated_utc']=str(datetime.datetime.utcnow())
     return None
 
@@ -508,7 +589,7 @@ def add_profile_tqc(scl,ndir,dp4dir,addprof=True,addqaqc=True,ivars=None,\
             if addqaqc:
                 outvar['q'+var]=[]
                 outvar['q'+var+'_upper']=[]
-    
+
     if len(outvar.keys())==0:
         print('No valid variables in ivars')
         return None
@@ -604,7 +685,7 @@ def add_profile_tqc(scl,ndir,dp4dir,addprof=True,addqaqc=True,ivars=None,\
                 vs.append(a)
             if 'qprofile' in k:
                 ovar[k]=np.zeros((len(time),))
-        
+
         for v in vs:
             v_long='profile_'+v
             if addqaqc:
@@ -617,7 +698,7 @@ def add_profile_tqc(scl,ndir,dp4dir,addprof=True,addqaqc=True,ivars=None,\
                     ovar['q'+v_long]=ovar['q'+v_long][:]+tmp[:]
                     if i in [len(lvltqc)-2,len(lvltqc)-3]:
                         ovar['q'+v_long+'_upper']=ovar['q'+v_long+'_upper'][:]+tmp[:]
-        
+
         # Interpolate top point in temperature profile
         if 't' in vs:
             v_long='profile_t'
@@ -677,7 +758,7 @@ def add_radiation(scl,ndir,idir,adddata=True,addqaqc=True,ivars=None,overwrite=F
         N=len(readlist)+2
         d=_load_csv_data(readlist,idir+site,['_1min'])
         tm=(d['startDateTime'][:]+d['endDateTime'][:])/2
-        
+
         # Interpolate Data
         if adddata:
             swin=nscale(time2,tm,d['inSWMean'])
@@ -702,12 +783,12 @@ def add_radiation(scl,ndir,idir,adddata=True,addqaqc=True,ivars=None,overwrite=F
             radq=radq+nscale(time2,tm,d['inLWFinalQF'])
             radq=radq+nscale(time2,tm,d['outLWFinalQF'])
             ovar['qNETRAD']=radq
-        
+
         _out_to_h5(fpo,ovar,overwrite)
 
 #############################################################################
 ####################### ADD GROUND HEAT FLUX ################################
-# Add Ground heat flux 
+# Add Ground heat flux
 def add_ghflx(scl,ndir,idir,adddata=True,addqaqc=True,ivars=None,overwrite=False,sites=SITES):
     ''' Add radiation information
         scl   : averaging scale in minutes
@@ -746,7 +827,7 @@ def add_ghflx(scl,ndir,idir,adddata=True,addqaqc=True,ivars=None,overwrite=False
             st1='_1min'
 
         # Load Data
-        N=len(readlist)+2 
+        N=len(readlist)+2
         d1=_load_csv_data(readlist,idir+site,[st1,'001.001']) #001.001, 001.003, 001.005
         tm1=(d1['startDateTime'][:]+d1['endDateTime'][:])/2
 
@@ -773,7 +854,7 @@ def add_ghflx(scl,ndir,idir,adddata=True,addqaqc=True,ivars=None,overwrite=False
             gg[qgg==1]=float('nan')
             gcnt=np.sum(~np.isnan(gg),axis=0)+.00001
             ovar['G']=np.nansum(gg,axis=0)/gcnt
-            
+
         if addqaqc:
             qgg[np.isnan(qgg)]=1
             gsum=np.sum(qgg,axis=0)
@@ -837,7 +918,7 @@ def add_precip(scl,ndir,idir1,idir2,adddata=True,addqaqc=False,ivars=None,overwr
             tms=(ds['startDateTime'][:]+ds['endDateTime'][:])/2
             if adddata:
                 p2=nscale(time2,tmp,dp['secPrecipBulk'])
-        
+
         # if we have both, use p1 to set ammount of rain and p2 to set timing
         if prime and secnd:
             ovar['P']=p1.copy()
@@ -856,10 +937,34 @@ def add_precip(scl,ndir,idir1,idir2,adddata=True,addqaqc=False,ivars=None,overwr
 def add_qaqcflags():
     ''' Add qaqc flags from dp04 files '''
 
-##################################################################
-def add_pheno():
-    ''' Add information from phenocam '''
 
+##################################################################
+def add_pheno(scl,ndir,idir,ivars=None,overwrite=False,sites=SITES):
+    ''' Add radiation information
+        scl   : averaging scale in minutes
+        ndir  : directory of L1 base files
+        ivars : variables to process; None will add all
+    '''
+    #### SETUP
+    _ivars = ['GCC90_E','GCC90_D','GCC90_C','NDVI90','SOLAR_ALTITUDE','GROWING']
+    if ivars in [None]:
+        ivars=_ivars
+    outvar={}
+    for var in ivars:
+        if var in _ivars:
+            outvar[var]=[]
+
+    if len(outvar.keys())==0:
+        print('No valid variables in ivars')
+        return None
+
+    #### SITE LOOP
+    for site in sites:
+        # Setup
+        fpo=h5py.File(ndir+site+'_L'+str(scl)+'.h5','r+')
+        time=fpo['TIME'][:]
+        time2=time+scl/2*60
+        ovar=outvar.copy()
 
 ##################################################################
 def remove_variable():
