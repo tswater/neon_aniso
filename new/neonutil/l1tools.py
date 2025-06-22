@@ -515,7 +515,7 @@ def add_core_attrs(scl,ndir,nbdir=None,bscl=30,ivars=None,sites=SITES):
             outvar[var]=''
 
     if nbdir==None:
-        print('Base directory not specified; recomputing static variables '+\
+                print('Base directory not specified; recomputing static variables '+\
                 'is currently not supported. FAILURE')
         return None
 
@@ -950,8 +950,36 @@ def add_precip(scl,ndir,idir1,idir2,adddata=True,addqaqc=False,ivars=None,overwr
 
 
 ##################################################################
-def add_qaqcflags():
-    ''' Add qaqc flags from dp04 files '''
+def add_qaqc(scl,ndir,idir,ivars=None,overwrite=False,sites=SITES):
+    ''' Add generic quality control
+        scl   : averaging scale in minutes
+        ndir  : directory of L1 base files
+        ivars : variables to process; None will add all
+    '''
+    #### SETUP
+    _ivars = ['SW_IN', 'SW_OUT', 'LW_IN', 'LW_OUT', 'NETRAD']
+    if ivars in [None]:
+        ivars=_ivars
+    outvar={}
+    for var in ivars:
+        if var in _ivars:
+            outvar[var]=[]
+    if len(outvar.keys())==0:
+        print('No valid variables in ivars')
+        return None
+    readlist=[]
+    if adddata:
+        readlist.extend(['inSWMean','inLWMean','outSWMean','outLWMean'])
+    if addqaqc:
+        readlist.extend(['inSWFinalQF','inLWFinalQF','outSWFinalQF','outLWFinalQF'])
+
+    #### SITE LOOP
+    for site in sites:
+        # Setup
+        fpo=h5py.File(ndir+site+'_L'+str(scl)+'.h5','r+')
+        time=fpo['TIME'][:]
+        time2=time+scl/2*60
+        ovar=outvar.copy()
 
 
 ##################################################################
