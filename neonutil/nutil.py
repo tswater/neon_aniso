@@ -70,32 +70,32 @@ def ninterp(tout,tin,din,maxdelta=60,nearest=True,extrap=True):
         ext=0
 
     # convert split to indicies in tout space
-    splt_idof=np.interp(splt_tminf+ext,tout,np.linspace(0,len(tout)-1,lent(tout)))
-    splt_idoi=np.interp(splt_tmini-ext,tout,np.linspace(0,len(tout)-1,lent(tout)))
-    t0=np.round(np.interp(tin[0]-ext,tout,np.linspace(0,len(tout)-1,lent(tout))))
+    splt_idof=np.interp(splt_tminf+ext,tout,np.linspace(0,len(tout)-1,len(tout)))
+    splt_idoi=np.interp(splt_tmini-ext,tout,np.linspace(0,len(tout)-1,len(tout)))
+    t0=int(np.round(np.interp(tin[0]-ext,tout,np.linspace(0,len(tout)-1,len(tout)))))
     t0i=0
 
     out=np.ones((len(tout),))*float('nan')
 
     # loop and interate through to interpolate
     for i in range(len(splt_idi)):
-        tf=np.round(splt_idof[i])
+        tf=int(np.round(splt_idof[i]))+1
         tfi=splt_idi[i]
         if nearest:
             interp=interp1d(tin[t0i:tfi],din[t0i:tfi],kind='nearest',\
-                            bounds_error=False,fill_value=(din[t0i],din[tfi]))
+                            bounds_error=False,fill_value=(din[t0i],din[tfi-1]))
             out[t0:tf]=interp(tout[t0:tf])
         else:
             out[t0:tf]=np.interp(tout[t0:tf],tin[t0i:tfi],din[t0i:tfi])
-        t0=np.round(splt_idoi[i])
+        t0=int(np.round(splt_idoi[i]))+1
         t0i=tfi
 
     # do final interpolation
-    tf=np.round(np.interp(tin[-1]+ext,tout,np.linspace(0,len(tout)-1,lent(tout))))
-    tfi=-1
+    tf=int(np.round(np.interp(tin[-1]+ext,tout,np.linspace(0,len(tout)-1,len(tout)))))+1
+    tfi=None
     if nearest:
         interp=interp1d(tin[t0i:tfi],din[t0i:tfi],kind='nearest',\
-                        bounds_error=False,fill_value=(din[t0i],din[tfi]))
+                        bounds_error=False,fill_value=(din[t0i],din[-1]))
         out[t0:tf]=interp(tout[t0:tf])
     else:
         out[t0:tf]=np.interp(tout[t0:tf],tin[t0i:tfi],din[t0i:tfi])
@@ -115,7 +115,7 @@ def nupscale(tout,tin,din,maxdelta=60,nearest=True,nanth=.2):
 
         # interpolate to 1 minute, then average up
         tmid=np.linspace(tout[0]-outscl*30,tout[-1]+outscl*30,outscl*len(tout))
-        dmid=ninterp(tmid,tin,din,maxdelta=max(maxdelta,outscl),nearest)
+        dmid=ninterp(tmid,tin,din,maxdelta=max(maxdelta,outscl),nearest=nearest)
 
         out=np.zeros((len(tout),))
         nancnt=np.zeros((len(tout),))
@@ -130,7 +130,7 @@ def nupscale(tout,tin,din,maxdelta=60,nearest=True,nanth=.2):
             data=dmid[i::outscl]/(outscl-nancnt+.000000000001)
             data[np.isnan(data)]=0
             out=out+data
-        data[nancnt>nanth*(outscl)]=float('nan')
+        out[nancnt>nanth*(outscl)]=float('nan')
     else:
         raise RuntimeError('Output timeseries is either non-continuous,'+\
                 'or uses variable delta.')
