@@ -4,7 +4,10 @@ import h5py
 import datetime
 import os
 from subprocess import run
-from nutil import SITES,nscale,sort_together
+try:
+    from nutil import SITES,nscale,sort_together
+except:
+    from neonutil.nutil import SITES,nscale,sort_together
 import pytz
 import csv
 
@@ -125,7 +128,7 @@ def _load_csv_data_pheno(innames,ifile):
         tme = tme + datetime.timedelta(hours=12)
     if timetype in [1]:
         tme = dpt2utc(tmp['date'],source='pheno') - datetime.timedelta(hours=utcoff)
-        hrs[]
+        hrs=[]
         mins=[]
         for i in range(len(tmp['local_std_time'])):
             hrs.append(int(tmp['local_std_time'][i][0:2]))
@@ -215,15 +218,15 @@ def _out_to_h5(_fp,_ov,overwrite,desc={}):
 
         else:
             try:
-                _fp.create_dataset(key,data=np.array(_ov[key][:]))
+                _fp.create_dataset(k,data=np.array(_ov[k][:]))
             except:
                 if overwrite:
-                    _fp[key][:]=np.array(_ov[key][:])
+                    _fp[k][:]=np.array(_ov[k][:])
                 else:
-                    print('Skipping output of '+str(key))
-            _fp[key].attrs['missing_value']=-9999
-            if key in desc.keys():
-                _fp[key].attrs['description']=desc[key]
+                    print('Skipping output of '+str(k))
+            _fp[k].attrs['missing_value']=-9999
+            if k in desc.keys():
+                _fp[k].attrs['description']=desc[k]
     _fp.attrs['last_updated_utc']=str(datetime.datetime.utcnow())
     return None
 
@@ -234,7 +237,7 @@ def _get_qaqc_sci(fp,nm,n):
         try:
             return fp[nm]['qfSciRevw'][:]
         except Exception:
-            return np.ones((n,))*-1)
+            return np.ones((n,))*-1
 
 ######################### MAKE BASE ##############################
 # make base h5 file to add onto for L1
@@ -248,7 +251,7 @@ def make_base(scl,odir,dlt=None,d0=None,df=None,overwrite=False,sites=SITES):
     if dlt in [None]:
         dlt=scl
     for site in sites:
-        fname=site+'_'str(scl)+'m.h5'
+        fname=site+'_'+str(scl)+'m.h5'
         if fname in os.listdir(odir):
             if overwrite:
                 print('Replacing '+fname)
@@ -271,9 +274,9 @@ def make_base(scl,odir,dlt=None,d0=None,df=None,overwrite=False,sites=SITES):
         tzutc=datetime.timezone.utc
         times=[]
         if d0 in [None]:
-            d0=datetime.datetime(start_year,start_month,1,0,0,tzinfo=tzutc)
+            d0=datetime.datetime(2017,1,1,0,0,tzinfo=tzutc)
         if df in [None]:
-            df=datetime.datetime(end_year,end_month,end_day,23,30,tzinfo=tzutc)
+            df=datetime.datetime(2023,12,31,23,30,tzinfo=tzutc)
 
         dt=datetime.timedelta(minutes=dlt)
         time=d0
@@ -325,9 +328,12 @@ def add_turb25(scl,ndir,tdir,ivars=None,overwrite=False,dlt=None,sites=SITES):
         for k in ovar.keys():
             ovar[k]=np.ones((len(time),))*-9999
 
+        flist=os.listdir(tdir+site)
+        flist.sort()
+
         # loop through time
         for file in flist:
-            fp_in=h5py.File(neon_dir+site+'/'+file,'r')
+            fp_in=h5py.File(tdir+site+'/'+file,'r')
             stdt=datetime.datetime(int(file[8:12]),int(file[13:15]),1,0,tzinfo=datetime.timezone.utc)
             try:
                 a=np.where(time==stdt.timestamp())[0][0]
@@ -556,7 +562,7 @@ def add_core_attrs(scl,ndir,nbdir=None,bscl=30,ivars=None,sites=SITES):
             outvar[var]=''
 
     if nbdir==None:
-                print('Base directory not specified; recomputing static variables '+\
+        print('Base directory not specified; recomputing static variables '+\
                 'is currently not supported. FAILURE')
         return None
 
@@ -604,7 +610,7 @@ def add_profile_old(scl,ndir,idir,addprof=True,addqaqc=True,\
     for site in sites:
         ovar=outvar.copy()
         fpo=h5py.File(ndir+site+'_'+str(scl)+'m.h5','r+')
-        fpi=h5py.File(idir+site_'_1m.h5','r')
+        fpi=h5py.File(idir+site+'_1m.h5','r')
         tout=fpo['TIME'][:]
         tin=fpi['TIME'][:]
 
@@ -779,6 +785,7 @@ def add_profile_tqc(scl,ndir,dp4dir,addprof=True,addqaqc=True,ivars=None,\
 # Adds the profile of windspeed
 def add_profile_wind(scl,ndir,wndir,addprof=True,addqaqc=True,ivars=None,\
                     overwrite=False,sites=SITES):
+    return None
 
 
 #############################################################################
@@ -1201,7 +1208,7 @@ def add_pheno(scl,ndir,idir,ivars=None,overwrite=False,sites=SITES):
         if ('GCC90_C' in ovar.keys())|('GCC90_D' in ovar.keys()):
             dlist=['GR','AG','SH','TN']
             elist=['EN','EB']
-            files=os.listdir(neon_dir+'data_record_4')
+            files=os.listdir(ndir+'data_record_4')
             dinp=[]
             einp=[]
             for file in files:
@@ -1235,7 +1242,7 @@ def add_pheno(scl,ndir,idir,ivars=None,overwrite=False,sites=SITES):
         if 'GROWING' in ovar.keys():
             dlist=['GR','AG','SH','TN']
             elist=['EN','EB']
-            files=os.listdir(neon_dir+'data_record_5')
+            files=os.listdir(ndir+'data_record_5')
             dinp=[]
             einp=[]
             for file in files:
