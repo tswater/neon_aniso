@@ -102,7 +102,7 @@ plt.figure(figsize=(12,3))
 plt.plot(tin,din,'-o')
 plt.plot(tout,nscale(tout,tin,din,maxdelta=3,nearest=False),"-o",markersize=4)
 
-# %% [markdown] jp-MarkdownHeadingCollapsed=true
+# %% [markdown]
 # ### TIN is FINER (nupscale)
 
 # %%
@@ -137,7 +137,7 @@ tin=np.array([-6300., -4500., -2700.,  -900.,   900.,  2700.,  4500.,  6300.,
 din=np.sin(tin/(.1*np.pi))
 plt.figure(figsize=(12,3))
 plt.plot(tin,din,'-o')
-plt.plot(tout,nscale(tout,tin,din),"-o",markersize=4)
+plt.plot(tout,nscale(tout,tin,din,nearest=True),"-o",markersize=4)
 
 # %%
 

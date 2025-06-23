@@ -248,7 +248,7 @@ def make_base(scl,odir,dlt=None,d0=None,df=None,overwrite=False,sites=SITES):
     if dlt in [None]:
         dlt=scl
     for site in sites:
-        fname=file+'_L'+str(scl)+'.h5'
+        fname=site+'_'str(scl)+'m.h5'
         if fname in os.listdir(odir):
             if overwrite:
                 print('Replacing '+fname)
@@ -320,7 +320,7 @@ def add_turb25(scl,ndir,tdir,ivars=None,overwrite=False,dlt=None,sites=SITES):
 
     for site in sites:
         ovar=outvar.copy()
-        fpo=h5py.File(ndir+site+'_L'+str(scl)+'.h5','r+')
+        fpo=h5py.File(ndir+site+'_'+str(scl)+'m.h5','r+')
         time=fpo['TIME'][:]
         for k in ovar.keys():
             ovar[k]=np.ones((len(time),))*-9999
@@ -361,8 +361,8 @@ def add_stationarity_zahn23(ndir5,ndir30,ivars=None,overwrite=False,sites=SITES)
         return None
 
     for site in sites:
-        fp5=h5py.File(ndir5+site+'_L5.h5','r+')
-        fp30=h5py.File(ndir30+site+'_L30.h5','r+')
+        fp5=h5py.File(ndir5+site+'_5m.h5','r+')
+        fp30=h5py.File(ndir30+site+'_30m.h5','r+')
         time5=fp5['TIME'][:]+2.5*60
         time30=fp30['TIME'][:]+15*60
         idx5in=[]
@@ -400,7 +400,7 @@ def add_derived(scl,ndir,ivars=None,overwrite=False,sites=SITES):
     #### RUN ALL
     for site in sites:
         ovar=outvar.copy()
-        fpo=h5py.File(ndir+site+'_L'+str(scl)+'.h5','r+')
+        fpo=h5py.File(ndir+site+'_'+str(scl)+'m.h5','r+')
         tmp={}
         for var in ovar.keys():
             match var:
@@ -562,8 +562,8 @@ def add_core_attrs(scl,ndir,nbdir=None,bscl=30,ivars=None,sites=SITES):
 
     #### RUN ALL
     for site in sites:
-        fpo=h5py.File(ndir+site+'_L'+str(scl)+'.h5','r+')
-        fpi=h5py.File(nbdir+site+'_L'+str(bscl)+'.h5','r')
+        fpo=h5py.File(ndir+site+'_'+str(scl)+'m.h5','r+')
+        fpi=h5py.File(nbdir+site+'_'+str(bscl)+'m.h5','r')
         for k in outvar.keys():
             fpo.attrs[k]=fpi.attrs[k]
         fpo.attrs['last_updated_utc']=str(datetime.datetime.utcnow())
@@ -603,8 +603,8 @@ def add_profile_old(scl,ndir,idir,addprof=True,addqaqc=True,\
     #### RUN ALL
     for site in sites:
         ovar=outvar.copy()
-        fpo=h5py.File(ndir+site+'_L'+str(scl)+'.h5','r+')
-        fpi=h5py.File(idir+site_'_L1.h5','r')
+        fpo=h5py.File(ndir+site+'_'+str(scl)+'m.h5','r+')
+        fpi=h5py.File(idir+site_'_1m.h5','r')
         tout=fpo['TIME'][:]
         tin=fpi['TIME'][:]
 
@@ -654,7 +654,7 @@ def add_profile_tqc(scl,ndir,dp4dir,addprof=True,addqaqc=True,ivars=None,\
     #### RUN ALL (TQC)
     for site in sites:
         ovar=outvar.copy()
-        fpo=h5py.File(ndir+site+'_L'+str(scl)+'.h5','r+')
+        fpo=h5py.File(ndir+site+'_'+str(scl)+'m.h5','r+')
         time=fpo['TIME'][:]
         dlt=int(np.min(time[1:]-time[:-1])/60)
         filelist=os.listdir(dp4dir+site)
@@ -810,7 +810,7 @@ def add_radiation(scl,ndir,idir,adddata=True,addqaqc=True,ivars=None,overwrite=F
     #### SITE LOOP
     for site in sites:
         # Setup
-        fpo=h5py.File(ndir+site+'_L'+str(scl)+'.h5','r+')
+        fpo=h5py.File(ndir+site+'_'+str(scl)+'m.h5','r+')
         time=fpo['TIME'][:]
         time2=time+scl/2*60
         ovar=outvar.copy()
@@ -877,7 +877,7 @@ def add_ghflx(scl,ndir,idir,adddata=True,addqaqc=True,ivars=None,overwrite=False
     #### SITE LOOP
     for site in sites:
         # Setup
-        fpo=h5py.File(ndir+site+'_L'+str(scl)+'.h5','r+')
+        fpo=h5py.File(ndir+site+'_'+str(scl)+'m.h5','r+')
         time=fpo['TIME'][:]
         time2=time+scl/2*60
         ovar=outvar.copy()
@@ -955,7 +955,7 @@ def add_precip(scl,ndir,idir1,idir2,adddata=True,addqaqc=False,ivars=None,overwr
     #### SITE LOOP
     for site in sites:
         # Setup
-        fpo=h5py.File(ndir+site+'_L'+str(scl)+'.h5','r+')
+        fpo=h5py.File(ndir+site+'_'+str(scl)+'m.h5','r+')
         time=fpo['TIME'][:]
         time2=time+scl/2*60
         ovar=outvar.copy()
@@ -1025,7 +1025,7 @@ def add_qaqc(scl,ndir,idir,ivars=None,qsci=False,overwrite=False,sites=SITES):
     #### SITE LOOP
     for site in sites:
         # Setup
-        fpo=h5py.File(ndir+site+'_L'+str(scl)+'.h5','r+')
+        fpo=h5py.File(ndir+site+'_'+str(scl)+'m.h5','r+')
         time=fpo['TIME'][:]
         time2=time+scl/2*60
         ovar=outvar.copy()
@@ -1174,7 +1174,7 @@ def add_pheno(scl,ndir,idir,ivars=None,overwrite=False,sites=SITES):
     #### SITE LOOP
     for site in sites:
         # Setup
-        fpo=h5py.File(ndir+site+'_L'+str(scl)+'.h5','r+')
+        fpo=h5py.File(ndir+site+'_'+str(scl)+'m.h5','r+')
         time=fpo['TIME'][:]
         time2=time+scl/2*60
         ovar=outvar.copy()
