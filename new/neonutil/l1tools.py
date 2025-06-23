@@ -950,28 +950,30 @@ def add_precip(scl,ndir,idir1,idir2,adddata=True,addqaqc=False,ivars=None,overwr
 
 
 ##################################################################
-def add_qaqc(scl,ndir,idir,ivars=None,overwrite=False,sites=SITES):
+def add_qaqc(scl,ndir,idir,ivars=None,qsci=False,overwrite=False,sites=SITES):
     ''' Add generic quality control
         scl   : averaging scale in minutes
         ndir  : directory of L1 base files
         ivars : variables to process; None will add all
     '''
     #### SETUP
-    _ivars = ['SW_IN', 'SW_OUT', 'LW_IN', 'LW_OUT', 'NETRAD']
+    _ivars = ['Q','U','V','W','C','THETA','USTAR','CO2FX','LE','H']
     if ivars in [None]:
         ivars=_ivars
     outvar={}
     for var in ivars:
         if var in _ivars:
-            outvar[var]=[]
+            outvar['q'+var]=[]
+            if qsci:
+                outvar['qs'+var]=[]
     if len(outvar.keys())==0:
         print('No valid variables in ivars')
         return None
-    readlist=[]
-    if adddata:
-        readlist.extend(['inSWMean','inLWMean','outSWMean','outLWMean'])
-    if addqaqc:
-        readlist.extend(['inSWFinalQF','inLWFinalQF','outSWFinalQF','outLWFinalQF'])
+
+    if scl==30:
+        ds_='30m'
+    else:
+        ds_='01m'
 
     #### SITE LOOP
     for site in sites:
@@ -980,6 +982,96 @@ def add_qaqc(scl,ndir,idir,ivars=None,overwrite=False,sites=SITES):
         time=fpo['TIME'][:]
         time2=time+scl/2*60
         ovar=outvar.copy()
+        for var in ovar.keys():
+            ovar[var]=np.ones((len(time2),))*float('nan')
+        tmp={}
+        tmp['sontime']=[]
+        tmp['qctime']=[]
+        tmp['flxtime']=[]
+        for var in ovar.keys():
+            tmp[var]=[]
+        filelist=os.listdir(idir+site)
+        filelist.sort()
+        fpi=h5py.File(idir+site+'/'+filelist[-1],'r')
+        for i in range(10):
+            th=str(i)
+            try:
+                fpi['/'+site+'/dp01/data/soni/000_0'+th+\
+                    '0_'+ds_+'/tempSoni/']['timeBgn'][:]
+                break
+            except:
+                pass
+        for file in filelist:
+            bgn1='/'+site+'/dp01/qfqm/'
+            bgn4='/'+site+'/dp04/qfqm/'
+            fpi=h5py.File(idir+site+'/'+file,'r')
+            nqc=0 # length of qc timeseries in file
+            nqs=0 # length of soni timeseries in file
+            nqf=0 # length of flux timeseries in file
+            for var in tmp.keys():
+                match var:
+                    case 'sonitime':
+                        nm='/'+site+'/dp01/data/soni/000_0'+th+\
+                                '0_'+ds_+'/tempSoni'
+                        data=_dpt2utc(fpi[nm]['timeBgn'][:])+_dpt2utc(fpi[nm]['timeEnd'][:])
+                        nqs=len(data)
+                        tmp[var].extend(data)
+                    case 'qctime':
+                        nm='/'+site+'/dp01/data/h2oTurb/000_0'+th+\
+                                '0_'+ds_+'/rtioMoleDryH2o'
+                        data=_dpt2utc(fpi[nm]['timeBgn'][:])+_dpt2utc(fpi[nm]['timeEnd'][:])
+                        nqc=len(data)
+                        tmp[var].extend(data)
+
+                    case 'flxtime':
+                        nm='/'+site+'/dp04/data/fluxTemp/turb'
+                        data=_dpt2utc(fpi[nm]['timeBgn'][:])+_dpt2utc(fpi[nm]['timeEnd'][:])
+                        nqf=len(data)
+                        tmp[var].extend(data)
+
+                    case 'qQ':
+                        nm=bgn1+'h2oTurb/000_0'+th+'0_'+ds_
+                        tmp[var].extend([nm+'/rtioMoleDryH2o']['qfFinl'][:])
+                    case 'qC':
+                        nm=bgn1+'co2Turb/000_0'+th+'0_'+ds_
+                        tmp[var].extend([nm+'/rtioMoleDryCo2']['qfFinl'][:])
+                    case 'qTHETA':
+                        nm=bgn1+'soni/000_0'+th+'0_'+ds_
+                        tmp[var].extend([nm+'/tempSoni']['qfFinl'][:])
+                    case 'qU':
+                        nm=bgn1+'soni/000_0'+th+'0_'+ds_
+                        tmp[var].extend([nm+'/veloXaxsErth']['qfFinl'][:])
+                    case 'qV':
+                        nm=bgn1+'soni/000_0'+th+'0_'+ds_
+                        tmp[var].extend([nm+'/veloYaxsErth']['qfFinl'][:])
+                    case 'qW':
+                        nm=bgn1+'soni/000_0'+th+'0_'+ds_
+                        tmp[var].extend([nm+'/veloZaxsErth']['qfFinl'][:])
+                    case 'qUSTAR':
+                        tmp[var].extend([bgn4+'fluxMome/turb']['qfFinl'][:])
+                    case 'qH':
+                        tmp[var].extend([bgn4+'fluxTemp/turb']['qfFinl'][:])
+                    case 'qCO2FX':
+                        tmp[var].extend([bgn4+'fluxCo2/turb']['qfFinl'][:])
+                    case 'qLE':
+                        tmp[var].extend([bgn4+'fluxH2o/turb']['qfFinl'][:])
+
+                    case 'qsQ':
+                        nm=bgn1+'h2oTurb/000_0'+th+'0_'+ds_+'/rtioMoleDryH2o'
+                        try:
+                            tmp[var].extend([nm]['qfSci'][:])
+                        except Exception:
+                            try:
+                                tmp[var].extend([nm]['qfSciRevw'][:])
+                            except Exception:
+                                tmp[var].extend(np.ones((nqc,))*-1)
+
+                    # FIXME add other sci review params
+
+        # FIXME interpolate (use repeat if possible to be more inefficient)
+        # FIXME output
+
+
 
 
 ##################################################################
