@@ -973,7 +973,7 @@ def add_precip(scl,ndir,idir1,idir2,adddata=True,addqaqc=False,ivars=None,overwr
             dp=_load_csv_data(['precipBulk'],idir1+site,['_60min'])
             tmp=(dp['startDateTime'][:]+dp['endDateTime'][:])/2
             if adddata:
-                p1=nscale(time2,tmp,dp['precipBulk'],nearest=True)
+                p1=nscale(time2,tmp,dp['precipBulk'],nearest=True)/60
         if secnd:
             ds=_load_csv_data(['secPrecipBulk'],idir2+site,['_1min'])
             tms=(ds['startDateTime'][:]+ds['endDateTime'][:])/2
