@@ -345,6 +345,38 @@ def add_turb25(scl,ndir,tdir,ivars=None,overwrite=False,dlt=None,sites=SITES):
                 ovar[var][a:a+N]=fp_in[var+add][0:N]
         _out_to_h5(fpo,ovar,overwrite)
 
+##################### ADD STATIONARITY #############################
+# Stationarity metric for variances based on Foken 2017 Micrometerology
+# as found in Zahn 2023 Relaxed eddy accumulation...
+def add_stationarity_zahn23(ndir5,ndir30,ivars=None,overwrite=False,sites=SITES):
+    _ivars = ['QQ', 'THETATHETA', 'CC', 'UU', 'VV','WW']
+    if ivars in [None]:
+        ivars=_ivars
+    outvar={}
+    for var in ivars:
+        if var in _ivars:
+            outvar['ST_ZH23_'+var]=[]
+    if len(outvar.keys())==0:
+        print('No valid variables in ivars')
+        return None
+
+    for site in sites:
+        fp5=h5py.File(ndir5+site+'_L5.h5','r+')
+        fp30=h5py.File(ndir30+site+'_L30.h5','r+')
+        time5=fp5['TIME'][:]+2.5*60
+        time30=fp30['TIME'][:]+15*60
+        idx5in=[]
+
+        for i in range(len(time5)):
+            t=time5[i]
+            if t in time30:
+                idx5in.append(i)
+                time30=time30[1:]
+        for var in ivars:
+            xx5=fp5[var][:][idx5in]
+            xx30=fp30[var][:][idx5in]
+            outvar['ST_ZH23_'+var]=np.abs((xx5-xx30)/(xx30))*100
+        _out_to_h5(fp30,ovar,overwrite)
 
 
 ####################### ADD DERIVED #############################
