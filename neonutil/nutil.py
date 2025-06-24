@@ -17,19 +17,29 @@ def static2full():
 
 ############################# NSCALE ###################################
 # Wrapper function; interpolates (ninterp) or upscales (nupscale) as appropriate
-def nscale(tout,tin,din,maxdelta=60,nearest=True,extrap=True,nanth=.2):
+def nscale(t_out,t_in,d_in,maxdelta=60,nearest=True,extrap=True,nanth=.2,debug=False):
+    # ensure inputs are arrays and not lists
+    tout=np.array(t_out)
+    tin=np.array(t_in)
+    din=np.array(d_in)
+
+    # ensure tin and din same shape
+    if not (len(tin)==len(din)):
+        raise ValueError('Length of input time '+str(len(tin))+' and data '+\
+                str(len(din))+' is not the same!')
+
     # use nearest if data is covering an averaging period
     # use linear (nearest=false) if data is instantaneous
     tdelta=tin[1:]-tin[0:-1]
     toutdelta=tout[1:]-tout[0:-1]
     if np.nanmin(toutdelta)>np.nanmin(tdelta):
-        return nupscale(tout,tin,din,maxdelta,nearest,nanth)
+        return nupscale(tout,tin,din,maxdelta,nearest,nanth,debug)
     else:
-        return ninterp(tout,tin,din,maxdelta,nearest,extrap)
+        return ninterp(tout,tin,din,maxdelta,nearest,extrap,debug)
 
 ############################# NEON INTERP ###############################
 # Interpolate data from one timeseries to another
-def ninterp(tout,tin,din,maxdelta=60,nearest=True,extrap=True):
+def ninterp(tout,tin,din,maxdelta=60,nearest=True,extrap=True,debug=False):
     ''' Interpolate data, with a special mind for gaps
         tout     : timeseries to interpolate to
         tin      : time of data
@@ -46,8 +56,28 @@ def ninterp(tout,tin,din,maxdelta=60,nearest=True,extrap=True):
     toutdelta=tout[1:]-tout[0:-1]
     inscl=np.nanmin(tdelta)/60
     if np.nanmin(toutdelta)>np.nanmin(tdelta):
-        print('WARNING! Output resolution coarser than input; averaging with nupscale suggested')
-
+        print('NINTERP WARNING! Output resolution '+str(np.nanmin(toutdelta))+\
+                ' coarser than input '+str(np.nanmin(tdelta))+\
+                '; averaging with nupscale suggested')
+        try:
+            if debug:
+                dbg='::::::::::DEBUG::::::::::::\n'
+                f=len(np.where(tdelta<np.nanmin(toutdelta)))
+                dbg=dbg+'Frequency of input finer than output: '+str(f)+'/'+str(len(tdelta))+'\n'
+                if (f>0):
+                    idxs=np.where(tdelta<np.nanmin(toutdelta))[0]
+                    i=0
+                    for idx in idxs:
+                        dbg=dbg+'    At index '+str(idx)+': ['+str(tin[idx])+\
+                                ','+str(tin[idx+1])+']\n'
+                        i=i+1
+                        if i>50:
+                            dbg=dbg+'    ... stopping printout\n'
+                            break
+                print(dbg+'::::::::::DEBUG::::::::::::',flush=True)
+        except Exception as e:
+            print('Ninterp Debug exception')
+            print(e)
     # INDEXING/GAPS EXPLAINED:
     # lets for input indicies 0,1,2 we have times 5,15,25 minutes and for
     # index 3 we have 145 minutes. splt_idi, index of the gap in input tin
@@ -106,16 +136,16 @@ def ninterp(tout,tin,din,maxdelta=60,nearest=True,extrap=True):
 # turn a higher resolution time series into a lower resolution time series
 # by averaging
 # FIXME
-def nupscale(tout,tin,din,maxdelta=60,nearest=True,nanth=.2):
+def nupscale(tout,tin,din,maxdelta=60,nearest=True,nanth=.2,debug=False):
     # if nearest, will use a constant value over the entire averaging period
     # if input is continous
     if np.min(tout[1:]-tout[0:-1])==np.max(tout[1:]-tout[0:-1]):
-        outscl=int(np.min(tout[1:]-tout[0:-1])/60)
-        inscl=int(np.min(tin[1:]-tin[0:-1])/60)
+        outscl=int(np.nanmin(tout[1:]-tout[0:-1])/60)
+        inscl=int(np.nanmin(tin[1:]-tin[0:-1])/60)
 
         # interpolate to 1 minute, then average up
-        tmid=np.linspace(tout[0]-outscl*30,tout[-1]+outscl*30,outscl*len(tout))
-        dmid=ninterp(tmid,tin,din,maxdelta=max(maxdelta,outscl),nearest=nearest)
+        tmid=np.linspace(tout[0]-outscl*30,tout[-1]+outscl*30,outscl*len(tout)+1)[0:-1]
+        dmid=ninterp(tmid,tin,din,maxdelta=max(maxdelta,outscl),nearest=nearest,debug=debug)
 
         out=np.zeros((len(tout),))
         nancnt=np.zeros((len(tout),))
@@ -140,6 +170,10 @@ def nupscale(tout,tin,din,maxdelta=60,nearest=True,nanth=.2):
 ############################## SORT TOGETHER #############################
 # Sort 2 or more lists (arrays) based on the content of one array
 def sort_together(X,Y):
+    Y=np.array(Y)
+    if len(Y.shape)==1:
+        Y=Y[:,None]
+        Y=Y.T
     # X is an N length array to sort based on. Y is an M x N array of things that will sort
     X=X.copy()
     dic={}
@@ -156,7 +190,7 @@ def sort_together(X,Y):
     for i in range(len(Y)):
         for j in range(len(X)):
             Yout[i].append(dic[X[j]][i])
-    return X,Yout
+    return X,np.array(Yout)
 
 
 
