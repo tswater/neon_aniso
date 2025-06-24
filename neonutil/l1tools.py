@@ -1409,17 +1409,85 @@ def add_pheno(scl,ndir,idir,ivars=None,overwrite=False,sites=SITES,debug=False):
         _out_to_h5(fpo,ovar,overwrite,desc)
 
 ##################################################################
-def remove_variable(ndir,delvar=[],confirm=True,sites=SITES):
+def remove_var(scl,ndir,delvar=[],confirm=True,sites=SITES):
     ''' Remove a given variable
         delvar  : list of variables to delete
         confirm : if true, will require user confirmation
     '''
+    for var in delvar:
+        doit=False
+        if confirm:
+            msg='Are you sure you would like to delete: '+var+' for the following sites: \n    '
+            if len(sites)==47:
+                msg=msg+'ALL SITES!\n\n'
+            else:
+                msg=msg+str(sites)+'\n\n'
+            msg=msg+'This would be permenant and could not be undone!!!!\n'
+            msg=msg+'Are you sure (respond y/n)?\n'
+            doit=_confirm_user(msg)
+        else:
+            doit=True
+        if doit:
+            for site in sites:
+                fp=h5py.File(ndir+site+'_'+str(scl)+'m.h5','r+')
+                del fp[var]
 
 
 
 ##################################################################
-def update_variable():
-    ''' Update a variable name, add description or units'''
+def update_var(scl,ndir,var,rename=None,desc=None,units=None,\
+        attr=None,factor=1,confirm=True,sites=SITES):
+    ''' Update a variable name, add description or units or factor'''
+
+    doele={}
+    doele['rename']= (rename not in [None,''])
+    doele['factor']= (factor not in [None,1])
+    doele['desc']= (desc not in [None,'','{}'])
+    doele['units']= (units not in [None,''])
+    doele['attr']= (attr not in [None,'{}'])
+
+    doit=False
+    if confirm:
+        msg='Are you sure you would like to change '+var+' in the following way: \n'
+        if doele['rename']:
+            msg=msg+'    rename to '+rename+'\n'
+        if doele['factor']:
+            msg=msg+'    adjust (multiply) data by factor of '+str(factor)+'\n'
+        if doele['desc']:
+            dout=''
+            for i in range(int(np.floor(len(desc)/50))+1):
+                dout=dout+'      '+desc[i*50:(i+1)*50]+'\n'
+            msg=msg+'    add a description::\n'
+            msg=msg+dout
+        if doele['units']:
+            msg=msg+'    add units of '+units+'\n'
+        if doele['attr']:
+            msg=msg+'    add the following attributes:\n'
+            for k in attr.keys():
+                msg=msg+'      '+k+':'+str(attr[k])+'\n'
+        msg=msg+'For the following sites: \n'
+        if len(sites)==47:
+            msg=msg+'ALL SITES!\n\n'
+        else:
+            msg=msg+str(sites)+'\n\n'
+        msg=msg+'Do you approve (respond y/n)?\n'
+        doit=_confirm_user(msg)
+    else:
+        doit=True
+    if doit:
+        for site in sites:
+            fp=h5py.File(ndir+site+'_'+str(scl)+'m.h5','r+')
+            if doele['factor']:
+                fp[var][:]=fp[var][:]*factor
+            if doele['desc']:
+                fp[var].attrs['description']=desc
+            if doele['units']:
+                fp[var].attrs['units']=units
+            if doele['attr']:
+                for k in attr.keys():
+                    fp[var].attrs[k]=attr[k]
+            if doele['rename']:
+                fp.move(var,rename)
 
 ##################################################################
 def add_aop():
