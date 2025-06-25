@@ -496,8 +496,8 @@ def add_derived(scl,ndir,ivars=None,overwrite=False,sites=SITES):
                         e[fpo['Q'][:]<=0]=-9999
                         tmp['e']=e
                     if 'svp' not in tmp.keys():
-                        ts=fpo['THETA'][:]
-                        svp=.61121*np.exp((18.678-(ts)/234.5)*((ts)/(257.14+(ts))))
+                        ts=fpo['THETA'][:]-273.15
+                        svp=611.21*np.exp((18.678-(ts)/234.5)*((ts)/(257.14+(ts))))
                         svp[ts==-9999]=-9999
                         tmp['svp']=svp
                     e=tmp['e']
@@ -515,8 +515,8 @@ def add_derived(scl,ndir,ivars=None,overwrite=False,sites=SITES):
                         e[fpo['Q'][:]<=0]=-9999
                         tmp['e']=e
                     if 'svp' not in tmp.keys():
-                        ts=fpo['THETA'][:]
-                        svp=.61121*np.exp((18.678-(ts)/234.5)*((ts)/(257.14+(ts))))
+                        ts=fpo['THETA'][:]-273.14
+                        svp=611.21*np.exp((18.678-(ts)/234.5)*((ts)/(257.14+(ts))))
                         svp[ts==-9999]=-9999
                         tmp['svp']=svp
                     e=tmp['e']
@@ -525,6 +525,8 @@ def add_derived(scl,ndir,ivars=None,overwrite=False,sites=SITES):
                     ta=fpo['T'][:]
                     gam=np.log(rh/100)+(a*ta)/(b+ta)
                     td=b*gam/(a-gam)
+                    td[e==-9999]=-9999
+                    td[svp==-9999]=-9999
                     ovar['TD']=td
                 case 'RHO':
                     if 'e' not in tmp.keys():
@@ -533,22 +535,26 @@ def add_derived(scl,ndir,ivars=None,overwrite=False,sites=SITES):
                         e[fpo['Q'][:]<=0]=-9999
                         tmp['e']=e
                     if 'svp' not in tmp.keys():
-                        ts=fpo['THETA'][:]
-                        svp=.61121*np.exp((18.678-(ts)/234.5)*((ts)/(257.14+(ts))))
+                        ts=fpo['THETA'][:]-273.15
+                        svp=611.21*np.exp((18.678-(ts)/234.5)*((ts)/(257.14+(ts))))
                         svp[ts==-9999]=-9999
                         tmp['svp']=svp
                     e=tmp['e']
                     svp=tmp['svp']
                     Ra = 286.9
                     Rw = 461.5
-                    ts = fpo['THETA'][:]
-                    rho = ((fpo['PA'][:]-e)/(Ra*(ts+273))+(e)/(Rw*(ts+273)))*1000
+                    ts = fpo['THETA'][:]-273.15
+                    rho = ((fpo['PA'][:]-e)/(Ra*(ts+273.15))+(e)/(Rw*(ts+273.15)))*1000
                     rho[fpo['PA'][:]<=0]=-9999
                     rho[ts<=-25]=-9999
+                    rho[e==-9999]=-9999
+                    rho[svp==-9999]=-9999
                     ovar['RHO']=rho
                 case 'USTAR':
                     if 'ustar' not in tmp.keys():
                         ustar=(fpo['UW'][:]**2+fpo['VW'][:]**2)**(1/4)
+                        ustar[fpo['UW'][:]==-9999]=-9999
+                        ustar[fpo['VW'][:]==-9999]=-9999
                         tmp['ustar']=ustar
                     ustar=tmp['ustar']
                     ovar['USTAR']=ustar
@@ -560,18 +566,31 @@ def add_derived(scl,ndir,ivars=None,overwrite=False,sites=SITES):
                     molh2o=18.02*10**(-3)
                     dmair=fpo['DMOLAIRDRY'][:]
                     cp_=cpdry*dmair*moldry + cph2o*fpo['Q'][:]*molh2o
-                    ovar['H']=cp_*wth
+                    H=cp_*wth
+                    H[wth==-9999]=-9999
+                    H[dmair<0]=-9999
+                    H[fpo['Q'][:]==-9999]=-9999
+                    ovar['H']=H
                 case 'LE':
                     lhv = 2500827 - 2360*(fpo['T'][:]-273)
                     molh2o=18.02*10**(-3)
-                    le=fpo['DMOLAIRDRY'][:]*lhv*molh2o*fpo['WQ'][:]
+                    dmair=fpo['DMOLAIRDRY'][:]
+                    le=dmair*lhv*molh2o*fpo['WQ'][:]
+                    le[fpo['WQ'][:]==-9999]=-9999
+                    le[dmair<0]=-9999
+                    le[fpo['T'][:]<0]=-9999
                     ovar['LE']=le
                 case 'L_MOST':
                     if 'ustar' not in tmp.keys():
                         ustar=(fpo['UW'][:]**2+fpo['VW'][:]**2)**(1/4)
+                        ustar[fpo['UW'][:]==-9999]=-9999
+                        ustar[fpo['VW'][:]==-9999]=-9999
                         tmp['ustar']=ustar
                     ustar=tmp['ustar']
                     L=-ustar**3*fpo['THETA'][:]/(.4*9.81*fpo['WTHETA'][:])
+                    L[ustar==-9999]=-9999
+                    L[fpo['WTHETA'][:]==-9999]=-9999
+                    L[fpo['THETA'][:]==-9999]=-9999
                     ovar['L_MOST']=L
         _out_to_h5(fpo,ovar,overwrite)
 
@@ -986,10 +1005,14 @@ def add_ghflx(scl,ndir,idir,adddata=True,addqaqc=True,ivars=None,overwrite=False
             gg[2,:]=nscale(time2,tm3,d3['SHFMean'])
             gg[gg<=-999]=float('nan')
             gcnt=np.sum(~np.isnan(gg),axis=0)+.00001
-            ovar['G_full']=np.nansum(gg,axis=0)/gcnt
+            gout=np.nansum(gg,axis=0)/gcnt
+            gout[gcnt==.00001]=float('nan')
+            ovar['G_full']=gout
             gg[qgg==1]=float('nan')
             gcnt=np.sum(~np.isnan(gg),axis=0)+.00001
-            ovar['G']=np.nansum(gg,axis=0)/gcnt
+            gout=np.nansum(gg,axis=0)/gcnt
+            gout[gcnt==.00001]=float('nan')
+            ovar['G']=gout
 
         if addqaqc:
             qgg[np.isnan(qgg)]=1
@@ -1079,7 +1102,7 @@ def add_qaqc(scl,ndir,idir,ivars=None,qsci=False,overwrite=False,sites=SITES):
         ivars : variables to process; None will add all
     '''
     #### SETUP
-    _ivars = ['Q','U','V','W','UVW','C','THETA','USTAR','CO2FX','LE','H']
+    _ivars = ['Q','U','V','W','UVW','C','THETA','USTAR','WC','LE','H']
     if ivars in [None]:
         ivars=_ivars
     outvar={}
@@ -1137,12 +1160,14 @@ def add_qaqc(scl,ndir,idir,ivars=None,qsci=False,overwrite=False,sites=SITES):
                         nm='/'+site+'/dp01/data/soni/000_0'+th+\
                                 '0_'+ds_+'/tempSoni'
                         data=_dpt2utc(fpi[nm]['timeBgn'][:])+_dpt2utc(fpi[nm]['timeEnd'][:])
+                        data=data/2
                         nqs=len(data)
                         tmp[var].extend(data)
                     case 'qctime':
                         nm='/'+site+'/dp01/data/h2oTurb/000_0'+th+\
                                 '0_'+ds_+'/rtioMoleDryH2o'
                         data=_dpt2utc(fpi[nm]['timeBgn'][:])+_dpt2utc(fpi[nm]['timeEnd'][:])
+                        data=data/2
                         nqc=len(data)
                         tmp[var].extend(data)
 
@@ -1150,6 +1175,7 @@ def add_qaqc(scl,ndir,idir,ivars=None,qsci=False,overwrite=False,sites=SITES):
                         nm='/'+site+'/dp04/data/fluxTemp/turb'
                         data=_dpt2utc(fpi[nm]['timeBgn'][:])+_dpt2utc(fpi[nm]['timeEnd'][:])
                         nqf=len(data)
+                        data=data/2
                         tmp[var].extend(data)
 
                     # basic quality flag
@@ -1181,7 +1207,7 @@ def add_qaqc(scl,ndir,idir,ivars=None,qsci=False,overwrite=False,sites=SITES):
                         tmp[var].extend(fpi[bgn4+'fluxMome/turb']['qfFinl'][:])
                     case 'qH':
                         tmp[var].extend(fpi[bgn4+'fluxTemp/turb']['qfFinl'][:])
-                    case 'qCO2FX':
+                    case 'qWC':
                         tmp[var].extend(fpi[bgn4+'fluxCo2/turb']['qfFinl'][:])
                     case 'qLE':
                         tmp[var].extend(fpi[bgn4+'fluxH2o/turb']['qfFinl'][:])
@@ -1218,7 +1244,7 @@ def add_qaqc(scl,ndir,idir,ivars=None,qsci=False,overwrite=False,sites=SITES):
                 tmin=tmp['sonitime']
             elif var in ['qsQ','qsC','qQ','qC']:
                 tmin=tmp['qctime']
-            elif var in ['qsH','qsUSTAR','qsLE','qsCO2FX','qH','qUSTAR','qLE','qCO2FX']:
+            elif var in ['qsH','qsUSTAR','qsLE','qsWC','qH','qUSTAR','qLE','qWC']:
                 tmin=tmp['flxtime']
             ovar[var]=nscale(time2,tmin,tmp[var])
 

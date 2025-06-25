@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.17.2
+#       jupytext_version: 1.16.4
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -29,7 +29,7 @@ plt.rcParams.update({'figure.max_open_warning': 0})
 
 # %%
 l1dir='/home/tswater/Documents/tyche/data/neon/L1/'
-l1dir='/run/media/tylerwaterman/Elements/NEON/L1/'
+#l1dir='/run/media/tylerwaterman/Elements/NEON/L1/'
 
 # %% [markdown]
 # ### Basic
@@ -229,9 +229,27 @@ plt.plot(t15,b[idx0*2:idxf*2],'-o',linewidth=.1*s)
 #plt.ylim(0,10)
 
 # %%
-420/412
+# Test RH fixes
 
 # %%
-fa15.keys()
+fpo=fa15
+e=fpo['PA'][:]*fpo['Q'][:]/(1+fpo['Q'][:])
+e[fpo['PA'][:]==-9999]=-9999
+e[fpo['Q'][:]<=0]=-9999
+ts=fpo['THETA'][:]-273.14
+svp=.61121*np.exp((18.678-(ts)/234.5)*((ts)/(257.14+(ts))))*1000
+svp[ts==-9999]=-9999
+rh=e/svp*100
+rh[e==-9999]=-9999
+rh[svp==-9999]=-9999
+
+# %%
+plt.hist(rh[rh>0],bins=np.linspace(0,100))
+
+# %%
+plt.hist(fa30['RH'][:],bins=np.linspace(0,100))
+
+# %%
+np.nanmedian(fpo['T'][:])
 
 # %%
