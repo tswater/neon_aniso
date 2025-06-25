@@ -157,7 +157,7 @@ for pair in [abby,guan]:
         plt.figure()
         plt.title(var)
         plt.hist(dout[~m],bins=np.linspace(-dmx,dmx,151))
-        
+
 
 # %%
 # Plot against eachother
@@ -201,5 +201,37 @@ for pair in [abby,guan]:
         plt.ylim(miny,maxy)
 
 # %%
+
+# %%
+a=fa30['CO2'][:]
+b=fa15['C'][:]
+c=fa15['Q'][:]
+a[a==-9999]=float('nan')
+b[b==-9999]=float('nan')
+print(np.nanmedian(a))
+print(np.nanmedian((b*1/(1+c))*10**6))
+
+# %%
+plt.hist(a-b[::2]*10**6,bins=np.linspace(-20,20))
+
+# %%
+idx0=72988
+idxf=73188
+s=5
+a=fa30['PA'][:]/1.013
+b=fa15['PA'][:]/10**3
+t15=fa15['TIME'][:][idx0*2:idxf*2]
+t30=fa30['TIME'][:][idx0:idxf]
+plt.figure(figsize=(12,3),dpi=250)
+plt.title(var)
+plt.plot(t30,a[idx0:idxf],'-o',linewidth=.2*s)
+plt.plot(t15,b[idx0*2:idxf*2],'-o',linewidth=.1*s)
+#plt.ylim(0,10)
+
+# %%
+420/412
+
+# %%
+fa15.keys()
 
 # %%
