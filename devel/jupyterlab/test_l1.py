@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.16.4
+#       jupytext_version: 1.17.2
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -201,32 +201,95 @@ for pair in [abby,guan]:
         plt.ylim(miny,maxy)
 
 # %%
+1.49503034e-05 1.02440652e+00
 
 # %%
-a=fa30['CO2'][:]
-b=fa15['C'][:]
-c=fa15['Q'][:]
+b=b0*.994142481+2.67966518e-06
+
+# %%
+b=b0*1.02440652e+00+1.49503034e-05
+
+# %%
+a=fa30['CO2'][-48*31:]
+b0=(fa15['C'][-48*31*2:]+fa15['C'][-48*31*2-1:-1])/2
+b=b0*.994142481+2.67966518e-06
+b=b0*1.02440652e+00+1.49503034e-05
+c=(fa15['Q'][-48*31*2:]+fa15['Q'][-48*31*2-1:-1])/2
 a[a==-9999]=float('nan')
-b[b==-9999]=float('nan')
+b[b0==-9999]=float('nan')
 print(np.nanmedian(a))
+print(np.nanmedian(b0*10**6))
+print(np.nanmedian(b*10**6))
 print(np.nanmedian((b*1/(1+c))*10**6))
 
 # %%
-plt.hist(a-b[::2]*10**6,bins=np.linspace(-20,20))
+d=b*10**6#*1/(1+c)*10**6
+plt.scatter(a[:48],d[:48*2:2])
+
+# %%
+
+# %%
+plt.hist(a-d[::2],bins=np.linspace(-20,20))
 
 # %%
 idx0=72988
 idxf=73188
 s=5
-a=fa30['PA'][:]/1.013
-b=fa15['PA'][:]/10**3
-t15=fa15['TIME'][:][idx0*2:idxf*2]
+a=fa30['CO2FX'][:]
+b=fa30['WC'][:]*dmolairdry*10**6
+a[a==-9999]=float('nan')
+b[b==-9999]=float('nan')
+#t15=fa15['TIME'][:][idx0*2:idxf*2]
 t30=fa30['TIME'][:][idx0:idxf]
 plt.figure(figsize=(12,3),dpi=250)
 plt.title(var)
 plt.plot(t30,a[idx0:idxf],'-o',linewidth=.2*s)
-plt.plot(t15,b[idx0*2:idxf*2],'-o',linewidth=.1*s)
-#plt.ylim(0,10)
+plt.plot(t30,b[idx0:idxf],'-o',linewidth=.1*s)
+#plt.plot(t15,b[idx0*2:idxf*2],'-o',linewidth=.1*s)
+plt.ylim(-10,5)
+
+# %%
+np.nanmedian(fa15['DMOLAIRDRY'][::2][dmolairdry>0])
+
+# %%
+idx0=62988
+idxf=73188
+s=5
+a=fa30['CO2FX'][:]
+b=fa30['WC'][:]*fa15['DMOLAIRDRY'][::2]*10**6
+a[a==-9999]=float('nan')
+b[b==-9999]=float('nan')
+#t15=fa15['TIME'][:][idx0*2:idxf*2]
+t30=fa30['TIME'][:][idx0:idxf]
+plt.figure(figsize=(12,3),dpi=250)
+plt.title(var)
+#plt.plot(t30,a[idx0:idxf],'-o',linewidth=.2*s)
+#plt.plot(t30,b[idx0:idxf],'-o',linewidth=.1*s)
+plt.plot(t30,(a[idx0:idxf]-b[idx0:idxf])/a[idx0:idxf])
+#plt.plot(t15,b[idx0*2:idxf*2],'-o',linewidth=.1*s)
+plt.ylim(-1,1)
+
+# %%
+fm=h5py.File('/run/media/tylerwaterman/Elements/NEON/neon_processed/L2_scalar/L2mask_U_C.h5','r')
+m=fm['ABBY'][:]
+
+
+
+# %%
+a=fa30['CO2FX'][:]
+b=fa30['WC'][:]*fa15['DMOLAIRDRY'][::2]*10**6
+a[a==-9999]=float('nan')
+b[b==-9999]=float('nan')
+a=a[m]
+b=b[m]
+
+dmolair=fa15['DMOLAIRDRY'][::2]+fa15['Q'][::2]
+dmolairdry=dmolair/fa15['PA'][::2]*fa30['PA'][:]*1000/fa15['T'][::2]*fa15['THETA'][::2]-fa15['Q'][::2]
+c=fa30['WC'][:]*dmolairdry*10**6
+c=c[m]
+
+# %%
+plt.hist((a-c)/a,bins=np.linspace(-.1,.2))
 
 # %%
 # Test RH fixes
@@ -251,5 +314,38 @@ plt.hist(fa30['RH'][:],bins=np.linspace(0,100))
 
 # %%
 np.nanmedian(fpo['T'][:])
+
+# %% [markdown]
+# # Testing CO2Flux Validation STuff
+
+# %%
+idir='/home/tylerwaterman/Downloads/NEON_eddy-flux(2)/NEON_eddy-flux/NEON.D16.ABBY.DP4.00200.001.2023-12.expanded.20250129T000730Z.RELEASE-2025/'
+
+# %%
+fp=h5py.File(idir+'NEON.D16.ABBY.DP4.00200.001.nsae.2023-12-30.expanded.20250122T235215Z.h5','r')
+
+# %%
+fp['ABBY/dp01/data/co2Turb/000_050_01m/rtioMoleDryCo2Vali'].attrs['evalCoef']
+
+# %%
+d1=fp['ABBY/dp01/data/co2Turb/000_050_01m/rtioMoleDryCo2']['mean'][:]
+d2=fp['ABBY/dp01/data/co2Turb/000_050_01m/rtioMoleDryCo2Cor']['mean'][:]
+d3=fp['ABBY/dp01/data/co2Turb/000_050_01m/rtioMoleDryCo2Raw']['mean'][:]
+
+# %%
+d2=fp['ABBY/dp04/data/fluxCo2/turb']['fluxCor'][:]
+d3=fp['ABBY/dp04/data/fluxCo2/turb']['fluxRaw'][:]
+
+# %%
+plt.figure(figsize=(12,3))
+#plt.plot(d1)
+plt.plot(d2)
+plt.plot(d3)
+#plt.ylim(0,100)
+#plt.ylim(400,500)
+
+# %%
+plt.plot((d2-d3)/d2)
+plt.ylim(-.1,.1)
 
 # %%
