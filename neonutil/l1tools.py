@@ -342,7 +342,8 @@ def add_turb25(scl,ndir,tdir,ivars=None,overwrite=False,dlt=None,sites=SITES,deb
     '''
 
     # setup
-    _ivars = ['U','V','W','Ustr','Vstr','UU','UV','UW','VV','VW','WW',\
+    _ivars = ['U','V','W','Us','Vs','UU','UV','UW','VV','VW','WW',\
+              'UsUs','UsVs','UsW','VsVs','VsW',\
               'WTHETA','WQ','WC','THETATHETA','QQ','CC','QC','TQ','TC',\
               'THETAC','THETAQ','Q','C','PA','THETA','WT','TT','T',\
               'DMOLAIRDRY']
@@ -436,7 +437,7 @@ def add_derived(scl,ndir,ivars=None,overwrite=False,sites=SITES):
     '''
     #### SETUP
     _ivars = ['ANI_YB','ANID_YB','ANI_XB','ANID_XB','RH','TD','RHO',\
-              'USTAR','H','LE','L_MOST']
+              'USTAR','H','LE','L_MOST','ANI_YBs','ANID_YBs','ANI_XBs','ANID_XBs']
     if ivars in [None]:
         ivars=_ivars
     outvar={}
@@ -451,6 +452,44 @@ def add_derived(scl,ndir,ivars=None,overwrite=False,sites=SITES):
         tmp={}
         for var in ovar.keys():
             match var:
+                case 'ANI_YBs':
+                    if 'YBs' in tmp.keys():
+                        ovar[var]=tmp['YBs'][:]
+                    else:
+                        rst=_bij(fpo['UsUs'][:],fpo['VsVs'][:],fpo['WW'][:],\
+                                fpo['UsVs'][:],fpo['UsW'][:],fpo['VsW'][:])
+                        yb,xb=_aniso(rst)
+                        ovar[var]=yb
+                        tmp['XBs']=xb
+                case 'ANID_YBs':
+                    if 'dYBs' in tmp.keys():
+                        ovar[var]=tmp['dYBs'][:]
+                    else:
+                        cero=np.zeros((len(fpo['UsUs'][:]),))
+                        rstd=_bij(fpo['UsUs'][:],fpo['VsVs'][:],fpo['WW'][:],\
+                                cero,cero,cero)
+                        yb,xb=_aniso(rstd)
+                        ovar[var]=yb
+                        tmp['dXB']=xb
+                case 'ANI_XBs':
+                    if 'XBs' in tmp.keys():
+                        ovar[var]=tmp['XBs'][:]
+                    else:
+                        rst=_bij(fpo['UsUs'][:],fpo['VsVs'][:],fpo['WW'][:],\
+                                fpo['UsVs'][:],fpo['UsW'][:],fpo['VsW'][:])
+                        yb,xb=_aniso(rst)
+                        ovar[var]=xb
+                        tmp['YBs']=yb
+                case 'ANID_XBs':
+                    if 'dXBs' in tmp.keys():
+                        ovar[var]=tmp['dXBs'][:]
+                    else:
+                        cero=np.zeros((len(fpo['UsUs'][:]),))
+                        rstd=_bij(fpo['UsUs'][:],fpo['VsVs'][:],fpo['WW'][:],\
+                                cero,cero,cero)
+                        yb,xb=_aniso(rstd)
+                        ovar[var]=xb
+                        tmp['dYBs']=yb
                 case 'ANI_YB':
                     if 'YB' in tmp.keys():
                         ovar[var]=tmp['YB'][:]
@@ -777,8 +816,8 @@ def add_profile_tqc(scl,ndir,dp4dir,addprof=True,addqaqc=True,ivars=None,\
                     s1='000_0'+str(i+1)+'0_01m'
                     s2='000_0'+str(i+1)+'0_02m'
                 inp['t'][i].extend(fpi[site]['dp01/data/tempAirLvl'][s1][ts][:]['mean'])
-                inp['q'][i].extend(fpi[site]['dp01/data/h2oStor'][s2][qs][:]['mean'])
-                inp['c'][i].extend(fpi[site]['dp01/data/co2Stor'][s2][cs][:]['mean'])
+                inp['q'][i].extend(fpi[site]['dp01/data/h2oStor'][s2][qs][:]['mean']*10**(-3))
+                inp['c'][i].extend(fpi[site]['dp01/data/co2Stor'][s2][cs][:]['mean']*10**(-6))
                 inp['qq'][i].extend(fpi[site]['dp01/qfqm/h2oStor'][s2][qs][:]['qfFinl'])
                 inp['qt'][i].extend(fpi[site]['dp01/qfqm/tempAirLvl'][s1][ts][:]['qfFinl'])
                 inp['qc'][i].extend(fpi[site]['dp01/qfqm/co2Stor'][s2][cs][:]['qfFinl'])

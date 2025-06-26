@@ -1,6 +1,8 @@
 # tools for L2 processing, mostly used by L2 driver script
 
 
+# enable the choice of streamwise or earth coordinates and change
+#   variable names. (or both)
 # should probably make a "case" class
 
 #############################################################
