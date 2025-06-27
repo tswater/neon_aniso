@@ -591,9 +591,14 @@ def add_derived(scl,ndir,ivars=None,overwrite=False,sites=SITES):
                     ovar['RHO']=rho
                 case 'USTAR':
                     if 'ustar' not in tmp.keys():
-                        ustar=(fpo['UW'][:]**2+fpo['VW'][:]**2)**(1/4)
-                        ustar[fpo['UW'][:]==-9999]=-9999
-                        ustar[fpo['VW'][:]==-9999]=-9999
+                        try:
+                            ustar=(fpo['UW'][:]**2+fpo['VW'][:]**2)**(1/4)
+                            ustar[fpo['UW'][:]==-9999]=-9999
+                            ustar[fpo['VW'][:]==-9999]=-9999
+                        except Exception:
+                            ustar=(fpo['UsW'][:]**2+fpo['VsW'][:]**2)**(1/4)
+                            ustar[fpo['UsW'][:]==-9999]=-9999
+                            ustar[fpo['VsW'][:]==-9999]=-9999
                         tmp['ustar']=ustar
                     ustar=tmp['ustar']
                     ovar['USTAR']=ustar
@@ -621,9 +626,14 @@ def add_derived(scl,ndir,ivars=None,overwrite=False,sites=SITES):
                     ovar['LE']=le
                 case 'L_MOST':
                     if 'ustar' not in tmp.keys():
-                        ustar=(fpo['UW'][:]**2+fpo['VW'][:]**2)**(1/4)
-                        ustar[fpo['UW'][:]==-9999]=-9999
-                        ustar[fpo['VW'][:]==-9999]=-9999
+                        try:
+                            ustar=(fpo['UW'][:]**2+fpo['VW'][:]**2)**(1/4)
+                            ustar[fpo['UW'][:]==-9999]=-9999
+                            ustar[fpo['VW'][:]==-9999]=-9999
+                        except Exception:
+                            ustar=(fpo['UsW'][:]**2+fpo['VsW'][:]**2)**(1/4)
+                            ustar[fpo['UsW'][:]==-9999]=-9999
+                            ustar[fpo['VsW'][:]==-9999]=-9999
                         tmp['ustar']=ustar
                     ustar=tmp['ustar']
                     L=-ustar**3*fpo['THETA'][:]/(.4*9.81*fpo['WTHETA'][:])
@@ -1269,6 +1279,57 @@ def add_dp04(scl,ndir,idir,ivars=None,basepath=None,ivar_override=False,overwrit
             ovar[var]=nscale(time2,tmp[var+'_time'],tmp[var],nearest=nearest)
 
         _out_to_h5(fpo,ovar,overwrite)
+
+##################################################################
+####################### L1_2_L1 #################################
+# Transfers data from one L1 file to another; interpolating if needed
+def l1_2_l1(scl1,ndir1,scl2,ndir2,ivars,overwrite=False,confirm=True,nearest=True,sites=SITES):
+    ''' Transfer data between l1 files across scales '''
+    outvar={}
+    for var in ivars:
+        outvar[var]=[]
+
+    s0=sites[0]
+    for site in sites:
+        fpi=h5py.File(ndir1+site+'_'+str(scl1)+'m','r')
+        fpo=h5py.File(ndir2+site+'_'+str(scl2)+'m','r')
+        ovar=outvar.copy()
+        doit=False
+
+        # confirm with user that this is desired action (only on first site)
+        if site==s0:
+            replace=[]
+            add=[]
+            for var in ovar.keys():
+                if (var in fpo.keys()) & overwrite:
+                    replace.append(var)
+                else:
+                    add.append(var)
+            if confirm:
+                msg='Are you sure you would like to replace '+str(replace)+\
+                    '\n in '+ndir2+' with the corresponding variables in '+\
+                    ndir1+' and add new variables '+str(add)+\
+                    '\n in the following sites: \n'
+                if len(sites)==47:
+                    msg=msg+'ALL SITES!\n\n'
+                else:
+                    msg=msg+str(sites)+'\n\n'
+                msg=msg+'This would be permenant and could not be undone!!!!\n'
+                msg=msg+'Are you sure (respond y/n)?\n'
+                doit=_confirm_user(msg)
+            else:
+                doit=True
+
+        if doit:
+            time1=fpi['TIME'][:]+scl1/2
+            time2=fpo['TIME'][:]+scl2/2
+            for var in ovar.keys():
+                data1=fpi[var][:]
+                data2=nscale(time2,time1,data1,nearest=nearest)
+                ovar[var]=data2
+
+            _out_to_h5(fpo,ovar,overwrite)
+
 
 ##################################################################
 ###################### ADD QAQC ##################################
