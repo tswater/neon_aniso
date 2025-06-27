@@ -1130,6 +1130,145 @@ def add_precip(scl,ndir,idir1,idir2,adddata=True,addqaqc=False,ivars=None,overwr
 
         _out_to_h5(fpo,ovar,overwrite)
 
+##################################################################
+###################### ADD DP04 ##################################
+# Adds information from dp04 files (and dp01). Currently, only pressure is
+# implemented, although new data can easily be added by:
+#   adding the variable to ivars, filling out a proper basepath, and setting
+#   ivar_override to True
+def add_dp04(scl,ndir,idir,ivars=None,basepath=None,ivar_override=False,overwrite=False,sites=SITES):
+    ''' Add data from NEON combined ec files '''
+    #### SETUP
+    _ivars = ['PA']
+    # 'ABBY/dp01/data/h2oTurb/000_050_01m/presAtm'
+    # path to data is reconstructed from basepath as:
+    #      path_to_data ='/'+site+'/'+path+lvl+reso+'/'+name+'/'
+    _basepath = {'PA':{'path':'dp01/data/h2oTurb/',\ # REQUIRED stong; internal NEON hdf5 path up to "level"
+                       'lvl':None,\ # optional string; None is '000_0XX_0' where XX is top level
+                       'reso':None,\ # optional string; None is 30m or 01m
+                       'name':'presAtm',\ # REQUIRED string; variable name in hdf5
+                       'val':'mean',\ # REQUIRED string; value to extract (usually "mean")
+                       'scale_nearest':True,\ # optional boolean; for nscale parameter
+                       'factor':1000,\ # optional float; multiplies data by this factor
+                       'ofset':0},\ # optional float; adds this ofset to the data
+                               {}}
+    if ivars in [None]:
+        ivars=_ivars
+    if basepath in [None]:
+        basepath=_basepath
+    outvar={}
+    for var in ivars:
+        if ivar_override:
+            if var in basepath.keys():
+                outvar[var]=[]
+        if var in _ivars:
+            if var in basepath.keys():
+                outvar[var]=[]
+
+    if len(outvar.keys())==0:
+        print('add_dp04 No valid variables in ivars/basepath')
+        return None
+
+    if scl==30:
+        ds_='30m'
+    else:
+        ds_='01m'
+
+    for site in sites:
+        # Setup
+        fpo=h5py.File(ndir+site+'_'+str(scl)+'m.h5','r+')
+        time=fpo['TIME'][:]
+        time2=time+scl/2*60
+        ovar=outvar.copy()
+        for var in ovar.keys():
+            ovar[var]=np.ones((len(time2),))*float('nan')
+        tmp={}
+        for var in ovar.keys():
+            tmp[var]=[]
+            tmp[var+'_time']=[]
+        filelist=os.listdir(idir+site)
+        filelist.sort()
+        fpi=h5py.File(idir+site+'/'+filelist[-1],'r')
+        for i in range(10):
+            th=str(i)
+            try:
+                fpi['/'+site+'/dp01/data/soni/000_0'+th+\
+                    '0_'+ds_+'/tempSoni/']['timeBgn'][:]
+                break
+            except:
+                pass
+        for file in filelist:
+            fpi=h5py.File(idir+site+'/'+file,'r')
+            for var in ovar.keys():
+                # load in variable information
+                path=site+'/'+basepath[var]['path']
+                name=basepath[var]['name']
+                val=basepath[var]['val']
+                if 'ofset' in basepath[var].keys():
+                    ofset=basepath[var]['ofset']
+                else:
+                    ofset=0
+                if 'factor' in basepath[var].keys():
+                    factor=basepath[var]['factor']
+                else:
+                    factor=1
+
+                if 'level' not in basepath[var].keys():
+                    lvl=None
+                else:
+                    lvl=basepath[var]['level']
+                if 'reso' not in basepath[var].keys():
+                    reso=None
+                else:
+                    reso=basepath[var]['reso']
+                if lvl in None:
+                    lvl='000_0'+th+'0_'
+                if reso in None:
+                    reso=ds_
+
+                nm='/'+site+'/'+path+lvl+reso+'/'+name+'/'
+
+                # load time
+                try:
+                    time1=_dpt2utc(fpi[nm]['timeBgn'][:])
+                except Exception:
+                    print('ERROR variable '+var+' in '+file+' does not '+\
+                            'contain appropriately specified time. Skipping')
+                    continue
+                try:
+                    time2=_dpt2utc(fpi[nm]['timeEnd'][:])
+                except Exception:
+                    time2=time1.copy()-1
+
+                timec=(time2+time1)/2
+
+                # manage issues with missing/earlier end time than begining
+                m=(time2-time1)<1
+                if np.sum(m)>0:
+                    delta=time1[1:]-time1[:-1]
+                    if np.nanmin(delta)==0:
+                        delta=np.nanmin(time1[1:][delta>0]-time1[:-1][delta>0])
+                    else:
+                        delta=np.nanmin(delta)
+                    if delta<0:
+                        raise Exception('time not always increasing for '+\
+                                var+' in '+file)
+                    timec[m]=time1[m]+delta
+
+                # get actual data
+                data=fpi[nm][val][:]*factor+ofset
+                tmp[var].extend(data)
+                tmp[var+'_time'].extend(timec)
+
+        # interpolate and output
+        for var in ovar.keys():
+            if 'scale_nearest' in basepath[var].keys():
+                nearest=basepath[var]['scale_nearest']
+            else:
+                nearest=True
+            ovar[var]=nscale(time2,tmp[var+'_time'],tmp[var],nearest=nearest)
+
+        _out_to_h5(fpo,ovar,overwrite)
 
 ##################################################################
 ###################### ADD QAQC ##################################
