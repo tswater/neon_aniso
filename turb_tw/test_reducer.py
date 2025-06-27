@@ -29,6 +29,6 @@ fp.close()
 tmpname=str(uuid.uuid4())
 run('mv '+file+' '+tmpname,shell=True)
 run('h5repack --filter=GZIP=1 '+tmpname+' '+file,shell=True)
-run('rm '+tmpname,shell=True)    
+run('rm '+tmpname,shell=True)
 
 
