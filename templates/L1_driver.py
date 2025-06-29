@@ -17,7 +17,7 @@ from subprocess import run
 from neonutil.nutil import SITES
 from neonutil.l1tools import make_base, add_turb, add_stationarity_zahn23,\
         add_derived, add_core_attrs, add_profile_tqc, add_radiation,\
-        add_ghflx, add_precip, add_qaqc, add_pheno
+        add_ghflx, add_precip, add_qaqc, add_pheno, l1_2_l1, remove_var, update_var
 
 start_time=time.time()
 
@@ -137,7 +137,7 @@ if timeout:
 # #### L1 to L1
 # scale2=5 # scale to pull from
 # dlt2=5 # dlt of scale to pull from
-# l1_5_dir=l1dir_+'neon_5m/' # directory of scale to pull from 
+# l1_5_dir=l1dir_+'neon_5m/' # directory of scale to pull from
 # l12l1list = []
 # start_time=time.time()
 # print(prefix+'Adding turbulence information',flush=True)
