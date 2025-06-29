@@ -17,7 +17,7 @@ def static2full():
 
 ############################# NSCALE ###################################
 # Wrapper function; interpolates (ninterp) or upscales (nupscale) as appropriate
-def nscale(t_out,t_in,d_in,dlt=None,maxdelta=60,nearest=True,extrap=True,nanth=.2,debug=False):
+def nscale(t_out,t_in,d_in,scl=None,maxdelta=60,nearest=True,extrap=True,nanth=.2,debug=False):
     # ensure inputs are arrays and not lists
     tout=np.array(t_out)
     tin=np.array(t_in)
@@ -33,7 +33,7 @@ def nscale(t_out,t_in,d_in,dlt=None,maxdelta=60,nearest=True,extrap=True,nanth=.
     tdelta=tin[1:]-tin[0:-1]
     toutdelta=tout[1:]-tout[0:-1]
     if np.nanmin(toutdelta)>np.nanmin(tdelta):
-        return nupscale(tout,tin,din,dlt,maxdelta,nearest,nanth,debug)
+        return nupscale(tout,tin,din,scl,maxdelta,nearest,nanth,debug)
     else:
         return ninterp(tout,tin,din,maxdelta,nearest,extrap,debug)
 
@@ -135,12 +135,14 @@ def ninterp(tout,tin,din,maxdelta=60,nearest=True,extrap=True,debug=False):
 ############################ NEON UPSCALE ################################
 # turn a higher resolution time series into a lower resolution time series
 # by averaging
-# FIXME dlt
-def nupscale(tout,tin,din,dlt=None,maxdelta=60,nearest=True,nanth=.2,debug=False):
+def nupscale(tout,tin,din,outscl=None,maxdelta=60,nearest=True,nanth=.2,debug=False):
+    dlt=int(np.nanmin(tout[1:]-tout[0:-1])/60)
+    if outscl in [None]:
+        outscl=dlt
+    
     # if nearest, will use a constant value over the entire averaging period
     # if input is continous
     if np.min(tout[1:]-tout[0:-1])==np.max(tout[1:]-tout[0:-1]):
-        outscl=int(np.nanmin(tout[1:]-tout[0:-1])/60)
         inscl=int(np.nanmin(tin[1:]-tin[0:-1])/60)
 
         # interpolate to 1 minute, then average up
@@ -153,11 +155,11 @@ def nupscale(tout,tin,din,dlt=None,maxdelta=60,nearest=True,nanth=.2,debug=False
 
         # get a count of nans in each output averaging period
         for i in range(outscl):
-            nancnt=nancnt+np.isnan(dmid[i::outscl])
+            nancnt=nancnt+np.isnan(dmid[i::dlt])
 
         # average data, ignoring nans as long as nancnt is less than [nanth]%
         for i in range(outscl):
-            data=dmid[i::outscl]/(outscl-nancnt+.000000000001)
+            data=dmid[i::dlt]/(outscl-nancnt+.000000000001)
             data[np.isnan(data)]=0
             out=out+data
         out[nancnt>nanth*(outscl)]=float('nan')

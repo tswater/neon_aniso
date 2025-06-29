@@ -887,11 +887,11 @@ def add_profile_tqc(scl,ndir,dp4dir,dlt=None,addprof=True,addqaqc=True,ivars=Non
                     if debug:
                         print('addprof for '+v_long)
                     ovar[v_long][v.upper()+str(i)]=\
-                            nscale(time2,inp['t_'+v][i][:],inp[v][i][:],dlt=dlt,nearest=False,debug=debug)
+                            nscale(time2,inp['t_'+v][i][:],inp[v][i][:],scl=scl,nearest=False,debug=debug)
                 if addqaqc:
                     if debug:
                         print('addqaqc for '+v_long)
-                    tmp=nscale(time2,inp['t_'+v][i][:],inp['q'+v][i][:],dlt=dlt,nearest=False,debug=debug)
+                    tmp=nscale(time2,inp['t_'+v][i][:],inp['q'+v][i][:],scl=scl,nearest=False,debug=debug)
                     ovar['q'+v_long]=ovar['q'+v_long][:]+tmp[:]
                     if i in [len(lvltqc)-2,len(lvltqc)-3]:
                         ovar['q'+v_long+'_upper']=ovar['q'+v_long+'_upper'][:]+tmp[:]
@@ -903,9 +903,9 @@ def add_profile_tqc(scl,ndir,dp4dir,dlt=None,addprof=True,addqaqc=True,ivars=Non
             v_long='profile_t'
             if addprof:
                 ovar[v_long][v.upper()+str(len(lvltqc)-1)]=\
-                        nscale(time2,inp['t_ttop'][:],inp['ttop'][:],dlt=dlt,nearest=False,debug=debug)
+                        nscale(time2,inp['t_ttop'][:],inp['ttop'][:],scl=scl,nearest=False,debug=debug)
             if addqaqc:
-                tmp=nscale(time2,inp['t_ttop'][:],inp['qttop'][:],dlt=dlt,nearest=False,debug=debug)
+                tmp=nscale(time2,inp['t_ttop'][:],inp['qttop'][:],scl=scl,nearest=False,debug=debug)
                 ovar['q'+v_long]=ovar['q'+v_long]+tmp[:]
                 ovar['q'+v_long][ovar['q'+v_long]<.2]=0
                 ovar['q'+v_long+'_upper']=ovar['q'+v_long+'_upper'][:]+tmp[:]
@@ -971,10 +971,10 @@ def add_radiation(scl,ndir,idir,dlt=None,adddata=True,addqaqc=True,ivars=None,ov
 
         # Interpolate Data
         if adddata:
-            swin=nscale(time2,tm,d['inSWMean'],dlt=dlt,debug=debug)
-            swout=nscale(time2,tm,d['outSWMean'],dlt=dlt,debug=debug)
-            lwin=nscale(time2,tm,d['inLWMean'],dlt=dlt,debug=debug)
-            lwout=nscale(time2,tm,d['outLWMean'],dlt=dlt,debug=debug)
+            swin=nscale(time2,tm,d['inSWMean'],scl=scl,debug=debug)
+            swout=nscale(time2,tm,d['outSWMean'],scl=scl,debug=debug)
+            lwin=nscale(time2,tm,d['inLWMean'],scl=scl,debug=debug)
+            lwout=nscale(time2,tm,d['outLWMean'],scl=scl,debug=debug)
             for v in ovar.keys():
                 match v:
                     case 'SW_IN':
@@ -988,10 +988,10 @@ def add_radiation(scl,ndir,idir,dlt=None,adddata=True,addqaqc=True,ivars=None,ov
                     case 'NETRAD':
                         ovar[v]=swin-swout+lwin-lwout
         if addqaqc:
-            radq=nscale(time2,tm,d['inSWFinalQF'],dlt=dlt,debug=debug)
-            radq=radq+nscale(time2,tm,d['outSWFinalQF'],dlt=dlt,debug=debug)
-            radq=radq+nscale(time2,tm,d['inLWFinalQF'],dlt=dlt,debug=debug)
-            radq=radq+nscale(time2,tm,d['outLWFinalQF'],dlt=dlt,debug=debug)
+            radq=nscale(time2,tm,d['inSWFinalQF'],scl=scl,debug=debug)
+            radq=radq+nscale(time2,tm,d['outSWFinalQF'],scl=scl,debug=debug)
+            radq=radq+nscale(time2,tm,d['inLWFinalQF'],scl=scl,debug=debug)
+            radq=radq+nscale(time2,tm,d['outLWFinalQF'],scl=scl,debug=debug)
             ovar['qNETRAD']=radq
 
         _out_to_h5(fpo,ovar,overwrite)
@@ -1052,15 +1052,15 @@ def add_ghflx(scl,ndir,idir,dlt=None,adddata=True,addqaqc=True,ivars=None,overwr
 
         # Interpolate Data
         qgg=np.zeros((3,len(time2)))
-        qgg[0,:]=nscale(time2,tm1,d1['finalQF'],dlt=dlt)
-        qgg[1,:]=nscale(time2,tm2,d2['finalQF'],dlt=dlt)
-        qgg[2,:]=nscale(time2,tm3,d3['finalQF'],dlt=dlt)
+        qgg[0,:]=nscale(time2,tm1,d1['finalQF'],scl=scl)
+        qgg[1,:]=nscale(time2,tm2,d2['finalQF'],scl=scl)
+        qgg[2,:]=nscale(time2,tm3,d3['finalQF'],scl=scl)
 
         if adddata:
             gg=np.zeros((3,len(time2)))
-            gg[0,:]=nscale(time2,tm1,d1['SHFMean'],dlt=dlt)
-            gg[1,:]=nscale(time2,tm2,d2['SHFMean'],dlt=dlt)
-            gg[2,:]=nscale(time2,tm3,d3['SHFMean'],dlt=dlt)
+            gg[0,:]=nscale(time2,tm1,d1['SHFMean'],scl=scl)
+            gg[1,:]=nscale(time2,tm2,d2['SHFMean'],scl=scl)
+            gg[2,:]=nscale(time2,tm3,d3['SHFMean'],scl=scl)
             gg[gg<=-999]=float('nan')
             gcnt=np.sum(~np.isnan(gg),axis=0)+.00001
             gout=np.nansum(gg,axis=0)/gcnt
@@ -1132,12 +1132,12 @@ def add_precip(scl,ndir,idir1,idir2,dlt=None,adddata=True,addqaqc=False,ivars=No
             dp=_load_csv_data(['precipBulk'],idir1+site,['_60min'])
             tmp=(dp['startDateTime'][:]+dp['endDateTime'][:])/2
             if adddata:
-                p1=nscale(time2,tmp,dp['precipBulk'],dlt=dlt,nearest=True)/60
+                p1=nscale(time2,tmp,dp['precipBulk'],scl=scl,nearest=True)/60
         if secnd:
             ds=_load_csv_data(['secPrecipBulk'],idir2+site,['_1min'])
             tmp=(ds['startDateTime'][:]+ds['endDateTime'][:])/2
             if adddata:
-                p2=nscale(time2,tmp,ds['secPrecipBulk'],dlt=dlt)
+                p2=nscale(time2,tmp,ds['secPrecipBulk'],scl=scl)
 
         # if we have both, use p1 to set ammount of rain and p2 to set timing
         if prime and secnd:
@@ -1288,21 +1288,18 @@ def add_dp04(scl,ndir,idir,dlt=None,ivars=None,basepath=None,ivar_override=False
                 nearest=basepath[var]['scale_nearest']
             else:
                 nearest=True
-            ovar[var]=nscale(time2,tmp[var+'_time'],tmp[var],dlt=dlt,nearest=nearest)
+            ovar[var]=nscale(time2,tmp[var+'_time'],tmp[var],scl=scl,nearest=nearest)
 
         _out_to_h5(fpo,ovar,overwrite)
 
 ##################################################################
 ####################### L1_2_L1 #################################
 # Transfers data from one L1 file to another; interpolating if needed
-def l1_2_l1(scl1,ndir1,scl2,ndir2,ivars,dlt2=None,overwrite=False,confirm=True,nearest=True,sites=SITES):
+def l1_2_l1(scl1,ndir1,scl2,ndir2,ivars,overwrite=False,confirm=True,nearest=True,sites=SITES):
     ''' Transfer data between l1 files across scales '''
     outvar={}
     for var in ivars:
         outvar[var]=[]
-
-    if dlt2 in [None]:
-        dlt2=scl
 
     s0=sites[0]
     for site in sites:
@@ -1340,7 +1337,7 @@ def l1_2_l1(scl1,ndir1,scl2,ndir2,ivars,dlt2=None,overwrite=False,confirm=True,n
             time2=fpo['TIME'][:]+scl2/2
             for var in ovar.keys():
                 data1=fpi[var][:]
-                data2=nscale(time2,time1,data1,dlt=dlt2,nearest=nearest)
+                data2=nscale(time2,time1,data1,scl=scl2,nearest=nearest)
                 ovar[var]=data2
 
             _out_to_h5(fpo,ovar,overwrite)
@@ -1500,7 +1497,7 @@ def add_qaqc(scl,ndir,idir,dlt=None,ivars=None,qsci=False,overwrite=False,sites=
                 tmin=tmp['qctime']
             elif var in ['qsH','qsUSTAR','qsLE','qsWC','qH','qUSTAR','qLE','qWC']:
                 tmin=tmp['flxtime']
-            ovar[var]=nscale(time2,tmin,tmp[var],dlt=dlt)
+            ovar[var]=nscale(time2,tmin,tmp[var],scl=scl)
 
         _out_to_h5(fpo,ovar,overwrite)
 
@@ -1558,7 +1555,7 @@ def add_pheno(scl,ndir,idir,dlt=None,ivars=None,overwrite=False,sites=SITES,debu
             N=len(inp)
             sangles=np.zeros((N,len(time)))
             for i in range(N):
-                sangles[i,:]=nscale(time2,inp[i]['time'],inp[i]['solar_elev'],dlt=dlt,debug=debug,nearest=False)
+                sangles[i,:]=nscale(time2,inp[i]['time'],inp[i]['solar_elev'],scl=scl,debug=debug,nearest=False)
             ovar['SOLAR_ALTITUDE']=np.nanmean(sangles,axis=0)
 
         # GCC
@@ -1589,9 +1586,9 @@ def add_pheno(scl,ndir,idir,dlt=None,ivars=None,overwrite=False,sites=SITES,debu
             dgcc=np.zeros((Nd,len(time)))
             egcc=np.zeros((Ne,len(time)))
             for i in range(Nd):
-                dgcc[i,:]=nscale(time2,dinp[i]['time'],dinp[i]['gcc_90'],debug=debug,dlt=dlt,nearest=False)
+                dgcc[i,:]=nscale(time2,dinp[i]['time'],dinp[i]['gcc_90'],debug=debug,scl=scl,nearest=False)
             for i in range(Ne):
-                egcc[i,:]=nscale(time2,einp[i]['time'],einp[i]['gcc_90'],debug=debug,dlt=dlt,nearest=False)
+                egcc[i,:]=nscale(time2,einp[i]['time'],einp[i]['gcc_90'],debug=debug,scl=scl,nearest=False)
             cgcc=np.concatenate((dgcc,egcc))
             ovar['GCC90_C']=np.nanmean(cgcc,axis=0)
             if (Nd>0) & ('GCC90_D' in ovar.keys()):
@@ -1681,7 +1678,7 @@ def add_pheno(scl,ndir,idir,dlt=None,ivars=None,overwrite=False,sites=SITES,debu
             N=len(inp)
             sangles=np.zeros((N,len(time)))
             for i in range(N):
-                sangles[i,:]=nscale(time2,inp[i]['time'],inp[i]['ndvi_90'],nearest=False,dlt=dlt,debug=debug)
+                sangles[i,:]=nscale(time2,inp[i]['time'],inp[i]['ndvi_90'],nearest=False,scl=scl,debug=debug)
             ovar['NDVI90']=np.nanmean(sangles,axis=0)
 
         desc={'GROWING':'0: not growing period, 1: growing period deciduous, 2: growing period evergreen, 3: growing period all vegetation (3 is also the value for growing season if there is only evergreen or only deciduous)'}

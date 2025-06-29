@@ -134,13 +134,16 @@ make_base(scale,l1dir,dlt=dlt,overwrite=replace,sites=sites)
 if timeout:
     print(prefix+"Making Base Done; took %s seconds to run" % (np.round(time.time() - start_time)))
 
-#### L1 to L1
-# FIXME
-start_time=time.time()
-print(prefix+'Adding turbulence information',flush=True)
-l1_2_l1(scale,l1dir,turb_dir,ivars=varlist,overwrite=replace,sites=sites)
-if timeout:
-    print(prefix+"Adding Turb Done; took %s seconds to run" % (np.round(time.time() - start_time)))
+# #### L1 to L1
+# scale2=5 # scale to pull from
+# dlt2=5 # dlt of scale to pull from
+# l1_5_dir=l1dir_+'neon_5m/' # directory of scale to pull from 
+# l12l1list = []
+# start_time=time.time()
+# print(prefix+'Adding turbulence information',flush=True)
+# l1_2_l1(scale2,l1_5_dir,scale2,l1dir,l12l1list,dlt2=dlt2,overwrite=replace,sites=sites)
+# if timeout:
+#     print(prefix+"Adding Turb Done; took %s seconds to run" % (np.round(time.time() - start_time)))
 
 #### Add Turbulence Information
 start_time=time.time()
