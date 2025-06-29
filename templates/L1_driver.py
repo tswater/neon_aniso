@@ -30,12 +30,14 @@ start_time=time.time()
 scale   = 0 # averaging period in minutes
 
 #### PLACES and THINGS TO PROCESS
-sites   = None # if None or [] will use all
-l1dir_  = '/home/tswater/Documents/tyche/data/neon/L1/' # L1 directory
-varlist = None # [] variables to add. None is all. see readme.md for options
-vstat   = None # [] variables to compute stationarity stats for;
+sites    = None # if None or [] will use all
+l1dir_   = '/home/tswater/Documents/tyche/data/neon/L1/' # L1 directory
+varlist  = None # [] variables to add. None is all. see readme.md for options
+vstat    = None # [] variables to compute stationarity stats for;
                #     ONLY USE ABOVE IF SCALE = 30
-qlist   = None # [] variables for core qaqc (see l1tools.add_qaqc)
+qlist    = None # [] variables for core qaqc (see l1tools.add_qaqc)
+dp4vlist = ['PA'] # [] variables to get from dp4 files; to add non-standard
+                  # values you must also specify basepath dictionary
 
 #### PROCESSING OPTIONS
 replace = False # overwrite old data if it exists
@@ -132,6 +134,13 @@ make_base(scale,l1dir,dlt=dlt,overwrite=replace,sites=sites)
 if timeout:
     print(prefix+"Making Base Done; took %s seconds to run" % (np.round(time.time() - start_time)))
 
+#### L1 to L1
+# FIXME
+start_time=time.time()
+print(prefix+'Adding turbulence information',flush=True)
+l1_2_l1(scale,l1dir,turb_dir,ivars=varlist,overwrite=replace,sites=sites)
+if timeout:
+    print(prefix+"Adding Turb Done; took %s seconds to run" % (np.round(time.time() - start_time)))
 
 #### Add Turbulence Information
 start_time=time.time()
@@ -140,6 +149,13 @@ add_turb(scale,l1dir,turb_dir,ivars=varlist,dlt=dlt,overwrite=replace,sites=site
 if timeout:
     print(prefix+"Adding Turb Done; took %s seconds to run" % (np.round(time.time() - start_time)))
 
+#### Add DP04 (Pressure) Information
+# recommend to run before derived variables which need pressure
+start_time=time.time()
+print(prefix+'Adding derived turublence characteristics',flush=True)
+add_derived(scale,l1dir,dp4_dir,dlt=dlt,ivars=dp4vlist,overwrite=replace,sites=sites)
+if timeout:
+    print(prefix+"Adding Dp04 variables; took %s seconds to run" % (np.round(time.time() - start_time)))
 
 #### Computing derived variables
 start_time=time.time()
@@ -160,7 +176,7 @@ if timeout:
 #### Add profile information for T,Q,C
 start_time=time.time()
 print(prefix+'Adding profiles of temp, water and carbon',flush=True)
-add_profile_tqc(scale,l1dir,dp4_dir,addqaqc=qc_prof,ivars=varlist,\
+add_profile_tqc(scale,l1dir,dp4_dir,dlt=dlt,addqaqc=qc_prof,ivars=varlist,\
         overwrite=replace,sites=sites,debug=debug)
 if timeout:
     print(prefix+"TQC Profiles Done; took %s seconds to run" % (np.round(time.time() - start_time)))
@@ -169,7 +185,7 @@ if timeout:
 #### Add Radiation information
 start_time=time.time()
 print(prefix+'Adding incomming/outgoing radiation',flush=True)
-add_radiation(scale,l1dir,rad_dir,addqaqc=qc_rad,ivars=varlist,\
+add_radiation(scale,l1dir,rad_dir,dlt=dlt,addqaqc=qc_rad,ivars=varlist,\
         overwrite=replace,sites=sites,debug=debug)
 if timeout:
     print(prefix+"Radiation Done; took %s seconds to run" % (np.round(time.time() - start_time)))
@@ -178,7 +194,7 @@ if timeout:
 #### Add Ground Heat Flux
 start_time=time.time()
 print(prefix+'Adding ground heat flux',flush=True)
-add_ghflx(scale,l1dir,ghflx_dir,addqaqc=qc_rad,ivars=varlist,\
+add_ghflx(scale,l1dir,ghflx_dir,dlt=dlt,addqaqc=qc_rad,ivars=varlist,\
         overwrite=replace,sites=sites)
 if timeout:
     print(prefix+"Ground Heat Flux Done; took %s seconds to run" % (np.round(time.time() - start_time)))
@@ -187,7 +203,7 @@ if timeout:
 #### Add Precipitation
 start_time=time.time()
 print(prefix+'Adding Precipitation',flush=True)
-add_precip(scale,l1dir,p1_dir,p2_dir,ivars=varlist,\
+add_precip(scale,l1dir,p1_dir,p2_dir,dlt=dlt,ivars=varlist,\
         overwrite=replace,sites=sites,debug=debug)
 if timeout:
     print(prefix+"Precipitation Done; took %s seconds to run" % (np.round(time.time() - start_time)))
@@ -196,7 +212,7 @@ if timeout:
 ### Add qaqc
 start_time=time.time()
 print(prefix+'Adding QAQC',flush=True)
-add_qaqc(scale,l1dir,dp4_dir,ivars=qlist,qsci=qc_sci,\
+add_qaqc(scale,l1dir,dp4_dir,dlt=dlt,ivars=qlist,qsci=qc_sci,\
         overwrite=replace,sites=sites,debug=debug)
 if timeout:
     print(prefix+"Add QAQC Done; took %s seconds to run" % (np.round(time.time() - start_time)))
@@ -205,7 +221,7 @@ if timeout:
 #### Add pheno
 start_time=time.time()
 print(prefix+'Adding Phenocam data',flush=True)
-add_pheno(scale,l1dir,pheno_dir,ivars=varlist,overwrite=replace,sites=sites,debug=debug)
+add_pheno(scale,l1dir,pheno_dir,dlt=dlt,ivars=varlist,overwrite=replace,sites=sites,debug=debug)
 if timeout:
     print(prefix+"Phenocam Done; took %s seconds to run" % (np.round(time.time() - start_time)))
 

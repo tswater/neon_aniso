@@ -17,7 +17,7 @@ def static2full():
 
 ############################# NSCALE ###################################
 # Wrapper function; interpolates (ninterp) or upscales (nupscale) as appropriate
-def nscale(t_out,t_in,d_in,maxdelta=60,nearest=True,extrap=True,nanth=.2,debug=False):
+def nscale(t_out,t_in,d_in,dlt=None,maxdelta=60,nearest=True,extrap=True,nanth=.2,debug=False):
     # ensure inputs are arrays and not lists
     tout=np.array(t_out)
     tin=np.array(t_in)
@@ -33,7 +33,7 @@ def nscale(t_out,t_in,d_in,maxdelta=60,nearest=True,extrap=True,nanth=.2,debug=F
     tdelta=tin[1:]-tin[0:-1]
     toutdelta=tout[1:]-tout[0:-1]
     if np.nanmin(toutdelta)>np.nanmin(tdelta):
-        return nupscale(tout,tin,din,maxdelta,nearest,nanth,debug)
+        return nupscale(tout,tin,din,dlt,maxdelta,nearest,nanth,debug)
     else:
         return ninterp(tout,tin,din,maxdelta,nearest,extrap,debug)
 
@@ -135,8 +135,8 @@ def ninterp(tout,tin,din,maxdelta=60,nearest=True,extrap=True,debug=False):
 ############################ NEON UPSCALE ################################
 # turn a higher resolution time series into a lower resolution time series
 # by averaging
-# FIXME
-def nupscale(tout,tin,din,maxdelta=60,nearest=True,nanth=.2,debug=False):
+# FIXME dlt
+def nupscale(tout,tin,din,dlt=None,maxdelta=60,nearest=True,nanth=.2,debug=False):
     # if nearest, will use a constant value over the entire averaging period
     # if input is continous
     if np.min(tout[1:]-tout[0:-1])==np.max(tout[1:]-tout[0:-1]):
