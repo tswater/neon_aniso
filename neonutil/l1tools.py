@@ -1082,7 +1082,7 @@ def add_ghflx(scl,ndir,idir,dlt=None,adddata=True,addqaqc=True,ivars=None,overwr
 #############################################################################
 ####################### ADD PRECIPITATION ###################################
 # Add Precipitation
-def add_precip(scl,ndir,idir1,idir2,dlt=None,adddata=True,addqaqc=False,ivars=None,overwrite=False,sites=SITES):
+def add_precip(scl,ndir,idir1,idir2,dlt=None,adddata=True,addqaqc=False,ivars=None,debug=False,overwrite=False,sites=SITES):
     ''' Add radiation information
         scl   : averaging scale in minutes
         ndir  : directory of L1 base files
@@ -1132,12 +1132,12 @@ def add_precip(scl,ndir,idir1,idir2,dlt=None,adddata=True,addqaqc=False,ivars=No
             dp=_load_csv_data(['precipBulk'],idir1+site,['_60min'])
             tmp=(dp['startDateTime'][:]+dp['endDateTime'][:])/2
             if adddata:
-                p1=nscale(time2,tmp,dp['precipBulk'],scl=scl,nearest=True)/60
+                p1=nscale(time2,tmp,dp['precipBulk'],scl=scl,debug=debug,nearest=True)/60
         if secnd:
             ds=_load_csv_data(['secPrecipBulk'],idir2+site,['_1min'])
             tmp=(ds['startDateTime'][:]+ds['endDateTime'][:])/2
             if adddata:
-                p2=nscale(time2,tmp,ds['secPrecipBulk'],scl=scl)
+                p2=nscale(time2,tmp,ds['secPrecipBulk'],scl=scl,debug=debug)
 
         # if we have both, use p1 to set ammount of rain and p2 to set timing
         if prime and secnd:
@@ -1165,15 +1165,19 @@ def add_dp04(scl,ndir,idir,dlt=None,ivars=None,basepath=None,ivar_override=False
     # 'ABBY/dp01/data/h2oTurb/000_050_01m/presAtm'
     # path to data is reconstructed from basepath as:
     #      path_to_data ='/'+site+'/'+path+lvl+reso+'/'+name+'/'
-    _basepath = {'PA':{'path':'dp01/data/h2oTurb/',\ # REQUIRED stong; internal NEON hdf5 path up to "level"
-                       'lvl':None,\ # optional string; None is '000_0XX_0' where XX is top level
-                       'reso':None,\ # optional string; None is 30m or 01m
-                       'name':'presAtm',\ # REQUIRED string; variable name in hdf5
-                       'val':'mean',\ # REQUIRED string; value to extract (usually "mean")
-                       'scale_nearest':True,\ # optional boolean; for nscale parameter
-                       'factor':1000,\ # optional float; multiplies data by this factor
-                       'ofset':0},\ # optional float; adds this ofset to the data
-                               {}}
+
+    #_basepath = {'PA':{'path':'dp01/data/h2oTurb/',\ # REQUIRED stong; internal NEON hdf5 path up to "level"
+    #                   'lvl':None,\ # optional string; None is '000_0XX_0' where XX is top level
+    #                   'reso':None,\ # optional string; None is 30m or 01m
+    #                   'name':'presAtm',\ # REQUIRED string; variable name in hdf5
+    #                   'val':'mean',\ # REQUIRED string; value to extract (usually "mean")
+    #                   'scale_nearest':True,\ # optional boolean; for nscale parameter
+    #                   'factor':1000,\ # optional float; multiplies data by this factor
+    #                   'ofset':0},\ # optional float; adds this ofset to the data
+    #                           {}}
+
+    _basepath = {'PA':{'path':'dp01/data/h2oTurb/','lvl':None,'reso':None,'name':'presAtm',\
+                       'val':'mean','scale_nearest':True,'factor':1000,'ofset':0}}
     if ivars in [None]:
         ivars=_ivars
     if basepath in [None]:

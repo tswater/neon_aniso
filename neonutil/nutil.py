@@ -139,7 +139,7 @@ def nupscale(tout,tin,din,outscl=None,maxdelta=60,nearest=True,nanth=.2,debug=Fa
     dlt=int(np.nanmin(tout[1:]-tout[0:-1])/60)
     if outscl in [None]:
         outscl=dlt
-    
+
     if debug:
         dbg='::::::::::DEBUG::::::::::::\n'
         dbg=dbg+'outscale: '+str(outscl)+'\n'+\
@@ -147,7 +147,7 @@ def nupscale(tout,tin,din,outscl=None,maxdelta=60,nearest=True,nanth=.2,debug=Fa
                 'len(out): '+str(len(tout))+'\n'+\
                 '::::::::::DEBUG::::::::::::'
         print(dbg)
-    
+
     # if nearest, will use a constant value over the entire averaging period
     # if input is continous
     if np.min(tout[1:]-tout[0:-1])==np.max(tout[1:]-tout[0:-1]):
@@ -156,20 +156,15 @@ def nupscale(tout,tin,din,outscl=None,maxdelta=60,nearest=True,nanth=.2,debug=Fa
         # interpolate to 1 minute, then average up
         tmid=np.linspace(tout[0]-outscl*30,tout[-1]+outscl*30,dlt*(len(tout)-1)+outscl+1)
         dmid=ninterp(tmid,tin,din,maxdelta=max(maxdelta,outscl),nearest=nearest,debug=debug)
-        
+
         if debug:
-        dbg='::::::::::DEBUG::::::::::::\n'
-        dbg=dbg+'tmid[0]   : '+str(tmid[0])+'\n'+\
+            dbg='::::::::::DEBUG::::::::::::\n'
+            dbg=dbg+'tmid[0]   : '+str(tmid[0])+'\n'+\
                 'tmid[-1]  : '+str(tmid[-1])+'\n'+\
                 'delta(tmd): '+str(tmid[1]-tmid[0])+'\n'+\
                 'len(tmd)  : '+str(len(tmid))+'\n'+\
                 '::::::::::DEBUG::::::::::::'
-        print(dbg)
-
-        print(tmid[0])
-        print(tmid[-1])
-        print(str(tmid[1]-tmid[0]))
-        print(len(tmid))
+            print(dbg)
 
         out=np.zeros((len(tout),))
         nancnt=np.zeros((len(tout),))
