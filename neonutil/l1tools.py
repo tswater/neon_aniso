@@ -1713,7 +1713,7 @@ def remove_var(scl,ndir,delvar=[],confirm=True,sites=SITES):
 
 ##################################################################
 def update_var(scl,ndir,var,rename=None,desc=None,units=None,\
-        attr=None,factor=1,confirm=True,sites=SITES):
+        attr=None,factor=1,ofset=0,confirm=True,sites=SITES):
     ''' Update a variable name, add description or units or factor'''
 
     doele={}
@@ -1722,6 +1722,7 @@ def update_var(scl,ndir,var,rename=None,desc=None,units=None,\
     doele['desc']= (desc not in [None,'','{}'])
     doele['units']= (units not in [None,''])
     doele['attr']= (attr not in [None,'{}'])
+    doele['ofset']= (ofset not in [None,0])
 
     doit=False
     if confirm:
@@ -1730,6 +1731,8 @@ def update_var(scl,ndir,var,rename=None,desc=None,units=None,\
             msg=msg+'    rename to '+rename+'\n'
         if doele['factor']:
             msg=msg+'    adjust (multiply) data by factor of '+str(factor)+'\n'
+        if doele['ofset']:
+            msg=msg+'    adjust (ofset) data by '+str(ofset)+' after factor mltpy\n'
         if doele['desc']:
             dout=''
             for i in range(int(np.floor(len(desc)/50))+1):
@@ -1756,6 +1759,8 @@ def update_var(scl,ndir,var,rename=None,desc=None,units=None,\
             fp=h5py.File(ndir+site+'_'+str(scl)+'m.h5','r+')
             if doele['factor']:
                 fp[var][:]=fp[var][:]*factor
+            if doele['ofset']:
+                fp[var][:]=fp[var][:]+ofset
             if doele['desc']:
                 fp[var].attrs['description']=desc
             if doele['units']:
