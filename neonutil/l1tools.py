@@ -1224,7 +1224,12 @@ def add_dp04(scl,ndir,idir,dlt=None,ivars=None,basepath=None,ivar_override=False
             except:
                 pass
         for file in filelist:
-            fpi=h5py.File(idir+site+'/'+file,'r')
+            try:
+                fpi=h5py.File(idir+site+'/'+file,'r')
+            except Exception as e:
+                print(file)
+                print(e)
+                continue
             for var in ovar.keys():
                 # load in variable information
                 path=basepath[var]['path']
@@ -1263,14 +1268,14 @@ def add_dp04(scl,ndir,idir,dlt=None,ivars=None,basepath=None,ivar_override=False
                             'contain appropriately specified time. Skipping')
                     continue
                 try:
-                    time2=_dpt2utc(fpi[nm]['timeEnd'][:])
+                    time2e=_dpt2utc(fpi[nm]['timeEnd'][:])
                 except Exception:
-                    time2=time1.copy()-1
+                    time2e=time1.copy()-1
 
-                timec=(time2+time1)/2
+                timec=(time2e+time1)/2
 
                 # manage issues with missing/earlier end time than begining
-                m=(time2-time1)<1
+                m=(time2e-time1)<1
                 if np.sum(m)>0:
                     delta=time1[1:]-time1[:-1]
                     if np.nanmin(delta)==0:
