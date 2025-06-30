@@ -24,10 +24,10 @@ A list of variables available for L1 processing and description
 - U: horizontal velocity (m/s)
 - V: horizontal velocity (m/s)
 - W: vertical velocity (m/s)
-- Ustr: streamline velocity (m/s)
-- Vstr: spanwise velocity (m/s)
-- UU: streamwise velocity variance (i.e. uses Ustr)
-- VV: spanwise velocity variance
+- Us: streamline velocity (m/s)
+- Vs: spanwise velocity (m/s)
+- UU/UsUs: velocity variance (if Us, is streamwise)
+- VV/VsVs: spanwise velocity variance
 - WW: vertical velocity variance
 - THETA: virtual temperature
 - THETATHETA: sonic temperature (virtual temperature) variance

@@ -7,8 +7,23 @@ SITES =['ABBY', 'BARR', 'BART', 'BLAN', 'BONA', 'CLBJ', 'CPER', 'DCFS', 'DEJU', 
 
 
 
-################### FUNCTION ########################
 
+#############################################################
+#############################################################
+###################### INTERNAL FUNCTIONS ###################
+def _confirm_user(msg):
+    while True:
+        user_input = input(f"{msg} (Y/N): ").strip().lower()
+        if user_input in ('y', 'yes'):
+            return True
+        elif user_input in ('n', 'no'):
+            return False
+        else:
+            print("Invalid input. Please enter 'Y' or 'N'.")
+
+
+
+################### FUNCTION ########################
 #####################################################
 def static2full():
     ''' Take site information (L1 attrs) and turn into timeseries '''
@@ -23,15 +38,41 @@ def nscale(t_out,t_in,d_in,scl=None,maxdelta=60,nearest=True,extrap=True,nanth=.
     tin=np.array(t_in)
     din=np.array(d_in)
 
-    # ensure tin and din same shape
-    if not (len(tin)==len(din)):
-        raise ValueError('Length of input time '+str(len(tin))+' and data '+\
+    try:
+        # ensure tin and din same shape
+        if not (len(tin)==len(din)):
+            raise ValueError('Length of input time '+str(len(tin))+' and data '+\
                 str(len(din))+' is not the same!')
 
-    # use nearest if data is covering an averaging period
-    # use linear (nearest=false) if data is instantaneous
-    tdelta=tin[1:]-tin[0:-1]
-    toutdelta=tout[1:]-tout[0:-1]
+        # use nearest if data is covering an averaging period
+        # use linear (nearest=false) if data is instantaneous
+        tdelta=tin[1:]-tin[0:-1]
+        toutdelta=tout[1:]-tout[0:-1]
+        if len(tdelta<2):
+            raise ValueError('Input time is too short: '+str(tin))
+        if np.all(np.isnan(tdelta)):
+            raise ValueError('Change in time evaluates to all nan: '+str(tin))
+    except ValueError as e:
+        print(e)
+        msg='There is an error in the timeseries for interpolation\n'+
+            'Would you like to return all NaN?'
+        if _confirm_user(msg):
+            return np.ones(tout.shape)*float('nan')
+        else:
+            print('OKAY; will try to provide debug info: ')
+            try:
+                print('Input time size: '+str(len(tin)))
+                print('Input data size: '+str(len(din)))
+                print('First timestep: '+str(tin[0]))
+                print('Second timestep: '+str(tin[1]))
+                print('Last Timestep: '+str(tin[-1]))
+            except Exception as e2:
+                print('Failed to provide some debug info due to: ')
+                print(e2)
+                print()
+                print('Halting execution')
+                pass
+            raise(e)
     if np.nanmin(toutdelta)>np.nanmin(tdelta):
         return nupscale(tout,tin,din,scl,maxdelta,nearest,nanth,debug)
     else:

@@ -5,7 +5,68 @@
 #   variable names. (or both)
 # should probably make a "case" class
 
+#####################################################################
+#####################################################################
+######################## CASE DETAILS ###############################
+
+
+#####################################################################
+#####################################################################
+##################### INTERNAL FUNCTIONS ############################
+# Functions internal to L2 tools
+
+#### OUTPUT to L2 H5
+def _out_to_h5():
+    return
+
+
+
+
+
+
+
+#####################################################################
+#####################################################################
+###################### CONSTRUCTION FUNCTIONS #######################
+# Functions for building and manipulating L2 file and mask
+def maskgen():
+    ''' Generate a Mask '''
+
+##############################################################
+def time_maskgen():
+    ''' Generate a mask based on times '''
+
 #############################################################
+def build_L2_file():
+    ''' Generate an empty L2 file '''
+
+#############################################################
+def casegen(case):
+    ''' Essentially a driver for constructing a case, including
+        calling maskgen, add (L1) data, static information. See case
+        details near the top for options for the case
+    '''
+
+
+#####################################################################
+#####################################################################
+###################### DATA FUNCTIONS ###############################
+# Functions for adding new data
+
+
+##############################################################
+def add_foot():
+    ''' Add footprint statistics/information. SLOW! '''
+
+#############################################################
+def pull_var():
+    ''' Tries to pull an L2 variable from existing L2 file '''
+
+##############################################################
+def add_grad():
+    ''' Add gradients from profiles to L2 '''
+
+###############################################################
 def add_from_l1():
     ''' Add a new L1 variable to an existing L2 file'''
 
@@ -13,26 +74,3 @@ def add_from_l1():
 def remove_var():
     ''' Remove variable from L2 file'''
 
-##############################################################
-def core_q():
-    ''' Conduct core quality assurance and return updated mask'''
-
-##############################################################
-def make_mask():
-    ''' Make mask for a given case '''
-
-##############################################################
-def add_foot():
-    ''' Add footprint statistics/information. SLOW! '''
-
-##############################################################
-def add_grad():
-    ''' Add gradients from profiles to L2 '''
-
-##############################################################
-def check_old_L2():
-    ''' Pull a variable from old L2 file to minimize computation'''
-    # essentially, if something like a footprint exists in another L2
-    # file, pull it in so nothing needs to be recalculated. Return
-    # a mask of what does need to be calculated. Should be called
-    # by add_foot and add_grad as an option
