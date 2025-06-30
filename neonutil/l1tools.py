@@ -377,7 +377,7 @@ def add_turb25(scl,ndir,tdir,ivars=None,overwrite=False,dlt=None,sites=SITES,deb
                 continue
 
             add='_'+str(scl)+'m'
-            N=len(fp_in['UU'+add][:])
+            N=len(fp_in['U'+add][:])
             # fix timing for december
             if (dlt<30) and (stdt.year==2023) and (stdt.month==12):
                 N=N-int(30/dlt)+1
@@ -1227,7 +1227,7 @@ def add_dp04(scl,ndir,idir,dlt=None,ivars=None,basepath=None,ivar_override=False
             fpi=h5py.File(idir+site+'/'+file,'r')
             for var in ovar.keys():
                 # load in variable information
-                path=site+'/'+basepath[var]['path']
+                path=basepath[var]['path']
                 name=basepath[var]['name']
                 val=basepath[var]['val']
                 if 'ofset' in basepath[var].keys():
@@ -1247,9 +1247,9 @@ def add_dp04(scl,ndir,idir,dlt=None,ivars=None,basepath=None,ivar_override=False
                     reso=None
                 else:
                     reso=basepath[var]['reso']
-                if lvl in None:
+                if lvl in [None]:
                     lvl='000_0'+th+'0_'
-                if reso in None:
+                if reso in [None]:
                     reso=ds_
 
                 nm='/'+site+'/'+path+lvl+reso+'/'+name+'/'
@@ -1257,7 +1257,8 @@ def add_dp04(scl,ndir,idir,dlt=None,ivars=None,basepath=None,ivar_override=False
                 # load time
                 try:
                     time1=_dpt2utc(fpi[nm]['timeBgn'][:])
-                except Exception:
+                except Exception as e:
+                    print(nm)
                     print('ERROR variable '+var+' in '+file+' does not '+\
                             'contain appropriately specified time. Skipping')
                     continue

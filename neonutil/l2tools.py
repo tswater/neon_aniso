@@ -43,7 +43,8 @@ def _confirm_user(msg):
 #####################################################################
 ###################### CONSTRUCTION FUNCTIONS #######################
 # Functions for building and manipulating L2 file and mask
-def maskgen(fp,mask,cvar=None,flags=None,precip=None,stb=None,limvars=None,counter=None,months=None,years=None):
+def maskgen(fp,mask,cvar=None,flags=None,precip=None,stb=None,limvars=None,\
+            counter=None,months=None,years=None):
     ''' Generate a Mask '''
     if flags not in [None,[]]:
         for flag in flags:
@@ -70,7 +71,7 @@ def maskgen(fp,mask,cvar=None,flags=None,precip=None,stb=None,limvars=None,count
     if precip not in [None,False]:
         mask=mask&(fp['P']<=0)
     if counter not in [None,False]:
-        raise NotImplementedError('Masking countergradient fluxes not yet implemented')
+        raise NotImplementedError('Masking countergradient fluxes TBI')
     yrbool= (year not in [None,[]])
     mnbool= (month not in [None,[]])
     if yrbool | mnbool:

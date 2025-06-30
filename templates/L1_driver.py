@@ -17,7 +17,8 @@ from subprocess import run
 from neonutil.nutil import SITES
 from neonutil.l1tools import make_base, add_turb, add_stationarity_zahn23,\
         add_derived, add_core_attrs, add_profile_tqc, add_radiation,\
-        add_ghflx, add_precip, add_qaqc, add_pheno, l1_2_l1, remove_var, update_var
+        add_ghflx, add_precip, add_qaqc, add_pheno, l1_2_l1, remove_var,\
+        update_var, add_dp04
 
 start_time=time.time()
 
@@ -155,8 +156,8 @@ if timeout:
 #### Add DP04 (Pressure) Information
 # recommend to run before derived variables which need pressure
 start_time=time.time()
-print(prefix+'Adding derived turublence characteristics',flush=True)
-add_derived(scale,l1dir,dp4_dir,dlt=dlt,ivars=dp4vlist,overwrite=replace,sites=sites)
+print(prefix+'Adding dp04 turublence characteristics',flush=True)
+add_dp04(scale,l1dir,dp4_dir,dlt=dlt,ivars=dp4vlist,overwrite=replace,sites=sites)
 if timeout:
     print(prefix+"Adding Dp04 variables; took %s seconds to run" % (np.round(time.time() - start_time)))
 
