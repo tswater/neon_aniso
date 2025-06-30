@@ -19,7 +19,16 @@
 def _out_to_h5():
     return
 
-
+#### GET USER CONFIRMATION
+def _confirm_user(msg):
+    while True:
+        user_input = input(f"{msg} (Y/N): ").strip().lower()
+        if user_input in ('y', 'yes'):
+            return True
+        elif user_input in ('n', 'no'):
+            return False
+        else:
+            print("Invalid input. Please enter 'Y' or 'N'.")
 
 
 

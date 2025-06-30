@@ -48,13 +48,14 @@ def nscale(t_out,t_in,d_in,scl=None,maxdelta=60,nearest=True,extrap=True,nanth=.
         # use linear (nearest=false) if data is instantaneous
         tdelta=tin[1:]-tin[0:-1]
         toutdelta=tout[1:]-tout[0:-1]
-        if len(tdelta<2):
+
+        if len(tdelta)<2:
             raise ValueError('Input time is too short: '+str(tin))
         if np.all(np.isnan(tdelta)):
             raise ValueError('Change in time evaluates to all nan: '+str(tin))
     except ValueError as e:
         print(e)
-        msg='There is an error in the timeseries for interpolation\n'+
+        msg='There is an error in the timeseries for interpolation\n'+\
             'Would you like to return all NaN?'
         if _confirm_user(msg):
             return np.ones(tout.shape)*float('nan')
@@ -66,6 +67,11 @@ def nscale(t_out,t_in,d_in,scl=None,maxdelta=60,nearest=True,extrap=True,nanth=.
                 print('First timestep: '+str(tin[0]))
                 print('Second timestep: '+str(tin[1]))
                 print('Last Timestep: '+str(tin[-1]))
+                print(len(tdelta))
+                print(tdelta.shape)
+                print(tdelta[0])
+                print(tdelta[1])
+
             except Exception as e2:
                 print('Failed to provide some debug info due to: ')
                 print(e2)

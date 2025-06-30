@@ -1568,7 +1568,7 @@ def add_pheno(scl,ndir,idir,dlt=None,ivars=None,overwrite=False,sites=SITES,debu
                 dbg='::::::::::::::::DEBUG:::::::::::::::::::\n'
                 dbg=dbg+'Loading gcc data for '+site+'\n'
                 print(dbg+':::::::::::::::::DEBUG::::::::::::::::::',flush=True)
-            dlist=['GR','AG','SH','TN']
+            dlist=['DN','DB','GR','AG','SH','TN']
             elist=['EN','EB']
             files=os.listdir(idir+'data_record_4')
             dinp=[]
@@ -1606,7 +1606,7 @@ def add_pheno(scl,ndir,idir,dlt=None,ivars=None,overwrite=False,sites=SITES,debu
                 dbg='::::::::::::::::DEBUG:::::::::::::::::::\n'
                 dbg=dbg+'Loading growing period data for '+site+'\n'
                 print(dbg+':::::::::::::::::DEBUG::::::::::::::::::',flush=True)
-            dlist=['GR','AG','SH','TN']
+            dlist=['DN','DB','GR','AG','SH','TN']
             elist=['EN','EB']
             files=os.listdir(idir+'data_record_5')
             dinp=[]
@@ -1660,6 +1660,9 @@ def add_pheno(scl,ndir,idir,dlt=None,ivars=None,overwrite=False,sites=SITES,debu
                 gr[(grd==1)&(gre==1)]=3
             elif (Ne>0):
                 gr[(gre==1)]=3
+            elif (Ne==0) & (Nd==0):
+                print('WARNING! No Phenocam found for Growing Period!')
+                gr[:]=float('nan')
             else:
                 gr[(grd==1)]=3
             ovar['GROWING'][:]=gr[:]
