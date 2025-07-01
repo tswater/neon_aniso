@@ -376,9 +376,72 @@ def datagen(outfile,idir,include=None,exclude=None,static=None,zeta=['zL'],\
 def add_foot():
     ''' Add footprint statistics/information. SLOW! '''
 
+
+
+
 #############################################################
-def pull_var():
-    ''' Tries to pull an L2 variable from existing L2 file '''
+def pull_var(l2dir,l2file,var,frmt='new'):
+    ''' Tries to pull an L2 variable from existing L2 file
+        frmt : if new, will assume its a L2 file from July25 or later,
+               if old, will assume its an old style L2 file
+    '''
+
+    new=frmt=='new'
+
+    try:
+        fpo=h5py.File(l2file,'r+')
+    except Exception as e:
+        fpo=h5py.File(l2dir+l2file,'r+')
+
+    # assemble list of files to check
+    filelist=[]
+
+    for file in os.listdir(l2dir):
+        if (file==l2file) or ((l2dir+file)==l2file):
+            continue
+        if os.path.isdir(file):
+            for file2 in os.listdir(l2dir+file):
+                if (file2==l2file) or ((l2dir+file+'/'+file2)==l2file):
+                    continue
+                elif '.h5' in file2:
+                    filelist.append(l2dir+file+'/'+file2)
+        elif '.h5' in file:
+            filelist.append(l2dir+file)
+
+    oscale=fpo['main'].attrs['scale']
+
+    timeo=fpo['main/data']['TIME']
+
+    for file in filelist:
+        fpi=h5py.File(file,'r')
+        iscale=0
+        if new:
+            iscale=fpi['main'].attrs['scale']
+            stb=fpi['main'].attrs['stb']
+        elif '_U_' in file:
+            iscale=30
+            stb=False
+        elif '_S_' in file:
+            iscale=1
+            stb=True
+        if iscale!=oscale:
+            continue
+        if stb!=fpo['main'].attrs['stb']:
+            continue
+        if new:
+            f=fpi['main/data']
+        else:
+            f=fpi
+        try:
+            data=f[var][:]
+        except KeyError:
+            continue
+        timei=f['TIME'][:]
+        sitei=f['SITE'][:]
+
+        return None
+
+
 
 ##############################################################
 def add_grad():
