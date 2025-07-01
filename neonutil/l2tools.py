@@ -11,6 +11,10 @@ import numpy as np
 import h5py
 from subprocess import run
 from types import SimpleNamespace
+try:
+    from nutil import SITES,nscale,sort_together,out_to_h5
+except:
+    from neonutil.nutil import SITES,nscale,sort_together,out_to_h5
 
 #####################################################################
 #####################################################################
@@ -21,10 +25,6 @@ from types import SimpleNamespace
 #####################################################################
 ##################### INTERNAL FUNCTIONS ############################
 # Functions internal to L2 tools
-
-#### OUTPUT to L2 H5
-def _out_to_h5():
-    return
 
 #### CONVERT VARLIST
 # iterate through varlist to "remove" groups (i.e. profiles)
@@ -167,7 +167,16 @@ def pull_case(fp,casek,combo=False):
         combo : if combo is True, and casek is a subcase, will generate
                 a combined case that includes the basecase information
     '''
-    return {}
+    is_fpath=(type(fp)==str)
+    if is_fpath:
+        fp=h5py.File(fp,'r')
+    case={}
+    for k in fp[casek].attrs.keys():
+        case[k]=fp[casek].attrs[k]
+    if is_fpath:
+        fp.close()
+
+    return case
 
 #############################################################
 def build_L2_file(fpath,case,overwrite=True):
@@ -224,10 +233,10 @@ def casegen(case):
 
     if not isnew:
         m0=np.ones((N,)).astype(bool)
-        m = maskgen(fp[basecase]['data'],m0,cvar=cs.core_vars,flags=cs.core_q,\
+        m = maskgen(fp[cs.basecase]['data'],m0,cvar=cs.core_vars,flags=cs.core_q,\
                 precip=cs.precip,stb=cs.stab,limvars=cs.limvars,\
                 counter=cs.counter,months=cs.months,years=cs.years)
-        # FIXME output mask
+        fp[k]['mask'].create_dataset('ALL',data=m,dtype=bool)
     else:
         for site in sites:
             m0=np.ones((N,)).astype(bool)
@@ -235,7 +244,7 @@ def casegen(case):
             m = maskgen(fpi,m0,cvar=cs.core_vars,flags=cs.core_q,\
                 precip=cs.precip,stb=cs.stab,limvars=cs.limvars,\
                 counter=cs.counter,months=cs.months,years=cs.years)
-            # FIXME output mask
+            fp[k]['mask'].create_dataset(site,data=m,dtype=bool)
 
     # save case information to file
     fp=_h5_casewrite(fp,case,k)
@@ -248,8 +257,119 @@ def casegen(case):
 ###################### DATA FUNCTIONS ###############################
 # Functions for adding new data
 
+#####################################################################
+def staticgen(fp,idir,casek='main',case=None,static=None):
+    is_fpath=(type(fp)==str)
+    if is_fpath:
+        fp=h5py.File(fp,'r+')
+    if case in [None]:
+        cs=SimpleNamespace(**pull_case(fp,'main'))
+    else:
+        cs=SimpleNamespace(**case)
+    if static in [None,[]]:
+        static=[]
+        fpi=h5py.File(idir+cs.sites[0]+'_'+str(cs.scale)+'m.h5','r')
+        for v in fpi.attrs.keys():
+            static.append(v)
+        fpi.close()
+    sites=cs.sites
+    sites.sort()
+    out={}
+    for v in static:
+        out[v]=[]
+    for site in sites:
+        fpi=h5py.File(idir+site+'_'+str(cs.scale)+'m.h5','r')
+        for v in static:
+            if v in fpi.attrs.keys():
+                out[v].extend(fpi.attrs[k])
+        fpi.close()
+    out['SITE']=sites
+    for v in out.keys():
+        fp[casek+'/static'].create_dataset(v,data=out[v])
+
+
+
+
 ##############################################################
-def datagen(fp,include=None,exclude=None,static=None,zeta=['zL'],conv_nan=True,counter=False):
+def datagen(outfile,idir,include=None,exclude=None,static=None,zeta=['zL'],\
+        conv_nan=True,overwrite=False):
+
+    # load case
+    fpo=h5py.File(outfile,'r+')
+    cs=SimpleNamespace(**pull_case(fpo,'main'))
+    sites=cs.sites
+    sites.sort()
+
+    # generate a list of variables to include
+    is_include=~(include in [None,[]])
+    is_exclude=~(exclude in [None,[]])
+    if is_include and is_exclude:
+        raise ValueError('Cannot have both include and exclude; must pick one')
+    vlist=[]
+    site=sites[0]
+    fpi=h5py.File(idir+site+'_'+str(cs.scale)+'m.h5','r')
+    if is_include:
+        for v in include:
+            if v not in vlist:
+                vlist.append(v)
+    if is_exclude:
+        for v in fpi.keys():
+            if (v not in exclude) and (v[0]!='q'):
+                vlist.append(v)
+
+    # convert list to include profile variables fully
+    vlist=_convert_varlist(fp,vlist)
+
+    # initialize output
+    ovar={}
+    ovar['main/data']={}
+    for v in vlist:
+        ovar['main/data'][v]=[]
+    for v in zeta:
+        ovar['main/data'][v]=[]
+    ovar['main/data']['SITE']=[]
+
+    # build up output for non static variables
+    for site in sites:
+        fpi=h5py.File(idir+site+'_'+str(cs.scale)+'m.h5','r')
+        msk=fpo['main/mask'][site]
+        n=np.sum(msk)
+        if n==0:
+            continue
+
+        # newly generated variables
+        ovar['main/data']['SITE'].extend([site]*n)
+        z=fpi.attrs['tow_height']
+        zd=fpi.attrs['zd']
+        lmost=fpi['L_MOST'][:][msk]
+        if 'zL' in zeta:
+            ovar['main/data']['zL'].extend((z-zd)/lmost)
+        if 'zd' in zeta:
+            ovar['main/data']['zd'].extend([zd]*n)
+        if 'z' in zeta:
+            ovar['main/data']['z'].extend([z]*n)
+        if 'zzd' in zeta:
+            ovar['main/data']['zzd'].extend([z-zd]*n)
+        if ('L_MOST' in zeta) and ((is_include and ('L_MOST' not in include)) or\
+                (is_exclude and ('L_MOST' in exclude))):
+            ovar['main/data']['L_MOST'].extend(lmost)
+
+        # other variables
+        for v in vlist:
+            ovar['main/data'][v].extend(fpi[v][:][msk])
+
+    # conv nan
+    if conv_nan:
+        for v in ovar['main/data'].keys():
+            arr=np.array(ovar['main/data'][v][:])
+            arr[arr==-9999]=float('nan')
+            ovar['main/data'][v]=arr
+
+    # static variables:
+    staticgen(fpo,static,case=case)
+
+    # output
+    out_to_h5(fpo,ovar,overwrite)
 
 
 ##############################################################

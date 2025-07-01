@@ -217,7 +217,7 @@ if timeout:
 start_time=time.time()
 print(prefix+'Adding QAQC',flush=True)
 add_qaqc(scale,l1dir,dp4_dir,dlt=dlt,ivars=qlist,qsci=qc_sci,\
-        overwrite=replace,sites=sites,debug=debug)
+        overwrite=replace,sites=sites,debug=debug,confirm=False)
 if timeout:
     print(prefix+"Add QAQC Done; took %s seconds to run" % (np.round(time.time() - start_time)))
 

@@ -5,9 +5,9 @@ import datetime
 import os
 from subprocess import run
 try:
-    from nutil import SITES,nscale,sort_together
+    from nutil import SITES,nscale,sort_together,out_to_h5
 except:
-    from neonutil.nutil import SITES,nscale,sort_together
+    from neonutil.nutil import SITES,nscale,sort_together,out_to_h5
 import pytz
 import csv
 
@@ -240,30 +240,6 @@ def _aniso(bij):
         yb[t]=np.sqrt(3)/2*(3*lams[2]+1)
     return yb,xb
 
-def _out_to_h5(_fp,_ov,overwrite,desc={}):
-    for k in _ov.keys():
-        if type(_ov[k]) is dict:
-            ov2=_ov[k]
-            if k not in _fp.keys():
-                _f=_fp.create_group(k)
-            else:
-                _f=_fp[k]
-            _out_to_h5(_f,ov2,overwrite)
-
-        else:
-            try:
-                _fp.create_dataset(k,data=np.array(_ov[k][:]))
-            except:
-                if overwrite:
-                    _fp[k][:]=np.array(_ov[k][:])
-                else:
-                    print('Skipping output of '+str(k))
-            _fp[k].attrs['missing_value']=-9999
-            if k in desc.keys():
-                _fp[k].attrs['description']=desc[k]
-    _fp.attrs['last_updated_utc']=str(datetime.datetime.utcnow())
-    return None
-
 def _get_qaqc_sci(fp,nm,n):
     try:
         return fp[nm]['qfSci'][:]
@@ -391,7 +367,7 @@ def add_turb25(scl,ndir,tdir,ivars=None,overwrite=False,dlt=None,sites=SITES,deb
                 cnt=np.nanmedian(ovar[var][ovar[var]!=-9999])
                 dbgout=dbgout+var+':   '+str(cnt)+'\n'
             print(dbgout+':::::::::::::::::::DEBUG::::::::::::::::::::::',flush=True)
-        _out_to_h5(fpo,ovar,overwrite)
+        out_to_h5(fpo,ovar,overwrite)
 
 ##################### ADD STATIONARITY #############################
 # Stationarity metric for variances based on Foken 2017 Micrometerology
@@ -424,8 +400,7 @@ def add_stationarity_zahn23(ndir5,ndir30,ivars=None,overwrite=False,sites=SITES)
             xx5=fp5[var][:][idx5in]
             xx30=fp30[var][:][idx5in]
             outvar['ST_ZH23_'+var]=np.abs((xx5-xx30)/(xx30))*100
-        _out_to_h5(fp30,ovar,overwrite)
-
+        out_to_h5(fp30,ovar,overwrite)
 
 ####################### ADD DERIVED #############################
 # Add variables derived from basic/turb information already in h5
@@ -641,8 +616,7 @@ def add_derived(scl,ndir,ivars=None,overwrite=False,sites=SITES):
                     L[fpo['WTHETA'][:]==-9999]=-9999
                     L[fpo['THETA'][:]==-9999]=-9999
                     ovar['L_MOST']=L
-        _out_to_h5(fpo,ovar,overwrite)
-
+        out_to_h5(fpo,ovar,overwrite)
 
 ####################### ADD STATIC ATTRIBUTES #############################
 # Add static attributes by copying them from other averaging scales
@@ -912,7 +886,7 @@ def add_profile_tqc(scl,ndir,dp4dir,dlt=None,addprof=True,addqaqc=True,ivars=Non
                 ovar['q'+v_long+'_upper'][ovar['q'+v_long+'_upper']<.2]=0
 
         # Output
-        _out_to_h5(fpo,ovar,overwrite)
+        out_to_h5(fpo,ovar,overwrite)
 
 #############################################################################
 ########################### ADD PROFILE WIND ################################
@@ -994,7 +968,7 @@ def add_radiation(scl,ndir,idir,dlt=None,adddata=True,addqaqc=True,ivars=None,ov
             radq=radq+nscale(time2,tm,d['outLWFinalQF'],scl=scl,debug=debug)
             ovar['qNETRAD']=radq
 
-        _out_to_h5(fpo,ovar,overwrite)
+        out_to_h5(fpo,ovar,overwrite)
 
 #############################################################################
 ####################### ADD GROUND HEAT FLUX ################################
@@ -1077,7 +1051,7 @@ def add_ghflx(scl,ndir,idir,dlt=None,adddata=True,addqaqc=True,ivars=None,overwr
             gsum=np.sum(qgg,axis=0)
             ovar['qG']=gsum
 
-        _out_to_h5(fpo,ovar,overwrite)
+        out_to_h5(fpo,ovar,overwrite)
 
 #############################################################################
 ####################### ADD PRECIPITATION ###################################
@@ -1150,7 +1124,7 @@ def add_precip(scl,ndir,idir1,idir2,dlt=None,adddata=True,addqaqc=False,ivars=No
             ovar['P']=p2
 
 
-        _out_to_h5(fpo,ovar,overwrite)
+        out_to_h5(fpo,ovar,overwrite)
 
 ##################################################################
 ###################### ADD DP04 ##################################
@@ -1300,7 +1274,7 @@ def add_dp04(scl,ndir,idir,dlt=None,ivars=None,basepath=None,ivar_override=False
                 nearest=True
             ovar[var]=nscale(time2,tmp[var+'_time'],tmp[var],scl=scl,nearest=nearest)
 
-        _out_to_h5(fpo,ovar,overwrite)
+        out_to_h5(fpo,ovar,overwrite)
 
 ##################################################################
 ####################### L1_2_L1 #################################
@@ -1350,17 +1324,18 @@ def l1_2_l1(scl1,ndir1,scl2,ndir2,ivars,overwrite=False,confirm=True,nearest=Tru
                 data2=nscale(time2,time1,data1,scl=scl2,nearest=nearest)
                 ovar[var]=data2
 
-            _out_to_h5(fpo,ovar,overwrite)
+            out_to_h5(fpo,ovar,overwrite)
 
 
 ##################################################################
 ###################### ADD QAQC ##################################
 # Adds qaqc flags from dp04; does not add qaqc flags for other variables
-def add_qaqc(scl,ndir,idir,dlt=None,ivars=None,qsci=False,overwrite=False,sites=SITES):
+def add_qaqc(scl,ndir,idir,dlt=None,ivars=None,qsci=False,overwrite=False,\
+        confirm=False,sites=SITES,debug=False):
     ''' Add generic quality control
-        scl   : averaging scale in minutes
-        ndir  : directory of L1 base files
-        ivars : variables to process; None will add all
+        scl     : averaging scale in minutes
+        ndir    : directory of L1 base files
+        ivars   : variables to process; None will add all
     '''
     #### SETUP
     _ivars = ['Q','U','V','W','UVW','C','THETA','USTAR','WC','LE','H']
@@ -1383,6 +1358,10 @@ def add_qaqc(scl,ndir,idir,dlt=None,ivars=None,qsci=False,overwrite=False,sites=
 
     #### SITE LOOP
     for site in sites:
+        if debug:
+            dbg='::::::::::::::::DEBUG:::::::::::::::::::\n'
+            dbg=dbg+'Loading QAQC information for '+site+'\n'
+            print(dbg+':::::::::::::::::DEBUG::::::::::::::::::',flush=True)
         # Setup
         fpo=h5py.File(ndir+site+'_'+str(scl)+'m.h5','r+')
         time=fpo['TIME'][:]
@@ -1398,7 +1377,12 @@ def add_qaqc(scl,ndir,idir,dlt=None,ivars=None,qsci=False,overwrite=False,sites=
             tmp[var]=[]
         filelist=os.listdir(idir+site)
         filelist.sort()
-        fpi=h5py.File(idir+site+'/'+filelist[-1],'r')
+        try:
+            fpi=h5py.File(idir+site+'/'+filelist[-1],'r')
+        except Exception as e:
+            print(e)
+            print('Skipping due to file error')
+            continue
         for i in range(10):
             th=str(i)
             try:
@@ -1410,94 +1394,126 @@ def add_qaqc(scl,ndir,idir,dlt=None,ivars=None,qsci=False,overwrite=False,sites=
         for file in filelist:
             bgn1='/'+site+'/dp01/qfqm/'
             bgn4='/'+site+'/dp04/qfqm/'
-            fpi=h5py.File(idir+site+'/'+file,'r')
+            try:
+                fpi=h5py.File(idir+site+'/'+file,'r')
+            except Exception as e:
+                print(e)
+                print('Skipping due to file error')
+                continue
             nqc=0 # length of qc timeseries in file
             nqs=0 # length of soni timeseries in file
             nqf=0 # length of flux timeseries in file
             for var in tmp.keys():
-                match var:
-                    # time
-                    case 'sonitime':
-                        nm='/'+site+'/dp01/data/soni/000_0'+th+\
-                                '0_'+ds_+'/tempSoni'
-                        data=_dpt2utc(fpi[nm]['timeBgn'][:])+_dpt2utc(fpi[nm]['timeEnd'][:])
-                        data=data/2
-                        nqs=len(data)
-                        tmp[var].extend(data)
-                    case 'qctime':
-                        nm='/'+site+'/dp01/data/h2oTurb/000_0'+th+\
-                                '0_'+ds_+'/rtioMoleDryH2o'
-                        data=_dpt2utc(fpi[nm]['timeBgn'][:])+_dpt2utc(fpi[nm]['timeEnd'][:])
-                        data=data/2
-                        nqc=len(data)
-                        tmp[var].extend(data)
+                try:
+                    match var:
+                        # time
+                        case 'sonitime':
+                            nm='/'+site+'/dp01/data/soni/000_0'+th+\
+                                    '0_'+ds_+'/tempSoni'
+                            data=_dpt2utc(fpi[nm]['timeBgn'][:])+_dpt2utc(fpi[nm]['timeEnd'][:])
+                            data=data/2
+                            nqs=len(data)
+                            tmp[var].extend(data)
+                        case 'qctime':
+                            nm='/'+site+'/dp01/data/h2oTurb/000_0'+th+\
+                                    '0_'+ds_+'/rtioMoleDryH2o'
+                            data=_dpt2utc(fpi[nm]['timeBgn'][:])+_dpt2utc(fpi[nm]['timeEnd'][:])
+                            data=data/2
+                            nqc=len(data)
+                            tmp[var].extend(data)
 
-                    case 'flxtime':
-                        nm='/'+site+'/dp04/data/fluxTemp/turb'
-                        data=_dpt2utc(fpi[nm]['timeBgn'][:])+_dpt2utc(fpi[nm]['timeEnd'][:])
-                        nqf=len(data)
-                        data=data/2
-                        tmp[var].extend(data)
+                        case 'flxtime':
+                            nm='/'+site+'/dp04/data/fluxTemp/turb'
+                            data=_dpt2utc(fpi[nm]['timeBgn'][:])+_dpt2utc(fpi[nm]['timeEnd'][:])
+                            nqf=len(data)
+                            data=data/2
+                            tmp[var].extend(data)
 
-                    # basic quality flag
-                    case 'qQ':
-                        nm=bgn1+'h2oTurb/000_0'+th+'0_'+ds_
-                        tmp[var].extend(fpi[nm+'/rtioMoleDryH2o']['qfFinl'][:])
-                    case 'qC':
-                        nm=bgn1+'co2Turb/000_0'+th+'0_'+ds_
-                        tmp[var].extend(fpi[nm+'/rtioMoleDryCo2']['qfFinl'][:])
-                    case 'qTHETA':
-                        nm=bgn1+'soni/000_0'+th+'0_'+ds_
-                        tmp[var].extend(fpi[nm+'/tempSoni']['qfFinl'][:])
-                    case 'qU':
-                        nm=bgn1+'soni/000_0'+th+'0_'+ds_
-                        tmp[var].extend(fpi[nm+'/veloXaxsErth']['qfFinl'][:])
-                    case 'qV':
-                        nm=bgn1+'soni/000_0'+th+'0_'+ds_
-                        tmp[var].extend(fpi[nm+'/veloYaxsErth']['qfFinl'][:])
-                    case 'qW':
-                        nm=bgn1+'soni/000_0'+th+'0_'+ds_
-                        tmp[var].extend(fpi[nm+'/veloZaxsErth']['qfFinl'][:])
-                    case 'qUVW':
-                        nm=bgn1+'soni/000_0'+th+'0_'+ds_
-                        data=fpi[nm+'/veloZaxsErth']['qfFinl'][:]
-                        data=data+fpi[nm+'/veloYaxsErth']['qfFinl'][:]
-                        data=data+fpi[nm+'/veloXaxsErth']['qfFinl'][:]
-                        tmp[var].extend(data)
-                    case 'qUSTAR':
-                        tmp[var].extend(fpi[bgn4+'fluxMome/turb']['qfFinl'][:])
-                    case 'qH':
-                        tmp[var].extend(fpi[bgn4+'fluxTemp/turb']['qfFinl'][:])
-                    case 'qWC':
-                        tmp[var].extend(fpi[bgn4+'fluxCo2/turb']['qfFinl'][:])
-                    case 'qLE':
-                        tmp[var].extend(fpi[bgn4+'fluxH2o/turb']['qfFinl'][:])
+                        # basic quality flag
+                        case 'qQ':
+                            nm=bgn1+'h2oTurb/000_0'+th+'0_'+ds_
+                            tmp[var].extend(fpi[nm+'/rtioMoleDryH2o']['qfFinl'][:])
+                        case 'qC':
+                            nm=bgn1+'co2Turb/000_0'+th+'0_'+ds_
+                            tmp[var].extend(fpi[nm+'/rtioMoleDryCo2']['qfFinl'][:])
+                        case 'qTHETA':
+                            nm=bgn1+'soni/000_0'+th+'0_'+ds_
+                            tmp[var].extend(fpi[nm+'/tempSoni']['qfFinl'][:])
+                        case 'qU':
+                            nm=bgn1+'soni/000_0'+th+'0_'+ds_
+                            tmp[var].extend(fpi[nm+'/veloXaxsErth']['qfFinl'][:])
+                        case 'qV':
+                            nm=bgn1+'soni/000_0'+th+'0_'+ds_
+                            tmp[var].extend(fpi[nm+'/veloYaxsErth']['qfFinl'][:])
+                        case 'qW':
+                            nm=bgn1+'soni/000_0'+th+'0_'+ds_
+                            tmp[var].extend(fpi[nm+'/veloZaxsErth']['qfFinl'][:])
+                        case 'qUVW':
+                            nm=bgn1+'soni/000_0'+th+'0_'+ds_
+                            data=fpi[nm+'/veloZaxsErth']['qfFinl'][:]
+                            data=data+fpi[nm+'/veloYaxsErth']['qfFinl'][:]
+                            data=data+fpi[nm+'/veloXaxsErth']['qfFinl'][:]
+                            tmp[var].extend(data)
+                        case 'qUSTAR':
+                            tmp[var].extend(fpi[bgn4+'fluxMome/turb']['qfFinl'][:])
+                        case 'qH':
+                            tmp[var].extend(fpi[bgn4+'fluxTemp/turb']['qfFinl'][:])
+                        case 'qWC':
+                            tmp[var].extend(fpi[bgn4+'fluxCo2/turb']['qfFinl'][:])
+                        case 'qLE':
+                            tmp[var].extend(fpi[bgn4+'fluxH2o/turb']['qfFinl'][:])
 
-                    # sci reviews
-                    case 'qsQ':
-                        nm=bgn1+'h2oTurb/000_0'+th+'0_'+ds_+'/rtioMoleDryH2o'
-                        tmp[var].extend(_get_qaqc_sci(fpi,nm,nqc))
-                    case 'qsC':
-                        nm=bgn1+'co2Turb/000_0'+th+'0_'+ds_+'/rtioMoleDryCo2'
-                        tmp[var].extend(_get_qaqc_sci(fpi,nm,nqc))
-                    case 'qsTHETA':
-                        nm=bgn1+'soni/000_0'+th+'0_'+ds_+'/tempSoni'
-                        tmp[var].extend(_get_qaqc_sci(fpi,nm,nqs))
-                    case 'qsU':
-                        nm=bgn1+'soni/000_0'+th+'0_'+ds_+'/veloXaxsErth'
-                        tmp[var].extend(_get_qaqc_sci(fpi,nm,nqs))
-                    case 'qsV':
-                        nm=bgn1+'soni/000_0'+th+'0_'+ds_+'/veloYaxsErth'
-                        tmp[var].extend(_get_qaqc_sci(fpi,nm,nqs))
-                    case 'qsW':
-                        nm=bgn1+'soni/000_0'+th+'0_'+ds_+'/veloZaxsErth'
-                        tmp[var].extend(_get_qaqc_sci(fpi,nm,nqs))
-                    case 'qsUVW':
-                        nm=bgn1+'soni/000_0'+th+'0_'+ds_
-                        data=_get_qaqc_sci(fpi,nm+'/veloXaxsErth',nqs)
-                        data=data+_get_qaqc_sci(fpi,nm+'/veloYaxsErth',nqs)
-                        data=data+_get_qaqc_sci(fpi,nm+'/veloZaxsErth',nqs)
-                        tmp[var].extend(data)
+                        # sci reviews
+                        case 'qsQ':
+                            nm=bgn1+'h2oTurb/000_0'+th+'0_'+ds_+'/rtioMoleDryH2o'
+                            tmp[var].extend(_get_qaqc_sci(fpi,nm,nqc))
+                        case 'qsC':
+                            nm=bgn1+'co2Turb/000_0'+th+'0_'+ds_+'/rtioMoleDryCo2'
+                            tmp[var].extend(_get_qaqc_sci(fpi,nm,nqc))
+                        case 'qsTHETA':
+                            nm=bgn1+'soni/000_0'+th+'0_'+ds_+'/tempSoni'
+                            tmp[var].extend(_get_qaqc_sci(fpi,nm,nqs))
+                        case 'qsU':
+                            nm=bgn1+'soni/000_0'+th+'0_'+ds_+'/veloXaxsErth'
+                            tmp[var].extend(_get_qaqc_sci(fpi,nm,nqs))
+                        case 'qsV':
+                            nm=bgn1+'soni/000_0'+th+'0_'+ds_+'/veloYaxsErth'
+                            tmp[var].extend(_get_qaqc_sci(fpi,nm,nqs))
+                        case 'qsW':
+                            nm=bgn1+'soni/000_0'+th+'0_'+ds_+'/veloZaxsErth'
+                            tmp[var].extend(_get_qaqc_sci(fpi,nm,nqs))
+                        case 'qsUVW':
+                            nm=bgn1+'soni/000_0'+th+'0_'+ds_
+                            data=_get_qaqc_sci(fpi,nm+'/veloXaxsErth',nqs)
+                            data=data+_get_qaqc_sci(fpi,nm+'/veloYaxsErth',nqs)
+                            data=data+_get_qaqc_sci(fpi,nm+'/veloZaxsErth',nqs)
+                            tmp[var].extend(data)
+                except KeyError as e:
+                    print(e)
+                    msg='The quality flag '+str(var)+' appears to be missing '+\
+                        'for '+str(file)+'\nWould you like to return all NaN?'
+                    if (debug and _confirm_user(msg)) or (not debug):
+                        if var in ['qUVW','qU','qV','qW','qTHETA']:
+                            n_=nqs
+                        elif var in ['qQ','qC']:
+                            n_=ncq
+                        else:
+                            n_=nqf
+                        tmp[var].extend([-1]*n_)
+                        print('returning all Nan for '+str(var)+' in '+\
+                                str(file)+' to resolve exception... continuing')
+                    else:
+                        print('OKAY; will try to provide debug info: ')
+                        try:
+                            print('length of timeseries '+str(n_))
+                        except Exception as e2:
+                            print('Failed to provide some debug info due to: ')
+                            print(e2)
+                            print()
+                            print('Halting execution')
+                            pass
+                        raise(e)
+
         # interpolate
         for var in ovar.keys():
             tmin=[]
@@ -1507,9 +1523,9 @@ def add_qaqc(scl,ndir,idir,dlt=None,ivars=None,qsci=False,overwrite=False,sites=
                 tmin=tmp['qctime']
             elif var in ['qsH','qsUSTAR','qsLE','qsWC','qH','qUSTAR','qLE','qWC']:
                 tmin=tmp['flxtime']
-            ovar[var]=nscale(time2,tmin,tmp[var],scl=scl)
+            ovar[var]=nscale(time2,tmin,tmp[var],scl=scl,debug=debug)
 
-        _out_to_h5(fpo,ovar,overwrite)
+        out_to_h5(fpo,ovar,overwrite)
 
 
 
@@ -1696,7 +1712,7 @@ def add_pheno(scl,ndir,idir,dlt=None,ivars=None,overwrite=False,sites=SITES,debu
 
         desc={'GROWING':'0: not growing period, 1: growing period deciduous, 2: growing period evergreen, 3: growing period all vegetation (3 is also the value for growing season if there is only evergreen or only deciduous)'}
 
-        _out_to_h5(fpo,ovar,overwrite,desc)
+        out_to_h5(fpo,ovar,overwrite,desc)
 
 ##################################################################
 def remove_var(scl,ndir,delvar=[],confirm=True,sites=SITES):

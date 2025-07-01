@@ -1,6 +1,7 @@
 # Core tools to be imported and used elsewhere
 import numpy as np
 from scipy.interpolate import interp1d
+import datetime
 
 ############## CONSTANTS ################
 SITES =['ABBY', 'BARR', 'BART', 'BLAN', 'BONA', 'CLBJ', 'CPER', 'DCFS', 'DEJU',  'DELA', 'DSNY', 'GRSM', 'GUAN', 'HARV', 'HEAL', 'JERC', 'JORN', 'KONA', 'KONZ',  'LAJA', 'LENO', 'MLBS', 'MOAB', 'NIWO', 'NOGP', 'OAES', 'ONAQ', 'ORNL', 'OSBS',  'PUUM', 'RMNP', 'SCBI', 'SERC', 'SJER', 'SOAP', 'SRER', 'STEI', 'STER', 'TALL',  'TEAK', 'TOOL', 'TREE', 'UKFS', 'UNDE', 'WOOD', 'WREF', 'YELL']
@@ -28,8 +29,46 @@ def _confirm_user(msg):
 def static2full():
     ''' Take site information (L1 attrs) and turn into timeseries '''
 
-#####################################################
+########################## OUT TO H5 ##################################
+# Take a dictionary that mimics h5 filestructure and output to said h5
+def out_to_h5(_fp,_ov,overwrite,desc={}):
+    for k in _ov.keys():
+        if type(_ov[k]) is dict:
+            ov2=_ov[k]
+            if k not in _fp.keys():
+                _f=_fp.create_group(k)
+            else:
+                _f=_fp[k]
+            _out_to_h5(_f,ov2,overwrite)
 
+        else:
+            _f=_fp
+            if '/' in k:
+                split=k.split('/')
+                n=len(split)
+                for i in range(n-1):
+                    if split[i] not in _f.keys():
+                        _f=_f.create_group(k)
+                    else:
+                        _f=_f[split[i]]
+                kout=split[-1]
+            else:
+                kout=k
+            try:
+                _f.create_dataset(kout,data=np.array(_ov[k][:]))
+            except:
+                if overwrite:
+                    _f[kout][:]=np.array(_ov[k][:])
+                else:
+                    print('Skipping output of '+str(kout))
+            _f[kout].attrs['missing_value']=-9999
+            if k in desc.keys():
+                _f[kout].attrs['description']=desc[k]
+    _fp.attrs['last_updated_utc']=str(datetime.datetime.utcnow())
+    return None
+
+
+#####################################################
 ############################# NSCALE ###################################
 # Wrapper function; interpolates (ninterp) or upscales (nupscale) as appropriate
 def nscale(t_out,t_in,d_in,scl=None,maxdelta=60,nearest=True,extrap=True,nanth=.2,debug=False):
