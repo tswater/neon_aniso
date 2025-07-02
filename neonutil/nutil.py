@@ -29,6 +29,14 @@ def _confirm_user(msg):
 def static2full():
     ''' Take site information (L1 attrs) and turn into timeseries '''
 
+
+######################### HMG LIST OF LISTS ###########################
+def homogenize_list(a,fill=float('nan')):
+    b = np.ones([len(a),len(max(a,key = lambda x: len(x)))])*fill
+    for i,j in enumerate(a):
+        b[i][0:len(j)] = j
+    return b
+
 ########################## OUT TO H5 ##################################
 # Take a dictionary that mimics h5 filestructure and output to said h5
 def out_to_h5(_fp,_ov,overwrite,desc={}):
@@ -39,7 +47,7 @@ def out_to_h5(_fp,_ov,overwrite,desc={}):
                 _f=_fp.create_group(k)
             else:
                 _f=_fp[k]
-            _out_to_h5(_f,ov2,overwrite)
+            out_to_h5(_f,ov2,overwrite)
 
         else:
             _f=_fp
@@ -56,7 +64,8 @@ def out_to_h5(_fp,_ov,overwrite,desc={}):
                 kout=k
             try:
                 _f.create_dataset(kout,data=np.array(_ov[k][:]))
-            except:
+            except Exception as e:
+                raise e
                 if overwrite:
                     _f[kout][:]=np.array(_ov[k][:])
                 else:
@@ -298,5 +307,93 @@ def sort_together(X,Y):
     return X,np.array(Yout)
 
 
+################################# GET PHI ###################################
+def get_phi(fp,var,zL=None):
+    return phi
+
+def get_phio(fp,var,zL=None):
+    return phio
+
+
+##############################################################################
+############################# CURVE and MATH #################################
+def cbase(inp,a,b,c,d,e):
+    return a*(b+c*zL)**(d)+e
+
+def fxngen(plist,ac_=None,bc_=None,cc_=None,
+           dc_=None,ec_=None):
+    lpms=4
+    n=len(plist)
+    a=[0,0,0,0]
+    b=[0,0,0,0]
+    c=[0,0,0,0]
+    d=[0,0,0,0]
+    e=[0,0,0,0]
+    for i in range(n):
+        param=plist[i]
+        if 'a' in param:
+            a[int(param[1])]=1
+        elif 'b' in param:
+            b[int(param[1])]=1
+        elif 'c' in param:
+            c[int(param[1])]=1
+        elif 'd' in param:
+            d[int(param[1])]=1
+        elif 'e' in param:
+            e[int(param[1])]=1
+    def fxn(inp,*prms):
+        zL=inp[0]
+        ani=inp[1]
+        if len(prms) !=n:
+            return np.ones(zL.shape)*float('nan')
+        pm=0
+        if ac_ in [None]:
+            aa=np.zeros((len(ani),))
+            for i in range(lpms):
+                if a[i]==1:
+                    aa=aa+prms[pm]*ani**i
+                    pm=pm+1
+        else:
+            aa=ac_
+        if bc_ in [None]:
+            bb=np.zeros((len(ani),))
+            for i in range(lpms):
+                if b[i]==1:
+                    bb=bb+prms[pm]*ani**i
+                    pm=pm+1
+        else:
+            bb=bc_
+        if cc_ in [None]:
+            cc=np.zeros((len(ani),))
+            for i in range(lpms):
+                if c[i]==1:
+                    cc=cc+prms[pm]*ani**i
+                    pm=pm+1
+        else:
+            cc=cc_
+        if dc_ in [None]:
+            dd=np.zeros((len(ani),))
+            for i in range(lpms):
+                if d[i]==1:
+                    dd=dd+prms[pm]*ani**i
+                    pm=pm+1
+        else:
+            dd=dc_
+        if ec_ in [None]:
+            ee=np.zeros((len(ani),))
+            for i in range(lpms):
+                if e[i]==1:
+                    ee=ee+prms[pm]*ani**i
+                    pm=pm+1
+        else:
+            ee=ec_
+
+        print(aa)
+        print(bb)
+        print(cc)
+        print(dd)
+        print(ee)
+        return aa*(bb+cc*zL)**(dd)+ee
+    return fxn
 
 

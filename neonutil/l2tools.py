@@ -11,10 +11,11 @@ import numpy as np
 import h5py
 from subprocess import run
 from types import SimpleNamespace
+import datetime
 try:
-    from nutil import SITES,nscale,sort_together,out_to_h5
+    from nutil import SITES,nscale,sort_together,out_to_h5,homogenize_list
 except:
-    from neonutil.nutil import SITES,nscale,sort_together,out_to_h5
+    from neonutil.nutil import SITES,nscale,sort_together,out_to_h5,homogenize_list
 
 #####################################################################
 #####################################################################
@@ -35,6 +36,7 @@ def _convert_varlist(fp,varlist):
             fp[v].keys()
         except Exception:
             varout.append(v)
+            continue
         for k in fp[v].keys():
             varout.append(v+'/'+str(k))
     return varout
@@ -59,7 +61,20 @@ def _h5_casewrite(fp,case,casek):
         if k in exclude:
             continue
         else:
-            fp[casek].attrs[k]=case[k]
+            try:
+                val = case[k]
+                if val in [[],None,float('nan')]:
+                    val='NA'
+                if k=='limvars':
+                    for kk in case[k].keys():
+                        fp[casek].attrs['limvars_'+kk]=case[k][kk]
+                else:
+                    fp[casek].attrs[k]=val
+            except Exception as e:
+                print(casek)
+                print(k)
+                print(case[k])
+                raise e
     return fp
 
 
@@ -69,36 +84,49 @@ def _h5_casewrite(fp,case,casek):
 ###################### CONSTRUCTION FUNCTIONS #######################
 # Functions for building and manipulating L2 file and mask
 def maskgen(fp,mask,cvar=None,flags=None,precip=None,stb=None,limvars=None,\
-            counter=None,months=None,years=None):
+            counter=None,months=None,years=None,debug=False):
     ''' Generate a Mask '''
+    nlist=[]
+    slist=['START']
+    nlist.append(np.sum(mask))
     if flags not in [None,[]]:
         for flag in flags:
             mask=mask&(~np.isnan(fp[flag][:]))
             mask=mask&(fp[flag][:]==0)
+            slist.append(flag)
+            nlist.append(np.sum(mask))
     if cvar not in [None,[]]:
-        for var in cvars:
+        for var in cvar:
             n0=np.sum(mask)/len(mask)*100
             mask=mask&(~np.isnan(fp[var][:]))
             mask=mask&(fp[var][:]!=-9999)
-    if limvars not in [None,{},[]]:
+            slist.append(var)
+            nlist.append(np.sum(mask))
+    if limvars not in [None,{},[],'NA']:
         for var in limvars:
             mn=limvars[var][0]
-            mx=limvars[var][0]
-            if mn not in [float('nan'),None]:
+            mx=limvars[var][1]
+            if mn not in [float('nan'),None,'NA']:
                 mask=mask&(fp[var][:]>=mn)
-            if mx not in [float('nan'),None]:
+            if mx not in [float('nan'),None,'NA']:
                 mask=mask&(fp[var][:]<=mx)
+            slist.append('LIMIT_'+var)
+            nlist.append(np.sum(mask))
     if stb not in [None]:
         if stb:
             mask=mask&(fp['L_MOST'][:]>0)
         if not stb:
             mask=mask&(fp['L_MOST'][:]<0)
-    if precip not in [None,False]:
-        mask=mask&(fp['P']<=0)
-    if counter not in [None,False]:
+        slist.append('Stability')
+        nlist.append(np.sum(mask))
+    if precip not in [None,False,'NA']:
+        mask=mask&(fp['P'][:]<=0)
+        slist.append('Precip')
+        nlist.append(np.sum(mask))
+    if counter not in [None,False,'NA']:
         raise NotImplementedError('Masking countergradient fluxes TBI')
-    yrbool= (year not in [None,[]])
-    mnbool= (month not in [None,[]])
+    yrbool= (years not in [None,[],'NA'])
+    mnbool= (months not in [None,[],'NA'])
     if yrbool | mnbool:
         time = fp['TIME'][:]
         yrmsk=[]
@@ -116,6 +144,14 @@ def maskgen(fp,mask,cvar=None,flags=None,precip=None,stb=None,limvars=None,\
                 mnmsk.append(True)
         mask=mask&np.array(yrmsk)
         mask=mask&np.array(mnmsk)
+        slist.append('Months/years')
+        nlist.append(np.sum(mask))
+
+    if debug:
+        msg='DEBUG maskgen: \n'
+        for i in range(len(slist)):
+            msg=msg+'    '+slist[i]+': '+str(nlist[i])+'\n'
+        print(msg)
 
 
     return mask
@@ -151,7 +187,7 @@ def remove_sub(fp,sub,confirm=True):
         fp=h5py.File(fp,'r+')
     casenm=fp[sub]['name']
     if confirm:
-        if _user_confirm('Remove submask '+sub+' named '+casenm+'?'):
+        if _confirm_user('Remove submask '+sub+' named '+casenm+'?'):
             del fp[sub]
         else:
             print('doing nothing')
@@ -185,7 +221,7 @@ def build_L2_file(fpath,case,overwrite=True):
     # deal with existing file if it is there
     if os.path.exists(fpath):
         if overwrite:
-            if _user_confirm(fpath+' already exists; replace?'):
+            if _confirm_user(fpath+' already exists; replace?'):
                 run('rm '+fpath,shell=True)
             else:
                 return None
@@ -200,19 +236,19 @@ def build_L2_file(fpath,case,overwrite=True):
     return fp,'main'
 
 #############################################################
-def casegen(case):
+def casegen(case,debug=False):
     ''' Essentially a driver for constructing a case, including
     '''
     cs=SimpleNamespace(**case)
 
-    isnew= (cs.basecase in [None,''])
+    isnew= (cs.basecase in [None,'NA',''])
 
     if isnew:
         #  new file
         fp,k=build_L2_file(cs.fpath,True)
 
         # get mask length
-        if cs.sites in [[],None]:
+        if cs.sites in [[],None,'NA']:
             site='ABBY'
         else:
             site=cs.sites[0]
@@ -226,7 +262,7 @@ def casegen(case):
             N=N+np.sum(fp[basecase]['mask'][site][:])
 
     # get list of sites
-    if cs.sites in [[],None]:
+    if cs.sites in [[],None,'NA']:
         sites=SITES
     else:
         sites=cs.sites
@@ -235,7 +271,7 @@ def casegen(case):
         m0=np.ones((N,)).astype(bool)
         m = maskgen(fp[cs.basecase]['data'],m0,cvar=cs.core_vars,flags=cs.core_q,\
                 precip=cs.precip,stb=cs.stab,limvars=cs.limvars,\
-                counter=cs.counter,months=cs.months,years=cs.years)
+                counter=cs.counter,months=cs.months,years=cs.years,debug=debug)
         fp[k]['mask'].create_dataset('ALL',data=m,dtype=bool)
     else:
         for site in sites:
@@ -243,7 +279,7 @@ def casegen(case):
             fpi=h5py.File(cs.l1dir+site+'_'+str(cs.scale)+'m.h5','r')
             m = maskgen(fpi,m0,cvar=cs.core_vars,flags=cs.core_q,\
                 precip=cs.precip,stb=cs.stab,limvars=cs.limvars,\
-                counter=cs.counter,months=cs.months,years=cs.years)
+                counter=cs.counter,months=cs.months,years=cs.years,debug=debug)
             fp[k]['mask'].create_dataset(site,data=m,dtype=bool)
 
     # save case information to file
@@ -266,13 +302,15 @@ def staticgen(fp,idir,casek='main',case=None,static=None):
         cs=SimpleNamespace(**pull_case(fp,'main'))
     else:
         cs=SimpleNamespace(**case)
-    if static in [None,[]]:
+    sites=cs.sites
+    if sites in ['NA',None,'ALL',[]]:
+        sites=SITES
+    if static in ['NA',None,[]]:
         static=[]
-        fpi=h5py.File(idir+cs.sites[0]+'_'+str(cs.scale)+'m.h5','r')
+        fpi=h5py.File(idir+sites[0]+'_'+str(cs.scale)+'m.h5','r')
         for v in fpi.attrs.keys():
             static.append(v)
         fpi.close()
-    sites=cs.sites
     sites.sort()
     out={}
     for v in static:
@@ -281,30 +319,49 @@ def staticgen(fp,idir,casek='main',case=None,static=None):
         fpi=h5py.File(idir+site+'_'+str(cs.scale)+'m.h5','r')
         for v in static:
             if v in fpi.attrs.keys():
-                out[v].extend(fpi.attrs[k])
+                out[v].append(fpi.attrs[v])
         fpi.close()
     out['SITE']=sites
     for v in out.keys():
-        fp[casek+'/static'].create_dataset(v,data=out[v])
+        try:
+            fp[casek+'/static'].create_dataset(v,data=out[v])
+        except ValueError as e:
+            try:
+                l2=homogenize_list(out[v])
+                fp[casek+'/static'].create_dataset(v,data=l2)
+            except Exception as e2:
+                print(e)
+                raise(e2)
 
 
 
 
 ##############################################################
 def datagen(outfile,idir,include=None,exclude=None,static=None,zeta=['zL'],\
-        conv_nan=True,overwrite=False):
+        conv_nan=True,overwrite=False,debug=False):
+
+    # Streamwise List and Earth List
+    slist=['Us','Vs','UsUs','VsVs','UsVs','UsW','VsW',\
+            'ANI_XBs','ANI_YBs','ANID_YBs','ANID_XBs']
+    elist=['U','V','UU','VV','UV','UW','VW',\
+            'ANI_XB','ANI_YB','ANID_YB','ANID_XB']
 
     # load case
     fpo=h5py.File(outfile,'r+')
     cs=SimpleNamespace(**pull_case(fpo,'main'))
     sites=cs.sites
+    if sites in [None,'NA',[]]:
+        sites=SITES
     sites.sort()
+    wind_sys=cs.wind_sys
 
     # generate a list of variables to include
-    is_include=~(include in [None,[]])
-    is_exclude=~(exclude in [None,[]])
+    is_include= not (include in ['NA',None,[],'[]'])
+    is_exclude= not (exclude in ['NA',None,[],'[]'])
     if is_include and is_exclude:
-        raise ValueError('Cannot have both include and exclude; must pick one')
+        msg='Cannot have both include and exclude; must pick one'
+        msg=msg+'\nINCLUDE: '+str(include)+'\nEXCLUDE: '+str(exclude)
+        raise ValueError(msg)
     vlist=[]
     site=sites[0]
     fpi=h5py.File(idir+site+'_'+str(cs.scale)+'m.h5','r')
@@ -318,13 +375,31 @@ def datagen(outfile,idir,include=None,exclude=None,static=None,zeta=['zL'],\
                 vlist.append(v)
 
     # convert list to include profile variables fully
-    vlist=_convert_varlist(fp,vlist)
+    # FIXME profiles can't be loaded in appropriately because the number
+    #       of levels in each profile are different. For now, just skip
+    # vlist=_convert_varlist(fpi,vlist)
+    vlist2=[]
+    for v in vlist:
+        if 'profile' in v:
+            pass
+        else:
+            vlist2.append(v)
+    vlist=vlist2
 
     # initialize output
     ovar={}
     ovar['main/data']={}
+    v2v={}
     for v in vlist:
-        ovar['main/data'][v]=[]
+        if (wind_sys=='streamwise')&(v in slist):
+            v2=v.replace('s','')
+            v2v[v2]=v
+        elif (wind_sys=='streamwise')&(v in elist):
+            v2=v+'e'
+            v2v[v2]=v
+        else:
+            v2=v
+        ovar['main/data'][v2]=[]
     for v in zeta:
         ovar['main/data'][v]=[]
     ovar['main/data']['SITE']=[]
@@ -356,7 +431,15 @@ def datagen(outfile,idir,include=None,exclude=None,static=None,zeta=['zL'],\
 
         # other variables
         for v in vlist:
-            ovar['main/data'][v].extend(fpi[v][:][msk])
+            if debug:
+                print('Reading in '+str(v)+' for '+site)
+            if (wind_sys=='streamwise')&(v in slist):
+                v2=v.replace('s','')
+            elif (wind_sys=='streamwise')&(v in elist):
+                v2=v+'e'
+            else:
+                v2=v
+            ovar['main/data'][v2].extend(fpi[v][:][msk])
 
     # conv nan
     if conv_nan:
@@ -365,8 +448,13 @@ def datagen(outfile,idir,include=None,exclude=None,static=None,zeta=['zL'],\
             arr[arr==-9999]=float('nan')
             ovar['main/data'][v]=arr
 
+    # fix site array
+    strlist=ovar['main/data']['SITE']
+    asciiList = [n.encode("ascii", "ignore") for n in strlist]
+    ovar['main/data']['SITE']=asciiList
+
     # static variables:
-    staticgen(fpo,static,case=case)
+    staticgen(fpo,idir,static=static)
 
     # output
     out_to_h5(fpo,ovar,overwrite)
@@ -417,7 +505,7 @@ def pull_var(l2dir,l2file,var,frmt='new'):
         iscale=0
         if new:
             iscale=fpi['main'].attrs['scale']
-            stb=fpi['main'].attrs['stb']
+            stb=fpi['main'].attrs['stab']
         elif '_U_' in file:
             iscale=30
             stb=False
@@ -426,7 +514,7 @@ def pull_var(l2dir,l2file,var,frmt='new'):
             stb=True
         if iscale!=oscale:
             continue
-        if stb!=fpo['main'].attrs['stb']:
+        if stb!=fpo['main'].attrs['stab']:
             continue
         if new:
             f=fpi['main/data']
