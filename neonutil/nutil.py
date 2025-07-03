@@ -308,93 +308,49 @@ def sort_together(X,Y):
 
 
 ################################# GET PHI ###################################
-def get_phi(fp,var,zL=None):
+''' VARS
+    'UU'
+    'VV'
+    'WW'
+    'TT'
+    'QQ'
+    'CC'
+'''
+def get_phi(fp,var,m=None):
+    if m in [None]:
+        m=np.ones((len(fp['TIME'][:]),)).astype(bool)
+    if (len(var)==2) and (var[0]==var[1]):
+        if var in ['UU','VV','WW']:
+            varstar=fp['USTAR'][:][m]
+        else:
+            varstar=1/fp['USTAR'][:][m]*(fp['W'+var[0]][:][m])
+        phi=np.sqrt(fp[var][m])/varstar
+
     return phi
 
-def get_phio(var,fp=None,zL=None):
+def get_phio(var,stab,fp=None,zL=None):
+    if stab:
+        vv=var+'s'
+    else:
+        vv=var+'u'
+    if zL in None:
+        try:
+            zL=fp['zL'][:]
+        except KeyError:
+            zL=fp['zzd'][:]/fp['L_MOST'][:]
+
+    match var:
+        case 'UUu':
+            phio=2.55*(1-3*zL)**(1/3)
+        case 'UUs':
+            phio=2.06*np.ones(zL.shape)
+        case 'VVu':
+            phio=2.05*(1-3*zL)**(1/3)
+        case 'VVs':
+            phio=2.06*np.ones(zL.shape)
+        case 'WWu':
+            phio=1.35*(1-3*zL)**(1/3)
+        case 'WWs':
+            phio=1.6*np.ones(zL.shape)
 
     return phio
-
-
-##############################################################################
-############################# CURVE and MATH #################################
-def cbase(inp,a,b,c,d,e):
-    return a*(b+c*zL)**(d)+e
-
-def fxngen(plist,ac_=None,bc_=None,cc_=None,
-           dc_=None,ec_=None):
-    lpms=4
-    n=len(plist)
-    a=[0,0,0,0]
-    b=[0,0,0,0]
-    c=[0,0,0,0]
-    d=[0,0,0,0]
-    e=[0,0,0,0]
-    for i in range(n):
-        param=plist[i]
-        if 'a' in param:
-            a[int(param[1])]=1
-        elif 'b' in param:
-            b[int(param[1])]=1
-        elif 'c' in param:
-            c[int(param[1])]=1
-        elif 'd' in param:
-            d[int(param[1])]=1
-        elif 'e' in param:
-            e[int(param[1])]=1
-    def fxn(inp,*prms):
-        zL=inp[0]
-        ani=inp[1]
-        if len(prms) !=n:
-            return np.ones(zL.shape)*float('nan')
-        pm=0
-        if ac_ in [None]:
-            aa=np.zeros((len(ani),))
-            for i in range(lpms):
-                if a[i]==1:
-                    aa=aa+prms[pm]*ani**i
-                    pm=pm+1
-        else:
-            aa=ac_
-        if bc_ in [None]:
-            bb=np.zeros((len(ani),))
-            for i in range(lpms):
-                if b[i]==1:
-                    bb=bb+prms[pm]*ani**i
-                    pm=pm+1
-        else:
-            bb=bc_
-        if cc_ in [None]:
-            cc=np.zeros((len(ani),))
-            for i in range(lpms):
-                if c[i]==1:
-                    cc=cc+prms[pm]*ani**i
-                    pm=pm+1
-        else:
-            cc=cc_
-        if dc_ in [None]:
-            dd=np.zeros((len(ani),))
-            for i in range(lpms):
-                if d[i]==1:
-                    dd=dd+prms[pm]*ani**i
-                    pm=pm+1
-        else:
-            dd=dc_
-        if ec_ in [None]:
-            ee=np.zeros((len(ani),))
-            for i in range(lpms):
-                if e[i]==1:
-                    ee=ee+prms[pm]*ani**i
-                    pm=pm+1
-        else:
-            ee=ec_
-
-        print(aa)
-        print(bb)
-        print(cc)
-        print(dd)
-        print(ee)
-        return aa*(bb+cc*zL)**(dd)+ee
-    return fxn
-
-

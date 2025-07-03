@@ -1,9 +1,41 @@
 # curve fitting functions
+import numpy as np
+import h5py
+import ast
+import datetime
+from numpy.polynomial import polynomial as P
+
+try:
+    from nutil import SITES,get_phi,get_phio
+except:
+    from neonutil.nutil import SITES,get_phi,get_phio
 
 
 
 
 
+def _nsv(d):
+    if d in [None,[],'',float('nan')]:
+        return 'NA'
+    else:
+        return d
+
+
+########################################################################
+######################### BASEFUNCTIONS ################################
+# Basefunctions for function generator
+
+#### CORE BASE
+# the basic base function from theory
+
+def cbase(zL,a,b,c,d,e):
+    return a*(b+c*zL)**(d)+e
+
+
+
+
+#### LIST OF BASES
+bases={'cbase':cbase}
 
 ##############################################################################
 ##############################################################################
@@ -15,7 +47,9 @@
 ##############################################################################
 class Cfit:
 
-    def __init__(self,name,var,stab,ftype,base):
+    def __init__(self,name,var,stab,ftype,base,p0=None,bnds=None,loss=None,\
+            const={'a':None,'b':None,'c':None,'d':None,'e':None},params=None,\
+            in2=None,deg=None,typ=None):
         #### USER DEFINED
         self.name=name # name of fit
         self.var=var # var being fitted;
@@ -24,20 +58,46 @@ class Cfit:
         self.base=base # base function
 
         #### INITIALIZED
-        self.p0=None
-        self.const={'a':None,'b':None,'c':None,'d':None,'e':None}
-        self.bnds=None
-        self.loss=None
+        self.p0=p0
+        self.const=const
+        self.bnds=bnds
+        self.loss=loss
         # for 'full' only
-        self.params=None
+        self.params=params
         # for '2_stage' only
-        self.in2=None
-        self.deg=None
-        self.typ=None
+        self.in2=in2
+        self.deg=deg
+        self.typ=typ
 
-    def cfit(self,zL,ani,phi,plot=True,nbin=50,p0=self.p0,params=self.params,\
-            const=self.const,bnds=self.bnds,loss=self.loss,ftype=self.ftype,\
-            in2=self.in2,deg=self.deg,typ=self.typ):
+        self.stats=None
+        self.popt=None
+        self.pcov=None
+
+    def _add_stats(self,popt=None,pcov=None,stats=None):
+        self.popt=popt
+        self.pcov=pcov
+        self.stats=stats
+
+    def cfit(self,zL,ani,phi,plot=True,nbin=50,p0=None,params=None,\
+            const=None,bnds=None,loss=None,ftype=None,\
+            deg=None,typ=None):
+
+        if p0==None:
+            p0=self.p0
+        if params==None:
+            params=self.params
+        if const==None:
+            const=self.params
+        if bnds==None:
+            bnds=self.bnds
+        if loss==None:
+            loss=self.loss
+        if ftype==None:
+            ftype=self.ftype
+        if deg==None:
+            deg=self.deg
+        if typ==None:
+            typ=self.typ
 
         # remove any statistics
         self.stats=None
@@ -65,20 +125,23 @@ class Cfit:
 
         # Generate function
         if ftype=='2_stage':
-            if (in2 in [None]):
+            if (self.in2 in [None]):
                 # do stage 1
                 plist=[]
                 for k in const.keys():
                     if const[k]==None:
                         plist.append(k+'0')
-                fxn = fxngen(plist,self.base,ac_=const['a'],bc_=const['b'],cc_=const['c'],dc_=const['d'],ec_=const['e'])
-                in2=cfit_p1(fxn,zL,ani,phi,bnds,nbin=nbins,loss=loss)
+                fxn = fxngen(plist,self.base,ac_=self.const['a'],\
+                        bc_=self.const['b'],cc_=self.const['c'],\
+                        dc_=self.const['d'],ec_=self.const['e'])
+                self.in2=cfit_p1(fxn,zL,ani,phi,self.bnds,nbin=nbins,loss=loss)
 
             # do stage 2
-            in3=cfit_p2(in2,deg,typ,plot1=True)
+            in3=cfit_p2(self.in2,self.deg,self.typ,plot1=True)
             p_prime=in3[4]
-            popt=_conver_out(p_prime)
+            popt=_convert_out(p_prime)
             pcov=np.ones((len(popt),))*float('nan')
+            self.params=_convert_in(self.const,self.deg)
 
         if ftype=='full':
             fxn = fxngen(self.params,self.base,ac_=const['a'],bc_=const['b'],cc_=const['c'],dc_=const['d'],ec_=const['e'])
@@ -88,22 +151,41 @@ class Cfit:
         self.pcov=pcov
         return popt,pcov
 
-    def _convert_out():
+    def _convert_out(self,p_prime):
         # convert p_prime to popt
+        popt=[]
+        for i in range(len(p_prime)):
+            for j in range(len(p_prime[i])):
+                popt.append(p_prime[i][j])
+        return popt
 
-    def _convert_in():
+    def _convert_in(self,const,deg):
         # convert deg to params
-
-    def save_fit(self,fp):
-        # save to L2 file
-
-    def eval_cfit(self,zL,ani,phi,fpsites,var=self.var,pnames=self.params,\
-            pvals=self.popt,pcov=self.pcov,plotit=True,plotonly=False):
-        phio = get_phio(var,zL)
-        pdict={}
+        pnames=[]
+        for k in const.keys():
+            if const[k]==None:
+                pnames.append(k)
+        params=[]
         for i in range(len(pnames)):
-            pdict[pnames[i]]=pvals[i]
-        phin=fxn([zL,ani],**pdict)
+            for j in range(deg[i]):
+                params.append(pnames[i]+str(j))
+        return params
+
+    def eval_cfit(self,zL,ani,phi,fpsites,const=None,plotit=True,plotonly=False):
+
+        params=self.params
+        popt=self.popt
+        const=self.const
+        var=self.var
+        pcov=self.pcov
+
+        if None in [params,popt,const,var,pcov]:
+            print([params,popt,const,var,pcov])
+            raise ValueError('Cfit object must be fit using Cfit.cfit before evaluation')
+
+        fxn = fxngen(self.params,self.base,ac_=const['a'],bc_=const['b'],cc_=const['c'],dc_=const['d'],ec_=const['e'])
+        phio = get_phio(var,self.stab,zL)
+        phin=fxn([zL,ani],*pvals)
 
         if plotit:
             m=np.zeros((len(phin),)).astype(bool)
@@ -114,9 +196,9 @@ class Cfit:
                 plt.semilogx(-zL[m],phi[m],'o',markersize=1,color='grey',alpha=.3)
                 plt.semilogx(-zL[m],phio[m],'o',markersize=1,color='black')
                 zLi=-np.logspace(-3,2)
-                phi1=fxn([zLi,np.ones((50,))*.1],**pdict)
-                phi3=fxn([zLi,np.ones((50,))*.3],**pdict)
-                phi5=fxn([zLi,np.ones((50,))*.5],**pdict)
+                phi1=fxn([zLi,np.ones((50,))*.1],*pvals)
+                phi3=fxn([zLi,np.ones((50,))*.3],*pvals)
+                phi5=fxn([zLi,np.ones((50,))*.5],*pvals)
                 plt.semilogx(-zLi,phi1,color='red')
                 plt.semilogx(-zLi,phi3,color='tan')
                 plt.semilogx(-zLi,phi5,color='blue')
@@ -127,10 +209,10 @@ class Cfit:
                 plt.loglog(zL[m],phi[m],'o',markersize=1,color='grey',alpha=.3)
                 plt.loglog(zL[m],phio[m],'o',markersize=1,color='black')
                 zLi=np.logspace(-3,2)
-                phi1=fxn([zLi,np.ones((50,))*.1],**pdict)
-                phi3=fxn([zLi,np.ones((50,))*.3],**pdict)
-                phi5=fxn([zLi,np.ones((50,))*.5],**pdict)
-                phi7=fxn([zLi,np.ones((50,))*.7],**pdict)
+                phi1=fxn([zLi,np.ones((50,))*.1],*pvals)
+                phi3=fxn([zLi,np.ones((50,))*.3],*pvals)
+                phi5=fxn([zLi,np.ones((50,))*.5],*pvals)
+                phi7=fxn([zLi,np.ones((50,))*.7],*pvals)
                 plt.loglog(zLi,phi1,color='red')
                 plt.loglog(zLi,phi3,color='orange')
                 plt.loglog(zLi,phi5,color='tan')
@@ -187,18 +269,10 @@ class Cfit:
 
         Nworse=np.sum(ss_s<0)
 
-        # FIXME report needs to change to instead update self.stats
-
-        time=datetime.now()
+        time=datetime.datetime.now()
 
         report={}
         report['time']=time
-        report['fxn']=fxn
-        report['var']=var
-        report['type']=''
-        report['deg']=''
-        report['pcov']=np.sqrt(np.diag(pcov))
-        report['p_prime']=pvals
         report['SS']=ss
         report['SSlo']=sslo
         report['SShi']=sshi
@@ -209,17 +283,116 @@ class Cfit:
         report['medSSlo']=msslo
         report['medSShi']=msshi
         report['N_worse']=Nworse
-        report['site_SS']=ss_s
-        report['sites']=sites
+        report['SS_site']=ss_s
 
-        # SS,SSlo,SSmd,SShi,sigSS,mSS,mSSlo,mSSmd,mSShi,Nworse
+        self.stats=report
 
-        # fxn,var,type,deg,param_values,SS,SSlo,SSmd,SShi,sigSS,mSS,mSSlo,mSSmd,mSShi,Nworse
-        return report
+    def save_fit(self,fg):
+        # save to L2 file where fg is the group not the file
+        if 'curve_fits' not in fg.keys():
+            fg.create_group('curve_fits')
+        stbstr=''
+        if self.stab:
+            stbstr='stable'
+        else:
+            stbstr='unstable'
+        f_=fg['curve_fits'].create_group(self.var+'::'+stbstr+'::'+self.name)
+        f_.attrs['var']=self.var
+        f_.attrs['ftype']=self.ftype
+        f_.attrs['stab']=self.stab
+        f_.attrs['base']=self.base.__name__
+        f_.attrs['p0']=_nsv(self.p0)
+        f_.attrs['loss']=_nsv(self.loss)
+        f_.attrs['bnds']=_nsv(self_bnds)
+        for k in self.const.keys():
+            if self.const[k]==None:
+                pass
+            else:
+                f_.attrs[k]=self.const[k]
 
-def load_fit(fp):
+        if self.ftype=='full':
+            tmp={}
+            for k in self.params:
+                if k[0] not in tmp.keys():
+                    tmp[k[0]]=[]
+                if int(k[1]) not in tmp[k[0]]:
+                    tmp[k[0]].append(int(k[1]))
+            for k in tmp.keys():
+                f_.attrs[k]=tmp[k]
+
+        if self.ftype=='2_stage':
+            f_.attrs['typ']=str(_nsv(self.typ))
+            f_.attrs['deg']=_nsv(self.deg)
+
+        f_.attrs['popt']=_nsv(self.popt)
+        f_.attrs['pcov']=_nsv(self.pcov)
+
+        if self.stats not in [None,{},[],'NA']:
+            fs=f_.create_group['stats']
+            fs.create_dataset('SS_site',data=self.stats['SS_site'][:])
+            for k in self.stats.keys():
+                if k=='SS_site':
+                    continue
+                else:
+                    fs.attrs[k]=self.stats[k]
+
+    def get_phin(self,zL,ani):
+        fxn = fxngen(self.params,self.base,ac_=self.const['a'],\
+                bc_=self.const['b'],cc_=self.const['c'],dc_=self.const['d'],\
+                ec_=self.const['e'])
+        return fxn([zL,ani],*self.popt)
+
+####################### END OF CLASS Cfit ####################################
+##############################################################################
+##############################################################################
+##############################################################################
+
+def load_fit(fp,casek,name,var=None,stab=None):
     # load fit from an L2
+    if '::' in name:
+        nm=name
+        name=nm.split('::')[2]
+    elif (var==None) or (stab==None):
+        raise ValueError('if name is not full name of curve fit, var and '+\
+                'stability must be specified')
+    else:
+        if type(stab)==bool:
+            if stab:
+                stbstr='stable'
+            else:
+                stbstr='unstable'
+        if type(stab)==str:
+            stbstr=stab
+        nm=var+'::'+stbstr+'::'+name
+    fa=fp[casek]['curve_fits'][nm].attrs
+    fs=fp[casek]['curve_fits'][nm]['stats']
 
+    const={}
+    params=[]
+    for k in ['a','b','c','d','e']:
+        if type(fa[k])==list:
+            for j in fa[k]:
+                params.append(k+str(j))
+            const[k]=None
+        else:
+            const[k]=fa[k]
+
+    cfit=Cfit(name,fa['var'],fa['stab'],fa['ftype'],bases[fa['base']],\
+            p0=fa['p0'],bnds=fa['bnds'],loss=fa['loss'],\
+            const=const,params=params,deg=fa['deg'],\
+            typ=ast.literal_eval(fa['typ']))
+
+    # load stats
+    stats={}
+    try:
+        stats['SS_site']=fs['SS_site']
+    except KeyError:
+        pass
+    for k in fs.attrs.keys():
+        stats[k]=fs[k]
+    cfit.add_stats(popt=fa['popt'],pcov=fa['pcov'],stats=stats)
+
+    return cfit
 
 
 def cfit_p1(fxn,zL,ani,phi,p0,bnd,nbin=50,loss='cauchy'):
@@ -302,29 +475,29 @@ def cfit_p2(in2,deg,typ,plot1=True):
 ##################### COMPARE CURVE FIT RESULTS #############################
 # Compares the results of different curve fits
 def compare_fits(reports):
-    # FIXME adapt to fits
 
     ''' turns a list of reports into useful output '''
-    names=['idx|ID-----','-SCORE-','-CMPLX-','--SS---','-medSS-','-sigSS-','-mSSlo-','-mSShi-','Nworse-']
+    names=['ID------------------','-SCORE-','--SS---','-medSS-','-sigSS-','-mSSlo-','-mSShi-','Nworse-']
     vari=[]
     for rp in reports:
-        vari.append(rp['var'])
+        vari.append(rp.var)
     vari=np.array(vari)
     for v in np.unique(vari):
         N=np.sum(vari==v)
-        full=np.zeros((N,len(names)))
+        full=np.ones((N,len(names)))*float('nan')
         for i in range(N):
             idx=np.where(vari==v)[0][i]
             rp=reports[idx]
             full[i,0]=idx
-            a=len(rp['p_prime'])
-            full[i,2]=a
-            full[i,3]=rp['SS']
-            full[i,4]=rp['medSS']
-            full[i,5]=rp['sigSS']
-            full[i,6]=rp['medSSlo']
-            full[i,7]=rp['medSShi']
-            full[i,8]=rp['N_worse']
+            a=len(rp['params'])
+            if rp.stats in [None,{}]:
+                continue
+            full[i,2]=rp.stats['SS']
+            full[i,3]=rp.stats['medSS']
+            full[i,4]=rp.stats['sigSS']
+            full[i,5]=rp.stats['medSSlo']
+            full[i,6]=rp.stats['medSShi']
+            full[i,7]=rp.stats['N_worse']
 
             full[i,1]=(rp['SS']/.2*5+rp['medSS']/.2*15-rp['sigSS']/.58*5-rp['N_worse']/4\
                     -10*(np.abs(rp['medSSlo']-rp['medSS'])+np.abs(rp['medSShi']-rp['medSS'])))-(a)/2
@@ -338,9 +511,10 @@ def compare_fits(reports):
             rp=reports[idx]
             for n in range(len(names)):
                 if n==0:
-                    ts='{0:3}'.format(int(full[i,n]))+str('|')
-                    print(ts,end='')
-                    print('{0:7}'.format(rp['fxn'].__name__)+str('|'),end='')
+                    prms_str=''
+                    for k in rp['params']:
+                        prms_str=k+','
+                    print('{0:20}'.format(rp['base'].__name__+'('+prms_str[0:-1]+')')+str('|'),end='')
                 elif full[i,n]<0:
                     ts='{0: 6}'.format(full[i,n])
                     ts=ts[0:7]+str('|')
@@ -351,15 +525,6 @@ def compare_fits(reports):
                     print(ts,end='')
             print()
         print()
-
-########################################################################
-######################### BASEFUNCTIONS ################################
-# Basefunctions for function generator
-
-#### CORE BASE
-# the basic base function from theory
-def cbase(zL,a,b,c,d,e):
-    return a*(b+c*zL)**(d)+e
 
 #########################################################################
 ######################## FUNCTION GENERATOR #############################

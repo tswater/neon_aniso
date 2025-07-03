@@ -1303,7 +1303,7 @@ plt.subplots_adjust(hspace=.05)
 
 # %%
 
-# %% [markdown] jp-MarkdownHeadingCollapsed=true
+# %% [markdown]
 # # Figure: Self Similarity YB
 
 # %%
@@ -1878,7 +1878,7 @@ for var in ['Uu','Us','Wu','Ws']:
 
 # %%
 
-# %% [markdown] jp-MarkdownHeadingCollapsed=true
+# %% [markdown]
 # # XB SCALING
 
 # %%
@@ -2060,7 +2060,7 @@ plt.savefig('../../plot_output/a1_img_10.png', bbox_inches = "tight",transparent
 
 # %%
 
-# %% [markdown] jp-MarkdownHeadingCollapsed=true
+# %% [markdown]
 # # FIGURE XB Distribution Plot
 
 # %%
@@ -2117,7 +2117,7 @@ plt.subplots_adjust(hspace=0)
 
 #fig.savefig('trash.png',bbox_inches = "tight")
 
-# %% [markdown] jp-MarkdownHeadingCollapsed=true
+# %% [markdown]
 # # FIGURE YB Distribution Plot
 
 # %%
@@ -2175,7 +2175,7 @@ plt.savefig('../../plot_output/a1/a1_yb_site_distrib.png', bbox_inches = "tight"
 
 # %%
 
-# %% [markdown] jp-MarkdownHeadingCollapsed=true
+# %% [markdown]
 # # FIGURE Lumley Error
 
 # %%
