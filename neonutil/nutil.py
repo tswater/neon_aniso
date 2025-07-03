@@ -333,13 +333,13 @@ def get_phio(var,stab,fp=None,zL=None):
         vv=var+'s'
     else:
         vv=var+'u'
-    if zL in None:
+    if zL is None:
         try:
             zL=fp['zL'][:]
         except KeyError:
             zL=fp['zzd'][:]/fp['L_MOST'][:]
 
-    match var:
+    match vv:
         case 'UUu':
             phio=2.55*(1-3*zL)**(1/3)
         case 'UUs':
