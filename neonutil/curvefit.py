@@ -274,6 +274,8 @@ class Cfit:
         report['medSShi']=msshi
         report['N_worse']=Nworse
         report['SS_site']=ss_s
+        report['SSlo_site']=sslo_s
+        report['SShi_site']=sshi_s
 
         self.stats=report
 
@@ -330,8 +332,22 @@ class Cfit:
             except ValueError:
                 del fs['SS_site']
                 fs.create_dataset('SS_site',data=self.stats['SS_site'][:])
+
+            try:
+                fs.create_dataset('SSlo_site',data=self.stats['SSlo_site'][:])
+            except ValueError:
+                del fs['SSlo_site']
+                fs.create_dataset('SSlo_site',data=self.stats['SSlo_site'][:])
+
+            try:
+                fs.create_dataset('SShi_site',data=self.stats['SShi_site'][:])
+            except ValueError:
+                del fs['SShi_site']
+                fs.create_dataset('SShi_site',data=self.stats['SShi_site'][:])
+
+
             for k in self.stats.keys():
-                if k=='SS_site':
+                if k in ['SS_site':
                     continue
                 else:
                     try:
@@ -401,6 +417,17 @@ def load_fit(fp,casek,name,var=None,stab=None):
         stats['SS_site']=fs['SS_site'][:]
     except KeyError:
         pass
+
+    try:
+        stats['SSlo_site']=fs['SSlo_site'][:]
+    except KeyError:
+        pass
+
+    try:
+        stats['SShi_site']=fs['SShi_site'][:]
+    except KeyError:
+        pass
+
     for k in fs.attrs.keys():
         stats[k]=fs.attrs[k]
     cfit._add_stats(popt=fa['popt'],pcov=fa['pcov'],stats=stats)

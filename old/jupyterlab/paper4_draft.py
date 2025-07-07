@@ -127,7 +127,7 @@ def cani_norm(x):
 
 # %%
 
-# %% [markdown] jp-MarkdownHeadingCollapsed=true
+# %% [markdown]
 # # FIGURE: Anisotropy Distribution
 
 # %% [markdown]
@@ -281,7 +281,7 @@ plt.savefig('../../plot_output/a1_img_1.png', bbox_inches = "tight")
 
 # %%
 
-# %% [markdown] jp-MarkdownHeadingCollapsed=true
+# %% [markdown]
 # # FIGURE: Anisotropy Binplots
 
 # %%

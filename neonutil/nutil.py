@@ -2,7 +2,8 @@
 import numpy as np
 from scipy.interpolate import interp1d
 import datetime
-
+import matplotlib.pyplot as plt
+import matplotlib
 ############## CONSTANTS ################
 SITES =['ABBY', 'BARR', 'BART', 'BLAN', 'BONA', 'CLBJ', 'CPER', 'DCFS', 'DEJU',  'DELA', 'DSNY', 'GRSM', 'GUAN', 'HARV', 'HEAL', 'JERC', 'JORN', 'KONA', 'KONZ',  'LAJA', 'LENO', 'MLBS', 'MOAB', 'NIWO', 'NOGP', 'OAES', 'ONAQ', 'ORNL', 'OSBS',  'PUUM', 'RMNP', 'SCBI', 'SERC', 'SJER', 'SOAP', 'SRER', 'STEI', 'STER', 'TALL',  'TEAK', 'TOOL', 'TREE', 'UKFS', 'UNDE', 'WOOD', 'WREF', 'YELL']
 
@@ -306,7 +307,52 @@ def sort_together(X,Y):
             Yout[i].append(dic[X[j]][i])
     return X,np.array(Yout)
 
+############################################################################
+########################### COLORING #######################################
+def get_cmap_ani():
+    vmx_a=.7
+    vmn_a=.1
+    iva_colors_HEX = ["#410d00","#831901","#983e00","#b56601","#ab8437",
+                  "#b29f74","#7f816b","#587571","#596c72","#454f51"]
+    #Transform the HEX colors to RGB.
+    from PIL import ImageColor
+    iva_colors_RGB = np.zeros((np.size(iva_colors_HEX),3),dtype='int')
+    for i in range(0,np.size(iva_colors_HEX)):
+        iva_colors_RGB[i,:] = ImageColor.getcolor(iva_colors_HEX[i], "RGB")
+    iva_colors_RGB = iva_colors_RGB[:,:]/(256)
+    colors = iva_colors_RGB.tolist()
+    #----------------------------------------------------
+    from matplotlib.colors import LinearSegmentedColormap,ListedColormap
+    inbetween_color_amount = 10
+    newcolvals = np.zeros(shape=(10 * (inbetween_color_amount) - (inbetween_color_amount - 1), 3))
+    newcolvals[0] = colors[0]
+    for i, (rgba1, rgba2) in enumerate(zip(colors[:-1], np.roll(colors, -1, axis=0)[:-1])):
+        for j, (p1, p2) in enumerate(zip(rgba1, rgba2)):
+            flow = np.linspace(p1, p2, (inbetween_color_amount + 1))
+            # discard first 1 since we already have it from previous iteration
+            flow = flow[1:]
+            newcolvals[i*(inbetween_color_amount)+1:(i+1)*\
+                    (inbetween_color_amount)+1,j] = flow
+    return ListedColormap(newcolvals, name='from_list', N=None)
 
+def cani_norm(x,vmn_a=.1,vmx_a=.7):
+    cmapa=get_cmap_ani()
+    try:
+        x_=x.copy()
+        x_[x_<vmn_a]=vmn_a
+        x_[x_>vmx_a]=vmx_a
+    except:
+        x_=x.copy()
+        if x_>vmx_a:
+            x_=vmx_a
+        elif x_<vmn_a:
+            x_=vmn_a
+
+    x_=(x_-vmn_a)/(vmx_a-vmn_a)
+    return cmapa(x_)
+
+
+#############################################################################
 ################################# GET PHI ###################################
 ''' VARS
     'UU'
@@ -354,3 +400,178 @@ def get_phio(var,stab,fp=None,zL=None):
             phio=1.6*np.ones(zL.shape)
 
     return phio
+
+##############################################################################
+################################# PLOTTING ###################################
+def get_errorlines(x,y,c,xbins,cbins,minpct=0.00001):
+    Nc=len(cbins)-1
+    Nx=len(xbins)-1
+    n=len(x)
+
+    # check if xbins is increasing; if not, flip it
+    if xbins[1]<xbins[0]:
+        xbins=np.flip(xbins)
+
+    ctrue=np.ones((Nc,))*float('nan')
+    xtrue=np.ones((Nc,Nx))*float('nan')
+    ytrue=np.ones((Nc,Nx))*float('nan')
+    y25=np.ones((Nc,Nx))*float('nan')
+    y75=np.ones((Nc,Nx))*float('nan')
+
+    for i in range(Nc):
+        mc=(c>cbins[i])&(c<=cbins[i+1])
+        ctrue[i]=np.nanmedian(c[mc])
+        for j in range(Nx):
+            m=mc&(x>xbins[j])&(x<=xbins[j+1])
+            if np.nansum(m)/n<minpct:
+                xtrue[i,j]=float('nan')
+                ytrue[i,j]=float('nan')
+                y25[i,j]=float('nan')
+                y75[i,j]=float('nan')
+            else:
+                ym=y[m]
+                xtrue[i,j]=np.nanmedian(x[m])
+                ytrue[i,j]=np.nanpercentile(ym,50)
+                y25[i,j]=np.nanpercentile(ym,25)
+                y75[i,j]=np.nanpercentile(ym,75)
+
+    return ytrue,xtrue,ctrue,y25,y75
+
+
+def plt_scaling(zeta,phi,c,ymin,ymax,varlist,figaxs=None,p25=None,p75=None,stab=[False,True],\
+        zeta_range=[10**-3.5,10**1.3],plot_old=True,colorbar='yb',width=6,skip=False,xyscale='semilog'):
+    '''
+    zeta,phi   : (2,N,M,K) array; 2 columns, N variables, M lines, K points
+    p25,p75
+    c          : (2,N,M) array
+    ymin       : (N) array of minimum y values for each variable
+    ymax       : (N) array of maximum y values for each variable
+    varlist    : (N) array of variables
+    figaxs     : list [fig,axs] to supply a figure/axes group ahead
+    stab       : stability of each column
+    zeta_range : range of zeta values (xlims)
+    colobar    : 'empty','yb','none' for an emtpy axis, yb colorbar, or no cb
+    width      : width in inches of plot
+    skip       : if true, will skip the first line (yb very low)
+    xyscale    : string or (N) array of strings; semilog or loglog
+    plot_old   : if true, will plot phi_old for the variable
+    '''
+
+    N=zeta.shape[1]
+    M=zeta.shape[2]
+    K=zeta.shape[3]
+    ylabels={'UU':r'$\Phi_u$','VV':r'$\Phi_v$','WW':r'$\Phi_w$'}
+
+    if colorbar in ['empty','yb']:
+        L=3
+        wdrt=[1,1,.1]
+    else:
+        L=2
+        wdrt=[1,1]
+
+    if type(xyscale)==str:
+        xyscale=[xyscale]*N
+    print(xyscale)
+    if figaxs is None:
+        fig,axs=plt.subplots(N,L,figsize=(width*1.125/3*N,width),gridspec_kw={'width_ratios':wdrt})
+    else:
+        fig=figaxs[0]
+        axs=figaxs[1]
+
+    for j in range(N):
+        var=varlist[j]
+        for s in range(2):
+            yplt=phi[s,j,:,:]
+            anic=c[s,j,:]
+            if stab[s]:
+                sts=1
+            else:
+                sts=-1
+            for i in range(M):
+                if skip and (i==0):
+                    continue
+                xplt=zeta[s,j,i,:]
+                ax=axs[j,s]
+                # plot phi
+                if xyscale[j]=='semilog':
+                    ax.semilogx(sts*xplt,yplt[i,:],'-o',\
+                            color=cani_norm(anic[i]),markersize=2,linewidth=.2)
+                elif xyscale[j]=='loglog':
+                    ax.loglog(sts*xplt,yplt[i,:],'-o',color=cani_norm(anic[i]),markersize=2,linewidth=.2)
+
+            # plot fill
+                if (p25 is None) or (p75 is None):
+                    pass
+                else:
+                    ax.fill_between(sts*xplt,p25[s,j,i,:],p75[s,j,i,:],\
+                            color=cani_norm(anic[i]),alpha=.15)
+
+            # plot old
+            if plot_old:
+                zLi=sts*np.logspace(np.log10(zeta_range[0]),np.log10(zeta_range[1]))
+                phio=get_phio(var,stab[s],zL=zLi)
+                if xyscale[j]=='semilog':
+                    ax.semilogx(sts*zLi,phio[:],'--',color='k',linewidth=1.5,zorder=5)
+                elif xyscale[j]=='loglog':
+                    ax.loglog(sts*zLi,phio[:],'--',color='k',linewidth=1.5,zorder=5)
+
+            # labeling
+            if j==(N-1):
+                ax.tick_params(which="both", bottom=True)
+                locmin = matplotlib.ticker.LogLocator(base=10.0,\
+                        subs=(0.1,0.2,0.4,0.6,0.8,1,2,4,6,8,10 ))
+                ax.xaxis.set_minor_locator(locmin)
+                ax.xaxis.set_minor_formatter(matplotlib.ticker.NullFormatter())
+                if stab[s]:
+                    lbl=[r'$10^{-3}$','',r'$10^{-1}$','',r'$10^{1}$']
+                    xlbl=r'$\zeta$'
+                else:
+                    lbl=[r'$-10^{-3}$','',r'$-10^{-1}$','',r'$-10^{1}$']
+                    xlbl=r'$-\zeta$'
+                ax.set_xticks([10**-3,10**-2,10**-1,1,10],lbl)
+                ax.set_xlim(zeta_range[0],zeta_range[1])
+                ax.set_xlabel(xlbl)
+            else:
+                locmin = matplotlib.ticker.LogLocator(base=10.0,\
+                        subs=(0.1,0.2,0.4,0.6,0.8,1,2,4,6,8,10 ))
+                ax.xaxis.set_minor_locator(locmin)
+                ax.xaxis.set_minor_formatter(matplotlib.ticker.NullFormatter())
+                ax.set_xticks([10**-3,10**-2,10**-1,1,10],[])
+                ax.set_xlim(zeta_range[0],zeta_range[1])
+            ax.set_ylim(ymin[j],ymax[j])
+
+            if s==0:
+                ax.set_ylabel(ylabels[var],fontsize=14)
+            else:
+                ax.tick_params(labelleft=False)
+            if not stab[s]:
+                ax.invert_xaxis()
+
+        # colorbar stuff
+        if (colorbar is None) or (colorbar=='none'):
+            continue
+        elif colorbar=='empty':
+            ax=axs[j,2]
+            ax.yaxis.tick_right()
+            ax.yaxis.set_label_position("right")
+            ax.grid(False)
+        elif colorbar=='yb':
+            anicc=cani_norm(np.array([.05,.15,.25,.35,.45,.55,.65,.75]))
+            ax=axs[j,2]
+            ax.imshow(anicc.reshape(8,1,4),origin='lower',interpolation=None)
+            ax.set_xticks([],[])
+            inta=[-.05]
+            inta.extend([.05,.15,.25,.35,.45,.55,.65,.75])
+            inta.extend([.85])
+            xtc=np.interp([.1,.2,.3,.4,.5,.6,.7],inta,np.linspace(-1,8,10))
+            ax.set_yticks(xtc,[.1,.2,.3,.4,.5,.6,.7])
+            ax.grid(False)
+            ax.yaxis.tick_right()
+            ax.yaxis.set_label_position("right")
+            ax.set_ylabel(r'$y_b$')
+
+    fig.subplots_adjust(hspace=.08,wspace=.02)
+    return fig, axs
+
+
+
