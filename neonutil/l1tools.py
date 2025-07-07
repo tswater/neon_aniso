@@ -3,6 +3,7 @@ import numpy as np
 import h5py
 import datetime
 import os
+import math
 from subprocess import run
 try:
     from nutil import SITES,nscale,sort_together,out_to_h5
@@ -372,35 +373,40 @@ def add_turb25(scl,ndir,tdir,ivars=None,overwrite=False,dlt=None,sites=SITES,deb
 ##################### ADD STATIONARITY #############################
 # Stationarity metric for variances based on Foken 2017 Micrometerology
 # as found in Zahn 2023 Relaxed eddy accumulation...
-def add_stationarity_zahn23(ndir5,ndir30,ivars=None,overwrite=False,sites=SITES):
-    _ivars = ['QQ', 'THETATHETA', 'CC', 'UU', 'VV','WW']
+def add_stationarity(ndir,idir,sclo,scli,ivars=None,overwrite=False,sites=SITES):
+    _ivars = ['QQ', 'THETATHETA', 'CC', 'UU', 'VV','WW','WC','WQ','WTHETA']
     if ivars in [None]:
         ivars=_ivars
     outvar={}
     for var in ivars:
         if var in _ivars:
-            outvar['ST_ZH23_'+var]=[]
+            outvar['ST_'+var+'_'+str(scli)]=[]
     if len(outvar.keys())==0:
         print('add_stationarity_zahn23: No valid variables in ivars')
         return None
 
-    for site in sites:
-        fp5=h5py.File(ndir5+site+'_5m.h5','r+')
-        fp30=h5py.File(ndir30+site+'_30m.h5','r+')
-        time5=fp5['TIME'][:]+2.5*60
-        time30=fp30['TIME'][:]+15*60
-        idx5in=[]
+    # check if scales are multiples of eachother
+    if math.lcm(scli,sclo)>sclo:
+        raise ValueError('The least common multiple of '+str(scli)+' and '+\
+                str(sclo)+' is not '+str(sclo)+', stationarity cannot be '+\
+                'computed')
+    if (sclo/scli <4) or (sclo/scli>7):
+        print('STATIONARITY WARNING: we recommend choosing different scales'+\
+                ' such that the smaller scale is a factor of [4-7], '+\
+                'ideally 6, of the larger scale')
 
-        for i in range(len(time5)):
-            t=time5[i]
-            if t in time30:
-                idx5in.append(i)
-                time30=time30[1:]
-        for var in ivars:
-            xx5=fp5[var][:][idx5in]
-            xx30=fp30[var][:][idx5in]
-            outvar['ST_ZH23_'+var]=np.abs((xx5-xx30)/(xx30))*100
-        out_to_h5(fp30,ovar,overwrite)
+    for site in sites:
+        fpi=h5py.File(idir+site+'_'+str(scli)+'m.h5','r')
+        fpo=h5py.File(ndir+site+'_'+str(sclo)+'m.h5','r+')
+
+        for k in ivars.keys():
+            xxi=nscale(fpo['TIME'][:]+sclo/2*60,fpi['TIME'][:]+scli/2*60,\
+                    fpi[k][:])
+            xxo=fpo[k][:]
+            st=np.abs((xxi-xxo)/xxo)*100
+            ovar['ST_'+k+'_'+str(scli)].extend(st)
+
+        out_to_h5(fpo,ovar,overwrite)
 
 ####################### ADD DERIVED #############################
 # Add variables derived from basic/turb information already in h5
