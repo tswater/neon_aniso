@@ -416,7 +416,7 @@ plt.savefig('../../plot_output/a1_img_2.png', bbox_inches = "tight")
 
 # %%
 
-# %% [markdown] jp-MarkdownHeadingCollapsed=true
+# %% [markdown]
 # # FIGURE: SC23 LINES
 
 # %% [markdown]
@@ -2431,7 +2431,7 @@ for i in range(len(vari)):
 
 # %%
 
-# %% [markdown] jp-MarkdownHeadingCollapsed=true
+# %% [markdown]
 # # Figure XB vs Error all sites
 
 # %%

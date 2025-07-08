@@ -66,7 +66,6 @@ def out_to_h5(_fp,_ov,overwrite,desc={}):
             try:
                 _f.create_dataset(kout,data=np.array(_ov[k][:]))
             except Exception as e:
-                raise e
                 if overwrite:
                     _f[kout][:]=np.array(_ov[k][:])
                 else:

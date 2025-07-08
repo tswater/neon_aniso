@@ -305,15 +305,14 @@ class Cfit:
             else:
                 f_.attrs[k]=self.const[k]
 
-        if self.ftype=='full':
-            tmp={}
-            for k in self.params:
-                if k[0] not in tmp.keys():
-                    tmp[k[0]]=[]
-                if int(k[1]) not in tmp[k[0]]:
-                    tmp[k[0]].append(int(k[1]))
-            for k in tmp.keys():
-                f_.attrs[k]=tmp[k]
+        tmp={}
+        for k in self.params:
+            if k[0] not in tmp.keys():
+                tmp[k[0]]=[]
+            if int(k[1]) not in tmp[k[0]]:
+                tmp[k[0]].append(int(k[1]))
+        for k in tmp.keys():
+            f_.attrs[k]=tmp[k]
 
         if self.ftype=='2_stage':
             f_.attrs['typ']=str(_nsv(self.typ))
@@ -347,7 +346,7 @@ class Cfit:
 
 
             for k in self.stats.keys():
-                if k in ['SS_site':
+                if k in ['SS_site','SSlo_site','SShi_site']:
                     continue
                 else:
                     try:
@@ -389,6 +388,8 @@ def load_fit(fp,casek,name,var=None,stab=None):
     const={}
     params=[]
     for k in ['a','b','c','d','e']:
+        if k=='a':
+            continue
         if type(fa[k])==np.ndarray:
             for j in fa[k]:
                 params.append(k+str(j))

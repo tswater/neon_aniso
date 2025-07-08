@@ -373,8 +373,9 @@ def add_turb25(scl,ndir,tdir,ivars=None,overwrite=False,dlt=None,sites=SITES,deb
 ##################### ADD STATIONARITY #############################
 # Stationarity metric for variances based on Foken 2017 Micrometerology
 # as found in Zahn 2023 Relaxed eddy accumulation...
-def add_stationarity(ndir,idir,sclo,scli,ivars=None,overwrite=False,sites=SITES):
-    _ivars = ['QQ', 'THETATHETA', 'CC', 'UU', 'VV','WW','WC','WQ','WTHETA']
+def add_stationarity(ndir,idir,sclo,scli,ivars=None,overwrite=False,sites=SITES,debug=False):
+    _ivars = ['QQ', 'THETATHETA', 'CC', 'UU', 'VV','WW','WC','WQ','WTHETA',\
+              'UsUs','VsVs']
     if ivars in [None]:
         ivars=_ivars
     outvar={}
@@ -396,15 +397,18 @@ def add_stationarity(ndir,idir,sclo,scli,ivars=None,overwrite=False,sites=SITES)
                 'ideally 6, of the larger scale')
 
     for site in sites:
+        if debug:
+            print('::::::DEBUG:: stationarity for '+str(site),flush=True)
+        ovar=outvar.copy()
         fpi=h5py.File(idir+site+'_'+str(scli)+'m.h5','r')
         fpo=h5py.File(ndir+site+'_'+str(sclo)+'m.h5','r+')
 
-        for k in ivars.keys():
+        for k in ivars:
             xxi=nscale(fpo['TIME'][:]+sclo/2*60,fpi['TIME'][:]+scli/2*60,\
                     fpi[k][:])
             xxo=fpo[k][:]
             st=np.abs((xxi-xxo)/xxo)*100
-            ovar['ST_'+k+'_'+str(scli)].extend(st)
+            ovar['ST_'+k+'_'+str(scli)]=st
 
         out_to_h5(fpo,ovar,overwrite)
 
@@ -1742,7 +1746,8 @@ def remove_var(scl,ndir,delvar=[],confirm=True,sites=SITES):
         if doit:
             for site in sites:
                 fp=h5py.File(ndir+site+'_'+str(scl)+'m.h5','r+')
-                del fp[var]
+                if var in fp.keys():
+                    del fp[var]
 
 
 

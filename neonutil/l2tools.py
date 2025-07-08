@@ -106,10 +106,18 @@ def maskgen(fp,mask,cvar=None,flags=None,precip=None,stb=None,limvars=None,\
         for var in limvars:
             mn=limvars[var][0]
             mx=limvars[var][1]
+            if '/' in var:
+                vsplt=var.split('/')
+                data=fp[vsplt[0]][:]/fp[vsplt[1]][:]
+            elif '*' in var:
+                vsplt=var.split('*')
+                data=fp[vsplt[0]][:]*fp[vsplt[1]][:]
+            else:
+                data=fp[var][:]
             if mn not in [float('nan'),None,'NA']:
-                mask=mask&(fp[var][:]>=mn)
+                mask=mask&(data>=mn)
             if mx not in [float('nan'),None,'NA']:
-                mask=mask&(fp[var][:]<=mx)
+                mask=mask&(data<=mx)
             slist.append('LIMIT_'+var)
             nlist.append(np.sum(mask))
     if stb not in [None]:
@@ -305,12 +313,14 @@ def staticgen(fp,idir,casek='main',case=None,static=None):
     sites=cs.sites
     if sites in ['NA',None,'ALL',[]]:
         sites=SITES
-    if static in ['NA',None,[]]:
+    if static is None:
         static=[]
         fpi=h5py.File(idir+sites[0]+'_'+str(cs.scale)+'m.h5','r')
         for v in fpi.attrs.keys():
             static.append(v)
         fpi.close()
+    if len(static)==0:
+        return
     sites.sort()
     out={}
     for v in static:
@@ -324,14 +334,18 @@ def staticgen(fp,idir,casek='main',case=None,static=None):
     out['SITE']=sites
     for v in out.keys():
         try:
-            fp[casek+'/static'].create_dataset(v,data=out[v])
+            l2=out[v]
+            fp[casek+'/static'].create_dataset(v,data=l2)
         except ValueError as e:
             try:
                 l2=homogenize_list(out[v])
                 fp[casek+'/static'].create_dataset(v,data=l2)
             except Exception as e2:
-                print(e)
-                raise(e2)
+                if 'name already exists' in e:
+                    fp[casek+'/static'][v]=l2
+                else:
+                    print(e)
+                    raise(e2)
 
 
 
@@ -342,12 +356,18 @@ def datagen(outfile,idir,include=None,exclude=None,static=None,zeta=['zL'],\
 
     # Streamwise List and Earth List
     slist=['Us','Vs','UsUs','VsVs','UsVs','UsW','VsW',\
-            'ANI_XBs','ANI_YBs','ANID_YBs','ANID_XBs']
+            'ANI_XBs','ANI_YBs','ANID_YBs','ANID_XBs',\
+            'ST_UsUs_1','ST_UsUs_5','ST_VsVs_1','ST_VsVs_5']
     elist=['U','V','UU','VV','UV','UW','VW',\
-            'ANI_XB','ANI_YB','ANID_YB','ANID_XB']
+            'ANI_XB','ANI_YB','ANID_YB','ANID_XB',\
+            'ST_UU_1','ST_UU_5','ST_VV_1','ST_VV_5']
 
     # load case
-    fpo=h5py.File(outfile,'r+')
+
+    if type(outfile)==str:
+        fpo=h5py.File(outfile,'r+')
+    else:
+        fpo=outfile
     cs=SimpleNamespace(**pull_case(fpo,'main'))
     sites=cs.sites
     if sites in [None,'NA',[]]:
@@ -389,17 +409,6 @@ def datagen(outfile,idir,include=None,exclude=None,static=None,zeta=['zL'],\
     # initialize output
     ovar={}
     ovar['main/data']={}
-    v2v={}
-    for v in vlist:
-        if (wind_sys=='streamwise')&(v in slist):
-            v2=v.replace('s','')
-            v2v[v2]=v
-        elif (wind_sys=='streamwise')&(v in elist):
-            v2=v+'e'
-            v2v[v2]=v
-        else:
-            v2=v
-        ovar['main/data'][v2]=[]
     for v in zeta:
         ovar['main/data'][v]=[]
     ovar['main/data']['SITE']=[]
@@ -429,18 +438,6 @@ def datagen(outfile,idir,include=None,exclude=None,static=None,zeta=['zL'],\
                 (is_exclude and ('L_MOST' in exclude))):
             ovar['main/data']['L_MOST'].extend(lmost)
 
-        # other variables
-        for v in vlist:
-            if debug:
-                print('Reading in '+str(v)+' for '+site)
-            if (wind_sys=='streamwise')&(v in slist):
-                v2=v.replace('s','')
-            elif (wind_sys=='streamwise')&(v in elist):
-                v2=v+'e'
-            else:
-                v2=v
-            ovar['main/data'][v2].extend(fpi[v][:][msk])
-
     # conv nan
     if conv_nan:
         for v in ovar['main/data'].keys():
@@ -458,6 +455,36 @@ def datagen(outfile,idir,include=None,exclude=None,static=None,zeta=['zL'],\
 
     # output
     out_to_h5(fpo,ovar,overwrite)
+
+    # now deal with other variables:
+    # other variables
+    for v in vlist:
+        ovar={'main/data':{}}
+        if debug:
+            print('Reading in '+str(v)+' for '+site)
+        if (wind_sys=='streamwise')&(v in slist):
+            v2=v.replace('s','')
+        elif (wind_sys=='streamwise')&(v in elist):
+            v2=v+'e'
+        else:
+            v2=v
+        ovar['main/data'][v2]=[]
+        for site in sites:
+            fpi=h5py.File(idir+site+'_'+str(cs.scale)+'m.h5','r')
+            msk=fpo['main/mask'][site]
+            n=np.sum(msk)
+            if n==0:
+                continue
+            ovar['main/data'][v2].extend(fpi[v][:][msk])
+
+        if conv_nan:
+            for v in ovar['main/data'].keys():
+                arr=np.array(ovar['main/data'][v][:])
+                arr[arr==-9999]=float('nan')
+                ovar['main/data'][v]=arr
+
+        out_to_h5(fpo,ovar,overwrite)
+
 
 
 ##############################################################

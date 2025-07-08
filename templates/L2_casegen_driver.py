@@ -38,6 +38,7 @@ case['basecase']  = None # unclear here...
 case['core_vars'] = [] # list of variables that must have all points valid
 case['core_q']    = [] # list of quality flags that must be goo
 case['limvars']   = {} # dictionary of VAR:[MIN,MAX] pairs; limits must be met
+                       # note: can also be VAR*VAR:[MIN,MAX] or VAR/VAR:[MIN,MAX]
 case['months']    = [] # list of months to include; empty means all
 case['years']     = [] # list of years to include; empty means all
 case['sites']     = [] # list of sites to include; empty means all
