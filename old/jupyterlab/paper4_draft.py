@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.16.4
+#       jupytext_version: 1.17.2
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -656,7 +656,7 @@ plt.savefig('../../plot_output/a1_img_4.png', bbox_inches = "tight")
 
 # %%
 
-# %% [markdown]
+# %% [markdown] jp-MarkdownHeadingCollapsed=true
 # # FIGURE: Refit Lines
 
 # %%
@@ -1303,7 +1303,7 @@ plt.subplots_adjust(hspace=.05)
 
 # %%
 
-# %% [markdown]
+# %% [markdown] jp-MarkdownHeadingCollapsed=true
 # # Figure: Self Similarity YB
 
 # %%
@@ -1878,7 +1878,7 @@ for var in ['Uu','Us','Wu','Ws']:
 
 # %%
 
-# %% [markdown]
+# %% [markdown] jp-MarkdownHeadingCollapsed=true
 # # XB SCALING
 
 # %%
@@ -2060,7 +2060,7 @@ plt.savefig('../../plot_output/a1_img_10.png', bbox_inches = "tight",transparent
 
 # %%
 
-# %% [markdown]
+# %% [markdown] jp-MarkdownHeadingCollapsed=true
 # # FIGURE XB Distribution Plot
 
 # %%
@@ -2117,7 +2117,7 @@ plt.subplots_adjust(hspace=0)
 
 #fig.savefig('trash.png',bbox_inches = "tight")
 
-# %% [markdown]
+# %% [markdown] jp-MarkdownHeadingCollapsed=true
 # # FIGURE YB Distribution Plot
 
 # %%

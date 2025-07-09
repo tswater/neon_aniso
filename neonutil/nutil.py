@@ -281,6 +281,25 @@ def nupscale(tout,tin,din,outscl=None,maxdelta=60,nearest=True,nanth=.2,debug=Fa
 
     return out
 
+############################ GETBINS ####################################
+# Get equal size bins 
+def getbins(A,B=None,n=31):
+    if not (B is None):
+        bina=getbins(A,n=n)
+        binb=np.zeros((n-1,n))
+        for i in range(n-1):
+            m=(A>bina[i])&(A<bina[i+1])
+            binb[i,:]=getbins(B[m],n=n)
+        return bina,binb
+    else:
+        C=np.sort(A)
+        bins=[]
+        for i in np.linspace(0,len(A)-1,n):
+            i=int(i)
+            bins.append(C[i])
+        return bins
+
+
 ############################## SORT TOGETHER #############################
 # Sort 2 or more lists (arrays) based on the content of one array
 def sort_together(X,Y):
@@ -401,6 +420,62 @@ def get_phio(var,stab,fp=None,zL=None):
     return phio
 
 ##############################################################################
+################################ LUMLEY PREP #################################
+def datagrid(x,y,z,nbin=31,fxn=np.nanmedian,gridtype='equalx',mincnt=None):
+    ''' get bin values by x and y 
+        gridtype: ['linear','equalx','equaly']
+                   'equalx' x spacing equal, y spacing equal for each x bin
+                   'equaly' y spacing equal, x spacing equal for each y bin
+    '''
+    if mincnt is None:
+        mincnt=max(len(x)/nbin**2*.05,10)
+    if gridtype == 'equalx':
+        binx,biny=getbins(x,y,nbin)
+    elif gridtype in ['linear','lin']:
+        binx=np.linspace(np.nanmin(x),np.nanmax(x),nbin)
+        biny=np.linspace(np.nanmin(y),np.nanmax(y),nbin)
+        biny=[biny]*(nbin-1)
+        biny=np.array(biny)
+    out = []
+    if len(z.shape)==1:
+        idxs=1
+    elif len(z.shape)==2:
+        idxs=z.shape[0]
+    for v in range(idxs):
+        oo=np.zeros((nbin-1,nbin-1))
+        xx=np.zeros((nbin-1,nbin-1))
+        yy=np.zeros((nbin-1,nbin-1))
+        for i in range(nbin-1):
+            m=(x>binx[i])&(x<binx[i+1])
+            for j in range(nbin-1):
+                m2=m&(y>biny[i,j])&(y<biny[i,j+1])
+                if idxs==1:
+                    z_=z
+                else:
+                    z_=z[v]
+                xx[i,j]=np.nanmedian(x[m2])
+                yy[i,j]=np.nanmedian(y[m2])
+                if xx[i,j]!=xx[i,j]:
+                    xx[i,j]=(binx[i]+binx[i+1])/2
+                if yy[i,j]!=yy[i,j]:
+                    yy[i,j]=(biny[i,j]+biny[i,j+1])/2
+                oo[i,j]=fxn(z_[m2])
+                cnt=np.sum(m2)
+                if cnt<mincnt:
+                    oo[i,j]=float('nan')
+        if idxs==1:
+            return xx,yy,oo
+        out.append(oo)
+        print('ISSUE')
+        break
+    return xx,yy,out
+                 
+        
+
+
+
+
+##############################################################################
 ################################# PLOTTING ###################################
 def get_errorlines(x,y,c,xbins,cbins,minpct=0.00001):
     Nc=len(cbins)-1
@@ -436,6 +511,95 @@ def get_errorlines(x,y,c,xbins,cbins,minpct=0.00001):
 
     return ytrue,xtrue,ctrue,y25,y75
 
+
+def sitebar(fig,ax,sites,data1,data2,color,issorted=False\
+        ymin=None,ymax=None,colorvals=None,\
+        cbar=None,legend=None,fntsm=8,fntlg=12):
+    ''' Make a sitebar graph
+        data1: bar colored data
+        data2: error spline data
+        color: can be N length colors, or N length integers/strings etc if
+               used with colorvals
+        colorvals: translates "color" to actual colors
+        legend: can be a dictionary of kwargs for legend function or None for
+                no legend. kwargs can include patches etc. for custom legend
+        can also supply "sorted data" to cover the first 5 arguments
+
+    '''
+    if not (cbar is None):
+        raise NotImplementedError('Colorbar is not yet implemented')
+    
+    # sorted data must be (sites,data1,data2,color,issorted)
+    return fig,ax,sorted_data
+
+
+def lumley(fig,ax,xb,yb,data,cmap='Spectral_r',leftedge=False,\
+        bottomedge=False,vmin='abspct',vmax='abspct',cbarlabel='',fntsm=8,fntlg=12):
+    xc = np.array([0, 1, 0.5])
+    yc = np.array([0, 0, np.sqrt(3)*0.5])
+    ccc=['k','r','b']
+    for k in np.arange(3):
+        ip1 = (k+1)%3
+        ax.plot([xc[k], xc[ip1]], [yc[k], yc[ip1]], 'k', linewidth=2)
+        ax.fill_between([xc[k], xc[ip1]], [yc[k], yc[ip1]],y2=[0,0],color=(0.9176470588235294, 0.9176470588235294, 0.9490196078431372, 1.0),zorder=0)
+        
+    xbtick=[.2,.4,.6,.8]
+    ybtick=[0,np.sqrt(3)/8,np.sqrt(3)/4,3*np.sqrt(3)/8,np.sqrt(3)/2]
+    for ii in range(5):
+        if ii in[0,2,4]: nm=.05
+        else: nm=0
+        ax.plot([ybtick[ii]/(np.sqrt(3)/2)/2-nm,1-ybtick[ii]/(np.sqrt(3)/2)/2],[ybtick[ii],ybtick[ii]],'--k',linewidth=.5)
+    for ii in range(4):
+        if ii<2:
+            ulim=xbtick[ii]
+        else:
+            ulim=1-xbtick[ii]
+        ax.plot([xbtick[ii],xbtick[ii]],[-0.025,np.sqrt(3)/2*(ulim/.5)],'--k',linewidth=.5)
+
+    c1ps = np.array([2/3, 1/3, 0])
+    x1ps = np.dot(xc, c1ps.transpose())
+    y1ps = np.dot(yc, c1ps.transpose())
+    c2ps = np.array([0, 0, 1])
+    x2ps = np.dot(xc, c2ps.transpose())
+    y2ps = np.dot(yc, c2ps.transpose())
+    ax.plot([x1ps, x2ps], [y1ps, y2ps], '-k', linewidth=2)
+    
+    #for k in np.arange(3):
+    #    ax.text(lbpx[k], lbpy[k], labels[k], ha='center', fontsize=12)
+    label_side1 = 'Prolate'
+    label_side2 = 'Oblate'
+    label_side3 = 'Two-component'
+    #axs.text((xc[1]+xc[2])/2, (yc[0]+yc[2])/2+0.08*lc, label_side1, ha='center', va='center', rotation=-65)
+    #axs.text((xc[0]+xc[2])/2, (yc[1]+yc[2])/2+0.08*lc, label_side2, ha='center', va='center', rotation=65)
+    #axs.text((xc[0]+xc[1])/2, (yc[0]+yc[1])/2-0.04*lc, label_side3, ha='center', va='center')
+    if vmax=='abspct':
+        vmax=max(np.abs(np.nanpercentile(data,5)),np.abs(np.nanpercentile(data,95)))
+    elif vmax=='pct':
+        vmax=np.nanpercentile(data,95)
+    if vmin=='abspct':
+        vmin=-vmax
+    elif vmin=='pct':
+        vmin=np.nanpercentile(data,5)
+    im=ax.pcolormesh(xb,yb,data,cmap='Spectral_r',shading='gouraud',vmin=vmin,vmax=vmax)
+    cb=fig.colorbar(im, cax=ax.inset_axes([0.95, 0.05, 0.05, .92]),label=cbarlabel)
+    cb.set_label(label=cbarlabel,fontsize=fntlg)
+    cb.ax.zorder=100
+    ax.patch.set_alpha(0)
+    cb.ax.tick_params(labelsize=fntsm)
+    ax.grid(False)
+    if leftedge:
+        ax.text(-.07,-.02,'0',horizontalalignment='right',fontsize=fntsm)
+        ax.text(.18,np.sqrt(3)/4-.02,r'$\sqrt{3}/4$',horizontalalignment='right',fontsize=fntsm)
+        ax.text(.43,np.sqrt(3)/2-.02,r'$\sqrt{3}/2$',horizontalalignment='right',fontsize=fntsm)
+        ax.set_ylabel('$y_b$',fontsize=fntlg)
+    ax.set_yticks([],[])
+    if bottomedge:
+        ax.set_xticks([0,.2,.4,.6,.8,1],['',.2,.4,.6,.8,''],fontsize=fntsm)
+        ax.set_xlabel('$x_b$',fontsize=fntlg)
+    else:
+        ax.set_xticks([],[])
+    ax.spines[['left', 'bottom']].set_visible(False)
+    return fig,ax
 
 def plt_scaling(zeta,phi,c,ymin,ymax,varlist,\
         figaxs=None,p25=None,p75=None,sc_zeta=None,sc_phi=None,\
