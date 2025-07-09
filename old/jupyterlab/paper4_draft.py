@@ -2478,7 +2478,7 @@ axs[i,j].get_facecolor()
 
 # %%
 
-# %% [markdown] jp-MarkdownHeadingCollapsed=true
+# %% [markdown]
 # # FIGURE XB/YB CORRELATION
 
 # %%

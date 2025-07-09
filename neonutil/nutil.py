@@ -437,11 +437,17 @@ def get_errorlines(x,y,c,xbins,cbins,minpct=0.00001):
     return ytrue,xtrue,ctrue,y25,y75
 
 
-def plt_scaling(zeta,phi,c,ymin,ymax,varlist,figaxs=None,p25=None,p75=None,stab=[False,True],\
-        zeta_range=[10**-3.5,10**1.3],plot_old=True,colorbar='yb',width=6,skip=False,xyscale='semilog'):
+def plt_scaling(zeta,phi,c,ymin,ymax,varlist,\
+        figaxs=None,p25=None,p75=None,sc_zeta=None,sc_phi=None,\
+        stab=[False,True],zeta_range=[10**-3.5,10**1.3],plot_old=True,\
+        colorbar='yb',width=6,skip=False,xyscale='semilog',\
+        linearg={'marker':'o','markersize':2,'linewidth':.2},\
+        scatarg={},wthscl=1,fntsm=10,fntlg=14,ticrot=0):
     '''
     zeta,phi   : (2,N,M,K) array; 2 columns, N variables, M lines, K points
-    p25,p75
+    p25,p75    : (^) error bar bottom and top
+    sc_zeta    : (2,N,L) scatterplot points if using
+    sc_phi     : (2,N,L) scatterplot points if using
     c          : (2,N,M) array
     ymin       : (N) array of minimum y values for each variable
     ymax       : (N) array of maximum y values for each variable
@@ -454,6 +460,8 @@ def plt_scaling(zeta,phi,c,ymin,ymax,varlist,figaxs=None,p25=None,p75=None,stab=
     skip       : if true, will skip the first line (yb very low)
     xyscale    : string or (N) array of strings; semilog or loglog
     plot_old   : if true, will plot phi_old for the variable
+    linearg    : arguments to be passed to the basic lines
+    scatarg    : arguments to be passed to the scatter
     '''
 
     N=zeta.shape[1]
@@ -472,7 +480,7 @@ def plt_scaling(zeta,phi,c,ymin,ymax,varlist,figaxs=None,p25=None,p75=None,stab=
         xyscale=[xyscale]*N
     print(xyscale)
     if figaxs is None:
-        fig,axs=plt.subplots(N,L,figsize=(width*1.125/3*N,width),gridspec_kw={'width_ratios':wdrt})
+        fig,axs=plt.subplots(N,L,figsize=(width,wthscl*width*1.125/3*N),gridspec_kw={'width_ratios':wdrt})
     else:
         fig=figaxs[0]
         axs=figaxs[1]
@@ -486,24 +494,32 @@ def plt_scaling(zeta,phi,c,ymin,ymax,varlist,figaxs=None,p25=None,p75=None,stab=
                 sts=1
             else:
                 sts=-1
+
+            # set axis
+            ax=axs[j,s]
+
+            # plot scatter
+            if not ((sc_zeta is None)|(sc_phi is None)):
+                ax.scatter(sts*sc_zeta[s,j,:],sc_phi[s,j,:],**scatarg)
+
             for i in range(M):
                 if skip and (i==0):
                     continue
                 xplt=zeta[s,j,i,:]
-                ax=axs[j,s]
                 # plot phi
                 if xyscale[j]=='semilog':
-                    ax.semilogx(sts*xplt,yplt[i,:],'-o',\
-                            color=cani_norm(anic[i]),markersize=2,linewidth=.2)
+                    ax.semilogx(sts*xplt,yplt[i,:],color=cani_norm(anic[i]),\
+                            zorder=4,**linearg)
                 elif xyscale[j]=='loglog':
-                    ax.loglog(sts*xplt,yplt[i,:],'-o',color=cani_norm(anic[i]),markersize=2,linewidth=.2)
+                    ax.loglog(sts*xplt,yplt[i,:],color=cani_norm(anic[i]),\
+                            zorder=4,**linearg)
 
-            # plot fill
+                # plot fill
                 if (p25 is None) or (p75 is None):
                     pass
                 else:
                     ax.fill_between(sts*xplt,p25[s,j,i,:],p75[s,j,i,:],\
-                            color=cani_norm(anic[i]),alpha=.15)
+                            color=cani_norm(anic[i]),alpha=.15,zorder=3)
 
             # plot old
             if plot_old:
@@ -522,14 +538,14 @@ def plt_scaling(zeta,phi,c,ymin,ymax,varlist,figaxs=None,p25=None,p75=None,stab=
                 ax.xaxis.set_minor_locator(locmin)
                 ax.xaxis.set_minor_formatter(matplotlib.ticker.NullFormatter())
                 if stab[s]:
-                    lbl=[r'$10^{-3}$','',r'$10^{-1}$','',r'$10^{1}$']
+                    lbl=[r' $10^{-3}$','',r' $10^{-1}$','',r' $10^{1}$']
                     xlbl=r'$\zeta$'
                 else:
                     lbl=[r'$-10^{-3}$','',r'$-10^{-1}$','',r'$-10^{1}$']
                     xlbl=r'$-\zeta$'
-                ax.set_xticks([10**-3,10**-2,10**-1,1,10],lbl)
+                ax.set_xticks([10**-3,10**-2,10**-1,1,10],lbl,rotation=ticrot)
                 ax.set_xlim(zeta_range[0],zeta_range[1])
-                ax.set_xlabel(xlbl)
+                ax.set_xlabel(xlbl,fontsize=fntlg)
             else:
                 locmin = matplotlib.ticker.LogLocator(base=10.0,\
                         subs=(0.1,0.2,0.4,0.6,0.8,1,2,4,6,8,10 ))
@@ -540,11 +556,13 @@ def plt_scaling(zeta,phi,c,ymin,ymax,varlist,figaxs=None,p25=None,p75=None,stab=
             ax.set_ylim(ymin[j],ymax[j])
 
             if s==0:
-                ax.set_ylabel(ylabels[var],fontsize=14)
+                ax.set_ylabel(ylabels[var],fontsize=fntlg)
             else:
                 ax.tick_params(labelleft=False)
             if not stab[s]:
                 ax.invert_xaxis()
+
+            ax.tick_params(axis='both',which='major',labelsize=fntsm)
 
         # colorbar stuff
         if (colorbar is None) or (colorbar=='none'):
@@ -567,7 +585,8 @@ def plt_scaling(zeta,phi,c,ymin,ymax,varlist,figaxs=None,p25=None,p75=None,stab=
             ax.grid(False)
             ax.yaxis.tick_right()
             ax.yaxis.set_label_position("right")
-            ax.set_ylabel(r'$y_b$')
+            ax.set_ylabel(r'$y_b$',fontsize=fntsm)
+            ax.tick_params(axis='both',which='major',labelsize=10)
 
     fig.subplots_adjust(hspace=.08,wspace=.02)
     return fig, axs

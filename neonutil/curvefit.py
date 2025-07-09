@@ -388,8 +388,6 @@ def load_fit(fp,casek,name,var=None,stab=None):
     const={}
     params=[]
     for k in ['a','b','c','d','e']:
-        if k=='a':
-            continue
         if type(fa[k])==np.ndarray:
             for j in fa[k]:
                 params.append(k+str(j))
@@ -583,13 +581,13 @@ def compare_fits(reports):
 ######################## FUNCTION GENERATOR #############################
 # generate a function for curve fitting
 def fxngen(plist,bsfx,ac_=None,bc_=None,cc_=None,dc_=None,ec_=None):
-    lpms=4
+    lpms=5
     n=len(plist)
-    a=[0,0,0,0]
-    b=[0,0,0,0]
-    c=[0,0,0,0]
-    d=[0,0,0,0]
-    e=[0,0,0,0]
+    a=[0,0,0,0,0]
+    b=[0,0,0,0,0]
+    c=[0,0,0,0,0]
+    d=[0,0,0,0,0]
+    e=[0,0,0,0,0]
     for i in range(n):
         param=plist[i]
         if 'a' in param:
