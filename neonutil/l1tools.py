@@ -23,6 +23,29 @@ def _confirm_user(msg):
         else:
             print("Invalid input. Please enter 'Y' or 'N'.")
 
+def _grid_std(means,stds):
+    n=np.sum(~np.isnan(means))
+    var=stds**2
+    mn=np.nanmean(means)
+    return np.sqrt(np.nansum(var)/n+np.nansum((means-mn)**2)/n)
+
+
+def _databig(d,dx,sz=301):
+    dmean=np.zeros((sz,sz))
+    dstd =np.zeros((sz,sz))
+    for i in range(dstd.shape[0]):
+        for j in range(dstd.shape[1]):
+            dmean[i,j]=np.nanmean(d[int(i*dx):int((i+1)*dx),int(j*dx):int((j+1)*dx)])
+            dstd[i,j]=np.nanstd(d[int(i*dx):int((i+1)*dx),int(j*dx):int((j+1)*dx)])
+    return dmean,dstd
+
+def _load_nlcd(nlcdf,x,y,dx,proj4,site,wrkdir,sz=301):
+    ex_str=str(int(x-int(int(dx*sz)/2)))+' '+str(int(y-int(int(dx*sz)/2)))+' '+str(int(x+int(int(dx*sz)/2)))+' '+str(int(y+int(int(dx*sz)/2)))
+    suffix = datetime.datetime.now().strftime("%M%S%f")
+    cmd="gdalwarp -t_srs '"+proj4+"' -tr "+str(dx)+' '+str(dx)+' -te '+ex_str+' '+nlcdf+' temp'+suffix+'.tif'
+    run(cmd,shell=True)
+    nlcd=rasterio.open(wrkdir+'nlcd'+suffix+'.tif').read(1)
+    return nlcd
 
 def _bij(uu,vv,ww,uv,uw,vw):
     n=len(uu)
@@ -1812,8 +1835,198 @@ def update_var(scl,ndir,var,rename=None,desc=None,units=None,\
                 fp.move(var,rename)
 
 ##################################################################
-def add_aop():
-    ''' Add spatial variables that derives from flights '''
+
+def add_spatial_site(site,ndir,ivars=None,fdsm=None,fdtm=None,flai=None,fnlcd=None,wkdir='/tmp/l1spatial/',dxi=2500,debug=False):
+    if not (fdsm is None):
+        f=fdsm
+        calc_dsm=True
+    else:
+        calc_dsm=False
+
+    if not (fdtm is None):
+        f=fdtm
+        calc_dtm=True
+    else:
+        calc_dtm=False
+
+    if not (flai is None):
+        f=flai
+        calc_lai=True
+    else:
+        calc_lai=False
+
+    calc_nlcd= not (fnlcd is None)
+
+    if not (calc_dsm or calc_dtm or calc_lai):
+        raise ValueError('At least one of fdsm, fdtm, flai needs to be valid')
+
+    _ivars = ['f_dsm','f_dtm','f_chm','f_std_dsm','f_std_chm','f_std_dtm',\
+            'farea','f_std_lai','f_lai',\
+            'f_treecover','f_pct_water','f_nlcd_dom','f_pct_forest']
+    if ivars in [None]:
+        ivars=_ivars
+    outvar={}
+    for var in ivars:
+        if var in _ivars:
+            outvar[var]=[]
+
+    if len(outvar.keys())==0:
+        print('add_spatial No valid variables in ivars')
+        return None
+
+    ovar=outvar.copy()
+
+    if debug:
+        print('::::DEBUG:: reprojecting and loading spatial',flush=True)
+
+    # needed data
+    ff=nc.Dataset(fdir+list(os.listdir(fdir))[0],'r')
+    dx=ff.dx
+    ff=nc.Dataset(ndir+site+'_30m.h5','r')
+    lat=ff.lat
+    lon=ff.lon
+    ff.close()
+
+    fp=h5py.File(ndir+site+'_30m.h5','r+')
+
+    transformer=Transformer.from_crs('EPSG:4326',f.crs,always_xy=True)
+    xx_,yy_=transformer.transform(lon,lat)
+    xx,yy=f.index(xx_,yy_)
+
+    dxi2=int(dxi*2)
+    wn=Window(xx-dxi,yy-dxi,int(dxi*2),int(dxi*2))
+
+    # pull in all static data
+    data={}
+    if calc_dsm:
+        fpdsm=rasterio.open(fdsm)
+        dsm=fpdsm.read(1,boundless=True,fill_value=float('nan'),window=wn)
+        data['dsm']=_databig(dsm,dx,sz=int(np.floor(dxi2/dx)))
+    if calc_dtm:
+        fpdtm=rasterio.open(fdtm)
+        dtm=fpdtm.read(1,boundless=True,fill_value=float('nan'),window=wn)
+        data['dtm']=_databig(dtm,dx,sz=int(np.floor(dxi2/dx)))
+    if calc_lai:
+        fplai=rasterio.open(flai)
+        lai=fplai.read(1,boundless=True,fill_value=float('nan'),window=wn)
+        data['lai']=_databig(lai,dx,sz=int(np.floor(dxi2/dx)))
+    if calc_dtm and calc_dsm:
+        data['chm']=_databig(dsm-dtm,dx,sz=int(np.floor(dxi2/dx)))
+    if calc_nlcd:
+        data['nlcd']=_load_nlcd(fnlcd,xx_,yy_,dx,f.crs.to_proj4(),site,sz=int(np.floor(dxi2/dx)))
+
+    # compute attrs stuff
+    oatrs={}
+    for k in data.keys():
+        if k in ['lai','dsm','dtm','chm']:
+            oatrs['std_'+k]=_grid_std(data[k][0].flatten(),data[k][1].flatten())
+            oatrs[k]=np.nanmean(data[k][0])
+
+    oatrs['fnlcd_dom']=stats.mode(data['nlcd'],axis=None,nan_policy='omit')[0]
+    oatrs['pct_water']=np.sum(data['nlcd']==11)/np.size(data['nlcd'])
+    oatrs['pct_forest']=np.sum(data['nlcd']==41)+np.sum(data['nlcd']==42)+\
+            np.sum(data['nlcd']==43)+np.sum(data['nlcd']==90)
+    oatrs['pct_forest']=oatrs['pct_forest']/np.size(data['nlcd'])
+
+    # output oatrs
+    for k in oatrs.keys():
+        fp.attrs[k]=oatrs[k]
+
+    if debug:
+        print('::::DEBUG:: static done; load and reproj for foot',flush=True)
+
+
+    # Now static data again, but prepped for footprint
+    #### PREP FOR OTHERS
+    dxi=int(dx*301/2)
+    wn=Window(xx-dxi,yy-dxi,dx*301,dx*301)
+    if calc_dtm:
+        dtm=fpdtm.read(1,boundless=True,fill_value=float('nan'),window=wn)
+        data['dtm']=databig(dtm,dx)
+    if calc_dsm:
+        dsm=fpdsm.read(1,boundless=True,fill_value=float('nan'),window=wn)
+        data['dsm']=databig(dsm,dx)
+    if calc_dtm and calc_dsm:
+        chm=dsm-dtm
+        data['chm']=databig(chm,dx)
+    if calc_lai:
+        lai=fplai.read(1,boundless=True,fill_value=float('nan'),window=wn)
+        data['lai']=databig(lai,dx)
+    if calc_nlcd:
+        data['nlcd']=_load_nlcd(fnlcd,xx_,yy_,dx,fpdtm.crs.to_proj4(),site)
+
+    time2=fp['TIME'][:]+60*30/2
+
+    time=[]
+    tmp{}
+    for v in ovar.keys():
+        tmp[v]=[]
+    filelist=os.listdir(fdir)
+    filelist.sort()
+
+    if debug:
+        print('::::DEBUG:: reproj and load for foot done; move files',flush=True)
+
+
+    # move files
+    for file in filelist:
+        run('cp '+fdir+file+' '+wkdir+file,shell=True)
+
+    if debug:
+        print('::::DEBUG:: done moving files; begin iterate',flush=True)
+
+
+    for file in filelist:
+        if debug:
+            print('.',end='',flush=True)
+        fpi=nc.Dataset(wkdir+file,'r')
+        dd=datetime.datetime(int(file[-13:-9]),int(file[-8:-6]),int(file[-5:-3]),0,0)
+        d0=datetime(1970,1,1,0,0)
+        tt=(dd-d0).total_seconds()
+        for t in range(48):
+            time.append(tt+t*30*60+15*60)
+            m=fpi['footprint'][t,:,:].astype(np.bool)
+            nn=np.sum(m)
+            for k in data.keys():
+                if ('f_'+k) in ivars.keys():
+                    mdata=data[k][0][m]
+                    tmp['f_'+k].append(np.nanmean(mdata))
+                if ('f_std_'+k) in ivars.keys():
+                    sdata=data[k][1][m]
+                    tmp['f_std_'+k].append(grid_std(mdata,sdata))
+            nlcd_=data['nlcd'][m]
+            if 'farea' in ivars.keys():
+                tmp['farea'].append(np.sum(m)*dx*dx)
+            if 'f_treecover' in ivars.keys():
+                tmp['f_treecover'].append(np.sum(data['chm'][0][m]>1)/nn)
+            if 'f_pct_water' in ivars.keys():
+                tmp['f_pct_water'].append(np.sum(nlcd_==11)/nn)
+            if 'f_pct_forest' in ivars.keys():
+                pctf=0
+                for i in [41,42,43,90]:
+                    pctf=pctf+(np.sum(nlcd_==i))
+                pctf=pctf/nn
+                tmp['f_pct_forest'].append(pctf)
+            if 'f_nlcd_dom' in ivars.keys():
+                tmp['f_nlcd_dom'].append(stats.mode(nlcd_,axis=None,\
+                        nan_policy='omit')[0])
+    if debug:
+        print('::::DEBUG:: almost done; just interp and output and rm',flush=True)
+
+    # interp and then output
+    for k in tmp.keys():
+        ovar[k]=nscale(time2,time,tmp[k],debug=debug,nearest=False)
+    out_to_h5(fp,ovar,True)
+
+    fp.close()
+
+    for file in os.listdir(wkdir):
+        run('rm '+wkdir+file,shell=True)
+
+def add_spatial(ndir,nlcd_dirs,dsmdir,dtmdir,laidir,wrkdir='/tmp/l1spatial/',fdir=None,sites=SITES):
+    # pull the files for the specific sites and then pass them to
+    # add_spatial_site
+
 
 
 
