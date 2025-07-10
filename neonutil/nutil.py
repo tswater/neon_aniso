@@ -27,8 +27,15 @@ def _confirm_user(msg):
 
 ################### FUNCTION ########################
 #####################################################
-def static2full():
+def static2full(fmsk,data):
     ''' Take site information (L1 attrs) and turn into timeseries '''
+    sitelist=fmsk.keys():
+    sitelist.sort()
+    out=[]
+    for i in range(len(sitelist)):
+        N=np.sum(fmsk[sitelist[i]])
+        out.extend([data[i]]*N)
+    return out
 
 
 ######################### HMG LIST OF LISTS ###########################
@@ -282,7 +289,7 @@ def nupscale(tout,tin,din,outscl=None,maxdelta=60,nearest=True,nanth=.2,debug=Fa
     return out
 
 ############################ GETBINS ####################################
-# Get equal size bins 
+# Get equal size bins
 def getbins(A,B=None,n=31):
     if not (B is None):
         bina=getbins(A,n=n)
@@ -303,8 +310,7 @@ def getbins(A,B=None,n=31):
 ############################## SORT TOGETHER #############################
 # Sort 2 or more lists (arrays) based on the content of one array
 def sort_together(X,Y):
-    Y=np.array(Y)
-    if len(Y.shape)==1:
+    if len(np.array(Y).shape)==1:
         Y=Y[:,None]
         Y=Y.T
     # X is an N length array to sort based on. Y is an M x N array of things that will sort
@@ -323,7 +329,7 @@ def sort_together(X,Y):
     for i in range(len(Y)):
         for j in range(len(X)):
             Yout[i].append(dic[X[j]][i])
-    return X,np.array(Yout)
+    return X,Yout
 
 ############################################################################
 ########################### COLORING #######################################
@@ -419,10 +425,18 @@ def get_phio(var,stab,fp=None,zL=None):
 
     return phio
 
+
+#############################################################################
+################################ TIME STUFF #################################
+def get_hours(time,utcoff):
+    time=time+utcoff*60*60
+    second_of_day=time%86400
+    return second_of_day/60/60
+
 ##############################################################################
 ################################ LUMLEY PREP #################################
 def datagrid(x,y,z,nbin=31,fxn=np.nanmedian,gridtype='equalx',mincnt=None):
-    ''' get bin values by x and y 
+    ''' get bin values by x and y
         gridtype: ['linear','equalx','equaly']
                    'equalx' x spacing equal, y spacing equal for each x bin
                    'equaly' y spacing equal, x spacing equal for each y bin
@@ -469,8 +483,8 @@ def datagrid(x,y,z,nbin=31,fxn=np.nanmedian,gridtype='equalx',mincnt=None):
         print('ISSUE')
         break
     return xx,yy,out
-                 
-        
+
+
 
 
 
@@ -511,13 +525,14 @@ def get_errorlines(x,y,c,xbins,cbins,minpct=0.00001):
 
     return ytrue,xtrue,ctrue,y25,y75
 
-
-def sitebar(fig,ax,sites,data1,data2,color,issorted=False\
-        ymin=None,ymax=None,colorvals=None,\
-        cbar=None,legend=None,fntsm=8,fntlg=12):
+##############################################################################
+########################### SITEBAR #########################################
+def sitebar(fig,ax,sites,data1,data2,color,hatch=None,issorted=False,\
+        ymin=None,ymax=None,vmin='pct',vmax='pct',colorvals=None,\
+        cbar=None,legend=None,fntsm=7,fntlg=10):
     ''' Make a sitebar graph
-        data1: bar colored data
-        data2: error spline data
+        data2: bar colored data
+        data1: error spline data
         color: can be N length colors, or N length integers/strings etc if
                used with colorvals
         colorvals: translates "color" to actual colors
@@ -528,11 +543,132 @@ def sitebar(fig,ax,sites,data1,data2,color,issorted=False\
     '''
     if not (cbar is None):
         raise NotImplementedError('Colorbar is not yet implemented')
-    
+
+    # booleans for how color is working
+    if colorvals is None:
+        direct_color=True
+    elif type(colorvals) in [dict]:
+        direct_color=False
+        cmap=False
+    elif type(colorvals) in [str]:
+        direct_color=False
+        cmap=True
+
+    # hatches
+    if hatch is None:
+        hatch=np.zeros((len(sites),))
+
+    # setup sorting
+    to_sort=[sites,data2]
+    if len(np.array(color).shape)>1:
+        for i in range(np.array(color).shape[1]):
+            to_sort.append(color[:,i])
+    else:
+        to_sort.append(color)
+    to_sort.append(hatch)
+    nn=len(to_sort)
+    if not issorted:
+        X,Y=sort_together(data1,to_sort)
+    else:
+        X=data1
+        Y=to_sort
+
+    # reconstruct color
+    if direct_color:
+        n=nn-3
+        color=np.zeros((len(Y[0]),n))
+        for i in range(2,2+n):
+            color[:,i]=Y[i]
+    elif cmap:
+
+        c0=Y[2]
+        if vmin=='pct':
+            vmin=np.nanpercentile(color,2.5)
+        if vmax=='pct':
+            vmax=np.nanpercentile(color,97.5)
+        cnorm=(c0-vmin)/(vmax-vmin)
+        cmp=matplotlib.cm.get_cmap(colorvals)
+        color=cmp(cnorm)
+
+    else:
+        c0=Y[2]
+        color=[]
+        for c in c0:
+            if c in colorvals.keys():
+                color.append(colorvals[c])
+            elif 'default' in colorvals.keys():
+                color.append(colorvals['default'])
+            else:
+                color.append(float('nan'))
+        color=np.array(color)
+        color=matplotlib.colors.to_rgba_array(color)
+
+    # construct sorted data
+    sorted_data=(Y[0],X,Y[1],color,Y[nn-1],True)
+
+    # convert hatch
+    hatch=[]
+    for i in range(len(X)):
+        hc=Y[nn-1][i]
+        if hc==1:
+            hatch.append('OO')
+        elif hc==0.5:
+            hatch.append('..')
+        else:
+            hatch.append('')
+
+    # final data prep
+    yerr=[np.zeros((len(X),)),np.array(X[:])-np.array(Y[1])]
+    yerr=np.array(yerr)
+    yerr[0,:][yerr[1,:]<0]=yerr[1,:][yerr[1,:]<0]*(-1)
+    yerr[1,:][yerr[1,:]<0]=0
+
+    # plot!
+    a=ax.bar(Y[0],Y[1],color=color,hatch=hatch,edgecolor='black',yerr=yerr,\
+            capsize=4)
+    ax.set_xticks(np.linspace(0,len(X)-1,len(X)),Y[0],rotation=45,fontsize=fntsm)
+    ax.set_xlim(-.5,len(X))
+
+    ax.tick_params(labelsize=fntsm)
+
+    # ylim determination
+    if ymax is None:
+        actual_max=max(np.nanmax(Y[1]),np.nanmax(X))
+        pct90=max(np.nanpercentile(Y[1],90),np.nanpercentile(X,90))
+        if (actual_max>pct90*2):
+            cutoff=True
+            ymax=pct90*1.03
+        else:
+            cutoff=False
+            ymax=actual_max*1.03
+    if ymin is None:
+        actual_min=min(np.nanmin(Y[1]),np.nanmin(X))
+        if actual_min<0:
+            ymin=actual_min*1.03
+        else:
+            ymin=actual_min-(ymax-actual_min)*.1
+            if ymin<0:
+                ymin=0
+
+    # handle cutoffs
+    if cutoff:
+        for i in range(len(X)):
+            if (X[i]>ymax) or (Y[1][i]>ymax):
+                mxmx=max(X[i],Y[1][i])
+                ax.text(i-.25,ymax-(ymax-ymin)*1/8,str(mxmx)[0:4],rotation=90,fontsize=fntsm)
+
+    # legend construction
+    if legend is None:
+        pass
+    elif type(legend) == dict:
+        ax.legend(**legend)
+
     # sorted data must be (sites,data1,data2,color,issorted)
     return fig,ax,sorted_data
 
 
+#############################################################################
+########################## LUMLEY TRIANGLE PLOTTING  ########################
 def lumley(fig,ax,xb,yb,data,cmap='Spectral_r',leftedge=False,\
         bottomedge=False,vmin='abspct',vmax='abspct',cbarlabel='',fntsm=8,fntlg=12):
     xc = np.array([0, 1, 0.5])
@@ -542,7 +678,7 @@ def lumley(fig,ax,xb,yb,data,cmap='Spectral_r',leftedge=False,\
         ip1 = (k+1)%3
         ax.plot([xc[k], xc[ip1]], [yc[k], yc[ip1]], 'k', linewidth=2)
         ax.fill_between([xc[k], xc[ip1]], [yc[k], yc[ip1]],y2=[0,0],color=(0.9176470588235294, 0.9176470588235294, 0.9490196078431372, 1.0),zorder=0)
-        
+
     xbtick=[.2,.4,.6,.8]
     ybtick=[0,np.sqrt(3)/8,np.sqrt(3)/4,3*np.sqrt(3)/8,np.sqrt(3)/2]
     for ii in range(5):
@@ -563,7 +699,7 @@ def lumley(fig,ax,xb,yb,data,cmap='Spectral_r',leftedge=False,\
     x2ps = np.dot(xc, c2ps.transpose())
     y2ps = np.dot(yc, c2ps.transpose())
     ax.plot([x1ps, x2ps], [y1ps, y2ps], '-k', linewidth=2)
-    
+
     #for k in np.arange(3):
     #    ax.text(lbpx[k], lbpy[k], labels[k], ha='center', fontsize=12)
     label_side1 = 'Prolate'

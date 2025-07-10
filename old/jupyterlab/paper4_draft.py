@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.17.2
+#       jupytext_version: 1.16.4
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
@@ -938,7 +938,7 @@ plt.savefig('../../plot_output/a1_img_57_SC23only.png', bbox_inches = "tight")
 
 # %%
 
-# %% [markdown] jp-MarkdownHeadingCollapsed=true
+# %% [markdown]
 # # FIGURE: Site Level MAD (U unstable only)
 
 # %%
@@ -2175,7 +2175,7 @@ plt.savefig('../../plot_output/a1/a1_yb_site_distrib.png', bbox_inches = "tight"
 
 # %%
 
-# %% [markdown]
+# %% [markdown] jp-MarkdownHeadingCollapsed=true
 # # FIGURE Lumley Error
 
 # %%
@@ -2431,7 +2431,7 @@ for i in range(len(vari)):
 
 # %%
 
-# %% [markdown]
+# %% [markdown] jp-MarkdownHeadingCollapsed=true
 # # Figure XB vs Error all sites
 
 # %%
@@ -2478,7 +2478,7 @@ axs[i,j].get_facecolor()
 
 # %%
 
-# %% [markdown]
+# %% [markdown] jp-MarkdownHeadingCollapsed=true
 # # FIGURE XB/YB CORRELATION
 
 # %%
@@ -2667,7 +2667,7 @@ m=fpu['SITE'][:]==b'MLBS'
 m=m&(fpu['zzd'][:]/fpu['L_MOST'][:]>-.1)
 plt.hist(fpu['ANI_YB'][m]/fpu['ANID_YB'][m],bins=np.linspace(.5,1,100))
 
-# %% [markdown] jp-MarkdownHeadingCollapsed=true
+# %% [markdown]
 # # Diurnal Cycle and Wind Speed
 
 # %% [markdown]
