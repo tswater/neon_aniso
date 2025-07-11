@@ -11,6 +11,11 @@ except:
     from neonutil.nutil import SITES,nscale,sort_together,out_to_h5
 import pytz
 import csv
+import netCDF4 as nc
+from pyproj import Transformer
+import rasterio
+from rasterio.windows import Window
+from scipy import stats
 
 ############# "PRIVATE" FUNCTIONS ###################
 def _confirm_user(msg):
@@ -39,12 +44,12 @@ def _databig(d,dx,sz=301):
             dstd[i,j]=np.nanstd(d[int(i*dx):int((i+1)*dx),int(j*dx):int((j+1)*dx)])
     return dmean,dstd
 
-def _load_nlcd(nlcdf,x,y,dx,proj4,site,wrkdir,sz=301):
+def _load_nlcd(nlcdf,x,y,dx,proj4,site,wkdir,sz=301):
     ex_str=str(int(x-int(int(dx*sz)/2)))+' '+str(int(y-int(int(dx*sz)/2)))+' '+str(int(x+int(int(dx*sz)/2)))+' '+str(int(y+int(int(dx*sz)/2)))
     suffix = datetime.datetime.now().strftime("%M%S%f")
-    cmd="gdalwarp -t_srs '"+proj4+"' -tr "+str(dx)+' '+str(dx)+' -te '+ex_str+' '+nlcdf+' temp'+suffix+'.tif'
+    cmd="gdalwarp -t_srs '"+proj4+"' -tr "+str(dx)+' '+str(dx)+' -te '+ex_str+' '+nlcdf+' '+wkdir+'nlcd'+suffix+'.tif'
     run(cmd,shell=True)
-    nlcd=rasterio.open(wrkdir+'nlcd'+suffix+'.tif').read(1)
+    nlcd=rasterio.open(wkdir+'nlcd'+suffix+'.tif').read(1)
     return nlcd
 
 def _bij(uu,vv,ww,uv,uw,vw):
@@ -1836,7 +1841,7 @@ def update_var(scl,ndir,var,rename=None,desc=None,units=None,\
 
 ##################################################################
 
-def add_spatial_site(site,ndir,ivars=None,fdsm=None,fdtm=None,flai=None,fnlcd=None,wkdir='/tmp/l1spatial/',dxi=2500,debug=False):
+def add_spatial_site(site,ndir,ivars=None,fdsm=None,fdtm=None,flai=None,fnlcd=None,fdir=None,wkdir='/tmp/l1spatial/',dxi=2500,debug=False):
     if not (fdsm is None):
         f=fdsm
         calc_dsm=True
@@ -1888,6 +1893,7 @@ def add_spatial_site(site,ndir,ivars=None,fdsm=None,fdtm=None,flai=None,fnlcd=No
     ff.close()
 
     fp=h5py.File(ndir+site+'_30m.h5','r+')
+    f=rasterio.open(f)
 
     transformer=Transformer.from_crs('EPSG:4326',f.crs,always_xy=True)
     xx_,yy_=transformer.transform(lon,lat)
@@ -1913,7 +1919,9 @@ def add_spatial_site(site,ndir,ivars=None,fdsm=None,fdtm=None,flai=None,fnlcd=No
     if calc_dtm and calc_dsm:
         data['chm']=_databig(dsm-dtm,dx,sz=int(np.floor(dxi2/dx)))
     if calc_nlcd:
-        data['nlcd']=_load_nlcd(fnlcd,xx_,yy_,dx,f.crs.to_proj4(),site,sz=int(np.floor(dxi2/dx)))
+        data['nlcd']=_load_nlcd(fnlcd,xx_,yy_,dx,f.crs.to_proj4(),site,wkdir,sz=int(np.floor(dxi2/dx)))
+
+    #  _load_nlcd(nlcdf,x,y,dx,proj4,site,wrkdir,sz=301):
 
     # compute attrs stuff
     oatrs={}
@@ -1942,23 +1950,23 @@ def add_spatial_site(site,ndir,ivars=None,fdsm=None,fdtm=None,flai=None,fnlcd=No
     wn=Window(xx-dxi,yy-dxi,dx*301,dx*301)
     if calc_dtm:
         dtm=fpdtm.read(1,boundless=True,fill_value=float('nan'),window=wn)
-        data['dtm']=databig(dtm,dx)
+        data['dtm']=_databig(dtm,dx)
     if calc_dsm:
         dsm=fpdsm.read(1,boundless=True,fill_value=float('nan'),window=wn)
-        data['dsm']=databig(dsm,dx)
+        data['dsm']=_databig(dsm,dx)
     if calc_dtm and calc_dsm:
         chm=dsm-dtm
-        data['chm']=databig(chm,dx)
+        data['chm']=_databig(chm,dx)
     if calc_lai:
         lai=fplai.read(1,boundless=True,fill_value=float('nan'),window=wn)
-        data['lai']=databig(lai,dx)
+        data['lai']=_databig(lai,dx)
     if calc_nlcd:
-        data['nlcd']=_load_nlcd(fnlcd,xx_,yy_,dx,fpdtm.crs.to_proj4(),site)
+        data['nlcd']=_load_nlcd(fnlcd,xx_,yy_,dx,fpdtm.crs.to_proj4(),site,wkdir)
 
     time2=fp['TIME'][:]+60*30/2
 
     time=[]
-    tmp{}
+    tmp={}
     for v in ovar.keys():
         tmp[v]=[]
     filelist=os.listdir(fdir)
@@ -1981,33 +1989,33 @@ def add_spatial_site(site,ndir,ivars=None,fdsm=None,fdtm=None,flai=None,fnlcd=No
             print('.',end='',flush=True)
         fpi=nc.Dataset(wkdir+file,'r')
         dd=datetime.datetime(int(file[-13:-9]),int(file[-8:-6]),int(file[-5:-3]),0,0)
-        d0=datetime(1970,1,1,0,0)
+        d0=datetime.datetime(1970,1,1,0,0)
         tt=(dd-d0).total_seconds()
         for t in range(48):
             time.append(tt+t*30*60+15*60)
             m=fpi['footprint'][t,:,:].astype(np.bool)
             nn=np.sum(m)
             for k in data.keys():
-                if ('f_'+k) in ivars.keys():
+                if ('f_'+k) in ivars:
                     mdata=data[k][0][m]
                     tmp['f_'+k].append(np.nanmean(mdata))
-                if ('f_std_'+k) in ivars.keys():
+                if ('f_std_'+k) in ivars:
                     sdata=data[k][1][m]
-                    tmp['f_std_'+k].append(grid_std(mdata,sdata))
+                    tmp['f_std_'+k].append(_grid_std(mdata,sdata))
             nlcd_=data['nlcd'][m]
-            if 'farea' in ivars.keys():
+            if 'farea' in ivars:
                 tmp['farea'].append(np.sum(m)*dx*dx)
-            if 'f_treecover' in ivars.keys():
+            if 'f_treecover' in ivars:
                 tmp['f_treecover'].append(np.sum(data['chm'][0][m]>1)/nn)
-            if 'f_pct_water' in ivars.keys():
+            if 'f_pct_water' in ivars:
                 tmp['f_pct_water'].append(np.sum(nlcd_==11)/nn)
-            if 'f_pct_forest' in ivars.keys():
+            if 'f_pct_forest' in ivars:
                 pctf=0
                 for i in [41,42,43,90]:
                     pctf=pctf+(np.sum(nlcd_==i))
                 pctf=pctf/nn
                 tmp['f_pct_forest'].append(pctf)
-            if 'f_nlcd_dom' in ivars.keys():
+            if 'f_nlcd_dom' in ivars:
                 tmp['f_nlcd_dom'].append(stats.mode(nlcd_,axis=None,\
                         nan_policy='omit')[0])
     if debug:
@@ -2023,9 +2031,31 @@ def add_spatial_site(site,ndir,ivars=None,fdsm=None,fdtm=None,flai=None,fnlcd=No
     for file in os.listdir(wkdir):
         run('rm '+wkdir+file,shell=True)
 
-def add_spatial(ndir,nlcd_dirs,dsmdir,dtmdir,laidir,wrkdir='/tmp/l1spatial/',fdir=None,sites=SITES):
+def add_spatial(ndir,dsmdir,dtmdir,laidir,wrkdir='/tmp/l1spatial/',fdir=None,\
+        nlcd_ak=None,nlcd_hi=None,nlcd_us=None,nlcd_pr=None,debug=False,sites=SITES):
     # pull the files for the specific sites and then pass them to
     # add_spatial_site
+    run('mkdir '+wrkdir,shell=True)
+    for site in sites:
+        dsmpath=dsmdir+site+'/dsm_'+site+'.tif'
+        dtmpath=dtmdir+site+'/dtm_'+site+'.tif'
+        klist=os.listdir(laidir+site)
+        klist.sort()
+        laipath=laidir+site+'/'+klist[-1]+'/lai_'+site+klist[-1]+'.tif'
+        if site in ['PUUM']:
+            nlcdpath=nlcd_hi
+        elif site in ['BARR','DEJU','HEAL','TOOL','BONA']:
+            nlcdpath=nlcd_ak
+        elif site in ['LAJA','GUAN']:
+            nlcdpath=nlcd_pr
+        else:
+            nlcdpath=nlcd_us
+
+        if debug:
+            print(':::::::DEBUG::: '+site+' add_spatial',flush=True)
+
+        add_spatial_site(site,ndir,ivars=None,fdir=fdir+site+'/',fdsm=dsmpath,fdtm=dtmpath,\
+                flai=laipath,fnlcd=nlcdpath,debug=debug)
 
 
 

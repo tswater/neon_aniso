@@ -20,11 +20,12 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import matplotlib as mpl
 import h5py
+import sys
 mpl.rcParams['figure.dpi'] = 100
 sns.set_theme()
 plt.rcParams.update({'figure.max_open_warning': 0})
 
-# %% [markdown]
+# %% [markdown] jp-MarkdownHeadingCollapsed=true
 # # Test 15 Minute Files
 
 # %%
@@ -315,7 +316,7 @@ plt.hist(fa30['RH'][:],bins=np.linspace(0,100))
 # %%
 np.nanmedian(fpo['T'][:])
 
-# %% [markdown]
+# %% [markdown] jp-MarkdownHeadingCollapsed=true
 # # Testing CO2Flux Validation STuff
 
 # %%
@@ -345,7 +346,35 @@ plt.plot(d3)
 #plt.ylim(400,500)
 
 # %%
-plt.plot((d2-d3)/d2)
-plt.ylim(-.1,.1)
+
+# %%
+
+# %% [markdown]
+# # Testing Spatial Additions
+
+# %%
+if 'neonutil.l1tools' in sys.modules:
+    del sys.modules['neonutil.l1tools']
+from neonutil.l1tools import add_spatial
+
+# %%
+bdir='/run/media/tswater/Elements/NEON/downloads/'
+ndir='/home/tswater/Documents/tyche/data/neon/L1/neon_30m/'
+add_spatial(ndir,bdir+'dsm/',bdir+'dtm/',bdir+'lai/',fdir=bdir+'dp4ex/',\
+        nlcd_ak='/home/tswater/Downloads/NLCD_2016_Land_Cover_AK_20200724.img',\
+        nlcd_hi='/home/tswater/Downloads/hi_landcover_wimperv_9-30-08_se5.img',\
+        nlcd_pr='/home/tswater/Downloads/pr_landcover_wimperv_10-28-08_se5.img',\
+        nlcd_us='/home/tswater/Downloads/nlcd_2021_land_cover_l48_20230630/nlcd_2021_land_cover_l48_20230630.img',\
+        debug=True,sites=['ABBY'])
+
+
+
+
+# %%
+test.close()
+
+# %%
+
+# %%
 
 # %%

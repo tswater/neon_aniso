@@ -29,7 +29,7 @@ def _confirm_user(msg):
 #####################################################
 def static2full(fmsk,data):
     ''' Take site information (L1 attrs) and turn into timeseries '''
-    sitelist=fmsk.keys():
+    sitelist=fmsk.keys()
     sitelist.sort()
     out=[]
     for i in range(len(sitelist)):

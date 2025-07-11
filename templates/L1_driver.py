@@ -66,6 +66,9 @@ p1_dir    = bd2+'precip_primary/' # primary precipitation directory
 p2_dir    = bd2+'precip_secondary/' # secondary precipitation directory
 pheno_dir = bd2+'phenocam_data/' # phenocam directory
 lai_dir   = bd2+'lai/' # leaf area index directory
+dsm_dir   = bd2+'dsm/' # dsm dir
+dtm_dir   = bd2+'dtm/' # dtm dir
+fdir      = bd2+'dp4ex/' # flux footprint dir
 wind_dir  = bd2+'wind2d/' # wind profile directory
 
 # ------------------------------------- #
@@ -229,6 +232,13 @@ add_pheno(scale,l1dir,pheno_dir,dlt=dlt,ivars=varlist,overwrite=replace,sites=si
 if timeout:
     print(prefix+"Phenocam Done; took %s seconds to run" % (np.round(time.time() - start_time)))
 
+#### Add spatial information (30 minute scale only!)
+add_spatial(l1dir,dsm_dir,dtm_dir,lai_dir,fdir=fdir,\
+        nlcd_ak='/home/tswater/Downloads/NLCD_2016_Land_Cover_AK_20200724.img',\
+        nlcd_hi='/home/tswater/Downloads/hi_landcover_wimperv_9-30-08_se5.img',\
+        nlcd_pr='/home/tswater/Downloads/pr_landcover_wimperv_10-28-08_se5.img',\
+        nlcd_us='/home/tswater/Downloads/nlcd_2021_land_cover_l48_20230630/nlcd_2021_land_cover_l48_20230630.img',\
+        debug=debug,sites)
 
 
 print(prefix+'COMPLETE!!!!!!!', flush=True)
