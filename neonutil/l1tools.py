@@ -929,8 +929,76 @@ def add_profile_tqc(scl,ndir,dp4dir,dlt=None,addprof=True,addqaqc=True,ivars=Non
 #############################################################################
 ########################### ADD PROFILE WIND ################################
 # Adds the profile of windspeed
-def add_profile_wind(scl,ndir,wndir,addprof=True,addqaqc=True,ivars=None,\
-                    overwrite=False,sites=SITES):
+def add_profile_wind(scl,ndir,idir,addprof=True,addqaqc=True,ivars=None,\
+                    overwrite=False,debug=False,sites=SITES):
+    ''' Add profile information '''
+    # add profiles from scratch
+    _ivars = ['profile_u']
+    if ivars in [None]:
+        ivars=_ivars
+    outvar={}
+    for var in ivars:
+        if var in _ivars:
+            if addprof:
+                outvar[var]={}
+            if addqaqc:
+                outvar['q'+var]=[]
+                outvar['q'+var+'_upper']=[]
+
+    if len(outvar.keys())==0:
+        print('add_profile_wind: No valid variables in ivars')
+        return None
+
+    readlist=['windSpeedMean']
+    if addqaqc:
+        readlist.append('windSpeedFinalQF')
+
+    for site in sites:
+        if debug:
+            print(':::::::::: DEBUG :: Begining add_profile_wind for '+site,flush=True)
+        ovar=outvar.copy()
+        fpo=h5py.File(ndir+site+'_'+str(scl)+'m.h5','r+')
+        time=fpo['TIME'][:]
+        time2=time+scl/2*60
+
+        # try to pull in number of levels, if fail raise exception to everone
+        try:
+            lvls=fpo.attrs['lvls_u']
+        except KeyError as e:
+            print('Need to first run add_core_attrs and ensure that lvls_u is available')
+            raise(e)
+
+        if scl==30:
+            st='_30min'
+        else:
+            st='_2min'
+
+        if addqaqc:
+            ovar['qprofile_u']=np.zeros((len(time2),))
+            ovar['qprofile_u_upper']=np.zeros((len(time2),))
+
+        for i in range(len(lvls)):
+            lnm='U'+str(i)
+            lvl='000.0'+str(i+1)+'0.'
+            d=_load_csv_data(readlist,idir+site,[st,lvl])
+            tm=(d['startDateTime'][:]+d['endDateTime'][:])/2
+            uout=nscale(time2,tm,d['windSpeedMean'],scl=scl,debug=debug)
+            ovar['profile_u'][lnm]=uout
+            if addqaqc:
+                uq=nscale(time2,tm,d['windSpeedFinalQF'],scl=scl,debug=debug)
+                if i in [len(lvls)-1,len(lvls)-2]:
+                    uq2=uq.copy()
+                    uq2[(ovar['qprofile_u_upper'][:]>=1)&(np.isnan(uq2))]=.5
+                    ovar['qprofile_u_upper'][:]=ovar['qprofile_u_upper'][:]+uq2
+                uq[(ovar['qprofile_u'][:]>=1)&(np.isnan(uq))]=.5
+                ovar['qprofile_u']=ovar['qprofile_u'][:]+uq
+
+        if addqaqc:
+            ovar['qprofile_u'][ovar['qprofile_u'][:]<.2]=0
+            ovar['qprofile_u_upper'][ovar['qprofile_u_upper'][:]<.2]=0
+
+        out_to_h5(fpo,ovar,overwrite)
+
     return None
 
 
