@@ -15,7 +15,7 @@
 
 # %%
 import numpy as np
-from neonutil.nutil import nscale
+from neonutil.nutil import nscale,SITES
 import matplotlib.pyplot as plt
 import seaborn as sns
 import matplotlib as mpl
@@ -352,6 +352,9 @@ plt.plot(d3)
 # %% [markdown]
 # # Testing Spatial Additions
 
+# %% [markdown] jp-MarkdownHeadingCollapsed=true
+# ### Testing Adding Function
+
 # %%
 if 'neonutil.l1tools' in sys.modules:
     del sys.modules['neonutil.l1tools']
@@ -375,6 +378,87 @@ test.close()
 
 # %%
 
-# %%
+# %% [markdown]
+# ### Debugging issues with DSM/DTM/LAI footprints for STEI, LAJA, KONZ and KONA
 
 # %%
+import rasterio
+from pyproj import Transformer
+from rasterio.windows import Window
+from scipy import stats
+dsmdir='/run/media/tswater/Elements/NEON/downloads/dsm/'
+l1dir ='/run/media/tswater/Elements/NEON/L1/neon_30m/'
+
+# %%
+site='STEI'
+fpr=rasterio.open(dsmdir+site+'/dsm_'+site+'.tif')
+fps=h5py.File(l1dir+site+'_30m.h5','r')
+
+# %%
+lat=fps.attrs['lat']
+lon=fps.attrs['lon']
+
+# %%
+transformer=Transformer.from_crs('EPSG:4326',fpr.crs,always_xy=True)
+xx_,yy_=transformer.transform(lon,lat)
+xx,yy=fpr.index(xx_,yy_)
+
+# %%
+wn=Window(yy-2500,xx-2500,5000,5000)
+
+# %%
+dsm=fpr.read(1,boundless=True,fill_value=float('nan'),window=wn)
+#dsm=fpr.read(1)
+
+# %%
+plt.imshow(dsm,cmap='terrain',vmin=150)
+#plt.scatter(xx,yy)
+
+# %%
+for site in SITES:
+    fpr=rasterio.open(dsmdir+site+'/dsm_'+site+'.tif')
+    fps=h5py.File(l1dir+site+'_30m.h5','r')
+    lat=fps.attrs['lat']
+    lon=fps.attrs['lon']
+    transformer=Transformer.from_crs('EPSG:4326',fpr.crs,always_xy=True)
+    xx_,yy_=transformer.transform(lon,lat)
+    xx,yy=fpr.index(xx_,yy_)
+    a=np.sqrt((xx-yy)**2+(yy-xx)**2)
+    print(site+': '+str(a))
+
+# %%
+lon
+
+# %%
+SITES[0:14]
+
+# %%
+vlist=['zL','USTAR','U','W','f_chm','f_std_dtm','f_std_chm','f_std_dsm','NETRAD','H','RH','THETA']
+vnames=[r'$\zeta$',r'$u*$',r'$\overline{U}$',r'$\overline{w}$',\
+        r'$h_c$',r'$\sigma_{hc}$',r'$\sigma_{DTM}$',r'$\sigma_{DSM}$',r'$R_{net}$',r'$H$',r'$RH$',r'$T$']
+corr=np.zeros((2,2,12))
+corrs=np.zeros((2,2,12,47))
+Ns=350000
+for e in range(2):
+    ani=['ANI_YB','ANI_XB'][e]
+    for s in range(2):
+        f=[fu,fs][s]
+        ms=np.zeros((len(f['TIME'][:]),)).astype(bool)
+        ms[0:Ns]=True
+        np.random.shuffle(ms)
+        fpsites=f['SITE'][:][ms]
+        an=f[ani][:][ms]
+        for v in range(12):
+            vs=vlist[v]
+            data=f[vs][:][ms]
+            corr[e,s,v]=stats.spearmanr(an,data,nan_policy='omit')[0]
+            for i in range(47):
+                #print('.',end='',flush=True)
+                site=SITES[i]
+                m=fpsites==bytes(site,'utf-8')
+                data2=data[m]
+                try:
+                    corrs[e,s,v,i]=stats.spearmanr(an[m],data2,nan_policy='omit')[0]
+                except Exception as e2:
+                    corrs[e,s,v,i]=float('nan')
+            print('*',end='',flush=True)

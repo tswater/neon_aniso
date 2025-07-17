@@ -592,7 +592,7 @@ def add_from_l1(fpath,casek,ivars,scl=None,l1dir=None,conv_nan=True,sites=SITES)
             ovar['main/data'][v]=arr
 
 
-    out_to_h5(fpo,ovar,False)
+    out_to_h5(fpo,ovar,True)
 
 
 

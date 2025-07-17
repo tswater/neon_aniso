@@ -1915,9 +1915,78 @@ def update_var(scl,ndir,var,rename=None,desc=None,units=None,\
             if doele['rename']:
                 fp.move(var,rename)
 
+##############################################################################
+######################## ADD SPATIAL ETC #####################################
+def _add_2d_data(data,dx,fdir,istats,wkdir,year=None,foot=True):
+    # data is at any resolution that is a factor of dx (oop)
+    # data must be centered on the tower
+
+    if year is None:
+        years=[2017,2018,2019,2020,2021,2022,2023]
+    else:
+        years=[year]
+
+    mean,std=_databig() #FIXME
+
+    ov_st={}
+    ov={}
+    tmp={}
+    for stat in istats:
+        ov[str(year)+'_'+stat]=[]
+        tmp[str(year)+'_'+stat]=[]
+        ov_st[str(year)+'_'+stat]=float('nan')
+
+    # Do static stuff
+    # FIXME
+
+    # assemble filelist
+    # FIXME
+
+    flist=[]
+
+    for file in filelist:
+        yr=file[0:1] # FIXME
+        if (int(yr) not in years):
+            continue
+        else:
+            flist.append(file)
+
+    # move files to make it faster to process
+    for file in flist:
+        run('cp '+file+' '+wkdir+file,shell=True)
+
+    time=[]
+
+    # now acutally do stuff
+    for file in flist:
+        fpi=nc.Dataset(wkdir+file,'r')
+        dd=datetime.datetime(int(file[-13:-9]),int(file[-8:-6]),int(file[-5:-3]),0,0)
+        d0=datetime.datetime(1970,1,1,0,0)
+        tt=(dd-d0).total_seconds()
+        for t in range(48):
+            time.append(tt+t*30*60+15*60)
+            m=fpi['footprint'][t,:,:].astype(np.bool)
+            nn=np.sum(m)
+            for i in range(len(istats)):
+                # median
+                # std
+
+    # interpolation
+    # FIXME
+
+    return ov,ov_st
+
+
+
 ##################################################################
 
 def add_spatial_site(site,ndir,ivars=None,fdsm=None,fdtm=None,flai=None,fnlcd=None,fdir=None,wkdir='/tmp/l1spatial/',dxi=2500,debug=False):
+    if not (flai is None):
+        f=flai
+        calc_lai=True
+    else:
+        calc_lai=False
+
     if not (fdsm is None):
         f=fdsm
         calc_dsm=True
@@ -1929,12 +1998,6 @@ def add_spatial_site(site,ndir,ivars=None,fdsm=None,fdtm=None,flai=None,fnlcd=No
         calc_dtm=True
     else:
         calc_dtm=False
-
-    if not (flai is None):
-        f=flai
-        calc_lai=True
-    else:
-        calc_lai=False
 
     calc_nlcd= not (fnlcd is None)
 
@@ -1976,7 +2039,7 @@ def add_spatial_site(site,ndir,ivars=None,fdsm=None,fdtm=None,flai=None,fnlcd=No
     xx,yy=f.index(xx_,yy_)
 
     dxi2=int(dxi*2)
-    wn=Window(xx-dxi,yy-dxi,int(dxi*2),int(dxi*2))
+    wn=Window(yy-dxi,xx-dxi,int(dxi*2),int(dxi*2))
 
     # pull in all static data
     data={}
@@ -2023,7 +2086,7 @@ def add_spatial_site(site,ndir,ivars=None,fdsm=None,fdtm=None,flai=None,fnlcd=No
     # Now static data again, but prepped for footprint
     #### PREP FOR OTHERS
     dxi=int(dx*301/2)
-    wn=Window(xx-dxi,yy-dxi,dx*301,dx*301)
+    wn=Window(yy-dxi,xx-dxi,dx*301,dx*301)
     if calc_dtm:
         dtm=fpdtm.read(1,boundless=True,fill_value=float('nan'),window=wn)
         data['dtm']=_databig(dtm,dx)
@@ -2133,8 +2196,25 @@ def add_spatial(ndir,dsmdir,dtmdir,laidir,wrkdir='/tmp/l1spatial/',fdir=None,\
         add_spatial_site(site,ndir,ivars=None,fdir=fdir+site+'/',fdsm=dsmpath,fdtm=dtmpath,\
                 flai=laipath,fnlcd=nlcdpath,debug=debug)
 
+##############################################################################
+################ ADD SPATIOTEMPORAL VARIABLES (i.e. LAI) #####################
+def add_spatiotemporal(ivars,istats):
+
+    # Determine true ivars and istats
+
+    # iterate through sites
+
+        # Assemble outvars as a combo of ivars, istats and years
+
+        # iterate through variables
+
+            # iterate through year
+
+                # _add_2d_data()
 
 
+
+    return None
 
 
 # Notes:
