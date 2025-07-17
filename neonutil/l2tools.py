@@ -563,8 +563,39 @@ def add_grad():
     ''' Add gradients from profiles to L2 '''
 
 ###############################################################
-def add_from_l1():
+def add_from_l1(fpath,casek,ivars,scl=None,l1dir=None,conv_nan=True,sites=SITES):
     ''' Add a new L1 variable to an existing L2 file'''
+    fpo=h5py.File(fpath,'r+')
+
+    case=pull_case(fpo,casek)
+    if l1dir is None:
+        l1dir=case['l1dir']
+    if scl is None:
+        scl=case['scale']
+
+    ovar={}
+    ovar[casek+'/data']={}
+    for var in ivars:
+        ovar[casek+'/data'][var]=[]
+
+    for site in sites:
+        fpi=h5py.File(l1dir+site+'_'+str(scl)+'m.h5','r')
+        m=fpo[casek]['mask'][site]
+
+        for var in ovar[casek+'/data'].keys():
+            ovar[casek+'/data'][var].extend(fpi[var][:][m])
+
+    if conv_nan:
+        for v in ovar['main/data'].keys():
+            arr=np.array(ovar['main/data'][v][:])
+            arr[arr==-9999]=float('nan')
+            ovar['main/data'][v]=arr
+
+
+    out_to_h5(fpo,ovar,False)
+
+
+
 
 ##############################################################
 def remove_var():

@@ -27,13 +27,17 @@ def _confirm_user(msg):
 
 ################### FUNCTION ########################
 #####################################################
-def static2full(fmsk,data):
+def static2full(fmsk,data,debug=False):
     ''' Take site information (L1 attrs) and turn into timeseries '''
-    sitelist=fmsk.keys()
+    sitelist=list(fmsk.keys())
     sitelist.sort()
     out=[]
     for i in range(len(sitelist)):
         N=np.sum(fmsk[sitelist[i]])
+        if debug:
+            print(sitelist[i])
+            print(N)
+            print(data[i],flush=True)
         out.extend([data[i]]*N)
     return out
 
@@ -429,6 +433,8 @@ def get_phio(var,stab,fp=None,zL=None):
 #############################################################################
 ################################ TIME STUFF #################################
 def get_hours(time,utcoff):
+    utcoff=np.array(utcoff)
+    time=np.array(time)
     time=time+utcoff*60*60
     second_of_day=time%86400
     return second_of_day/60/60
@@ -529,7 +535,7 @@ def get_errorlines(x,y,c,xbins,cbins,minpct=0.00001):
 ########################### SITEBAR #########################################
 def sitebar(fig,ax,sites,data1,data2,color,hatch=None,issorted=False,\
         ymin=None,ymax=None,vmin='pct',vmax='pct',colorvals=None,\
-        cbar=None,legend=None,fntsm=7,fntlg=10):
+        cbar=None,legend=None,fntsm=7,fntlg=10,lw=1,xticklbls=True):
     ''' Make a sitebar graph
         data2: bar colored data
         data1: error spline data
@@ -611,9 +617,9 @@ def sitebar(fig,ax,sites,data1,data2,color,hatch=None,issorted=False,\
     for i in range(len(X)):
         hc=Y[nn-1][i]
         if hc==1:
-            hatch.append('OO')
+            hatch.append('OOOO')
         elif hc==0.5:
-            hatch.append('..')
+            hatch.append('....')
         else:
             hatch.append('')
 
@@ -625,11 +631,14 @@ def sitebar(fig,ax,sites,data1,data2,color,hatch=None,issorted=False,\
 
     # plot!
     a=ax.bar(Y[0],Y[1],color=color,hatch=hatch,edgecolor='black',yerr=yerr,\
-            capsize=4)
-    ax.set_xticks(np.linspace(0,len(X)-1,len(X)),Y[0],rotation=45,fontsize=fntsm)
+            capsize=3,error_kw={'lw':lw,'capthick':lw},linewidth=lw)
+    if xticklbls:
+        ax.set_xticks(np.linspace(0,len(X)-1,len(X)),Y[0],rotation=45,fontsize=fntsm)
+    else:
+        ax.set_xticks(np.linspace(0,len(X)-1,len(X)),[])
+    ax.tick_params(labelsize=fntsm)
     ax.set_xlim(-.5,len(X))
 
-    ax.tick_params(labelsize=fntsm)
 
     # ylim determination
     if ymax is None:
@@ -661,7 +670,7 @@ def sitebar(fig,ax,sites,data1,data2,color,hatch=None,issorted=False,\
     if legend is None:
         pass
     elif type(legend) == dict:
-        ax.legend(**legend)
+        ax.legend(fontsize=fntsm,title_fontsize=fntlg,**legend)
 
     # sorted data must be (sites,data1,data2,color,issorted)
     return fig,ax,sorted_data

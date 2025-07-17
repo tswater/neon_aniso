@@ -1317,18 +1317,21 @@ def add_dp04(scl,ndir,idir,dlt=None,ivars=None,basepath=None,ivar_override=False
 ##################################################################
 ####################### L1_2_L1 #################################
 # Transfers data from one L1 file to another; interpolating if needed
-def l1_2_l1(scl1,ndir1,scl2,ndir2,ivars,overwrite=False,confirm=True,nearest=True,sites=SITES):
+def l1_2_l1(scl1,ndir1,scl2,ndir2,ivars,overwrite=False,debug=False,confirm=True,nearest=True,sites=SITES):
     ''' Transfer data between l1 files across scales '''
     outvar={}
     for var in ivars:
         outvar[var]=[]
 
     s0=sites[0]
+    doit=False
     for site in sites:
-        fpi=h5py.File(ndir1+site+'_'+str(scl1)+'m','r')
-        fpo=h5py.File(ndir2+site+'_'+str(scl2)+'m','r')
+        fpi=h5py.File(ndir1+site+'_'+str(scl1)+'m.h5','r')
+        fpo=h5py.File(ndir2+site+'_'+str(scl2)+'m.h5','r+')
         ovar=outvar.copy()
-        doit=False
+        N=len(fpo['TIME'][:])
+        for v in ovar.keys():
+            ovar[v]=np.ones((N,))*float('nan')
 
         # confirm with user that this is desired action (only on first site)
         if site==s0:
@@ -1358,10 +1361,15 @@ def l1_2_l1(scl1,ndir1,scl2,ndir2,ivars,overwrite=False,confirm=True,nearest=Tru
             time1=fpi['TIME'][:]+scl1/2
             time2=fpo['TIME'][:]+scl2/2
             for var in ovar.keys():
-                data1=fpi[var][:]
-                data2=nscale(time2,time1,data1,scl=scl2,nearest=nearest)
-                ovar[var]=data2
+                if var not in fpi.keys():
+                    print(var+' not found for '+site+'! skipping',flush=True)
+                else:
+                    data1=fpi[var][:]
+                    data2=nscale(time2,time1,data1,scl=scl2,nearest=nearest)
+                    ovar[var]=data2
 
+            if debug:
+                print('::::DEBUG:::'+site)
             out_to_h5(fpo,ovar,overwrite)
 
 

@@ -1303,7 +1303,7 @@ plt.subplots_adjust(hspace=.05)
 
 # %%
 
-# %% [markdown] jp-MarkdownHeadingCollapsed=true
+# %% [markdown]
 # # Figure: Self Similarity YB
 
 # %%
@@ -2478,7 +2478,7 @@ axs[i,j].get_facecolor()
 
 # %%
 
-# %% [markdown] jp-MarkdownHeadingCollapsed=true
+# %% [markdown]
 # # FIGURE XB/YB CORRELATION
 
 # %%
