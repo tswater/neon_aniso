@@ -2162,6 +2162,9 @@ def add_spatial_site(site,ndir,ivars=None,fdsm=None,fdtm=None,flai=None,fnlcd=No
 
     if debug:
         print('::::DEBUG:: static done; load and reproj for foot',flush=True)
+        for k in oatrs.keys():
+            print('::::DEBUG:: '+k+': '+str(oatrs[k]))
+        print('::::::::::::::::::::::::::::::::::::::::::::::::::',flush=True)
 
 
     # Now static data again, but prepped for footprint
@@ -2280,6 +2283,9 @@ def add_spatial(ndir,dsmdir,dtmdir,laidir,wrkdir='/tmp/l1spatial/',fdir=None,\
 ##############################################################################
 ################ ADD SPATIOTEMPORAL VARIABLES (i.e. LAI) #####################
 def add_spatiotemporal(ndir,idir,fdir,ivars=None,istats=None,sites=SITES,debug=False,overwrite=False):
+    # check for 30
+    if '30' not in ndir:
+        raise ValueError('Can only compute spatiotemporal for 30min resolution')
 
     # Determine true ivars and istats
     _ivars = ['lai']
@@ -2309,9 +2315,9 @@ def add_spatiotemporal(ndir,idir,fdir,ivars=None,istats=None,sites=SITES,debug=F
             dbg=dbg+'Loading spatial (temporal) data for '+site+'\n'
             print(dbg+':::::::::::::::::DEBUG::::::::::::::::::',flush=True)
         # Setup
-        fpo=h5py.File(ndir+site+'_'+str(scl)+'m.h5','r+')
+        fpo=h5py.File(ndir+site+'_30m.h5','r+')
         time=fpo['TIME'][:]
-        time2=time+scl/2*60
+        time2=time+30/2*60
         for k in ovar.keys():
             ovar[k]=np.ones((len(time),))*float('nan')
 

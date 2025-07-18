@@ -15,10 +15,10 @@ import os
 import time
 from subprocess import run
 from neonutil.nutil import SITES
-from neonutil.l1tools import make_base, add_turb, add_stationarity_zahn23,\
+from neonutil.l1tools import make_base, add_turb, add_stationarity,\
         add_derived, add_core_attrs, add_profile_tqc, add_radiation,\
         add_ghflx, add_precip, add_qaqc, add_pheno, l1_2_l1, remove_var,\
-        update_var, add_dp04
+        update_var, add_dp04, add_spatial, add_spatiotemporal
 
 start_time=time.time()
 
@@ -34,7 +34,6 @@ scale   = 0 # averaging period in minutes
 sites    = None # if None or [] will use all
 varlist  = None # [] variables to add. None is all. see readme.md for options
 vstat    = None # [] variables to compute stationarity stats for;
-               #     ONLY USE ABOVE IF SCALE = 30
 qlist    = None # [] variables for core qaqc (see l1tools.add_qaqc)
 dp4vlist = ['PA'] # [] variables to get from dp4 files; to add non-standard
                   # values you must also specify basepath dictionary

@@ -98,6 +98,8 @@ def ngapfill(t_out,t_in,d_in,fill=float('nan')):
     tin=np.array(t_in)
     din=np.array(d_in)
     dout=np.ones((len(tout),))*fill
+    if len(tin)==0:
+        return dout
     msk=np.zeros((len(tout),)).astype(bool)
 
     # determine i0 and if
