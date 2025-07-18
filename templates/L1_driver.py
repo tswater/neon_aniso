@@ -32,7 +32,6 @@ scale   = 0 # averaging period in minutes
 
 #### PLACES and THINGS TO PROCESS
 sites    = None # if None or [] will use all
-l1dir_   = '/home/tswater/Documents/tyche/data/neon/L1/' # L1 directory
 varlist  = None # [] variables to add. None is all. see readme.md for options
 vstat    = None # [] variables to compute stationarity stats for;
                #     ONLY USE ABOVE IF SCALE = 30
@@ -50,26 +49,26 @@ qc_prof = True # add quality flags for profiles of tqc
 qc_wind = True # add quality flags for profiles of wind
 qc_rad  = True # add quality flags for radiation
 qc_g    = True # add quality flags for ground heat flux
-qc_sci  = True # add quality flags from added science review
+qc_sci  = False # add quality flags from added science review
 
 #### DIRECTORIES
 # directories should contain a folder for each site, with data within
-l1dir_    = '/home/tswater/Documents/tyche/data/neon/L1/' # L1 directory
+l1dir_    = '/run/media/tswater/Elements/NEON/L1/' # L1 directory
 bd1       = '/run/media/tswater/Elements/NEON/downloads/' # base directory
 bd2       = '/home/tswater/Documents/tyche/data/neon/'
-turb_dir  = bd2+'multiscale/' # turbulence directory
+turb_dir  = bd1+'multiscale/' # turbulence directory
 l1_30_dir = l1dir_+'neon_30m/' # L1 directory for 30 minute averaging period
 dp4_dir   = bd1+'dp4/' # directory for dp4 files from NEON
-rad_dir   = bd2+'netrad/' # directory for incoming radiation files
-ghflx_dir = bd2+'soil/' # directory with ground heat flux data
-p1_dir    = bd2+'precip_primary/' # primary precipitation directory
-p2_dir    = bd2+'precip_secondary/' # secondary precipitation directory
-pheno_dir = bd2+'phenocam_data/' # phenocam directory
-lai_dir   = bd2+'lai/' # leaf area index directory
-dsm_dir   = bd2+'dsm/' # dsm dir
-dtm_dir   = bd2+'dtm/' # dtm dir
-fdir      = bd2+'dp4ex/' # flux footprint dir
-wind_dir  = bd2+'wind2d/' # wind profile directory
+rad_dir   = bd1+'netrad/' # directory for incoming radiation files
+ghflx_dir = bd1+'soil/' # directory with ground heat flux data
+p1_dir    = bd1+'precip_primary/' # primary precipitation directory
+p2_dir    = bd1+'precip_secondary/' # secondary precipitation directory
+pheno_dir = bd1+'phenocam_data/' # phenocam directory
+lai_dir   = bd1+'lai/' # leaf area index directory
+dsm_dir   = bd1+'dsm/' # dsm dir
+dtm_dir   = bd1+'dtm/' # dtm dir
+fdir      = bd1+'dp4ex/' # flux footprint dir
+wind_dir  = bd1+'wind2d/' # wind profile directory
 
 # ------------------------------------- #
 #               SETUP                   #
@@ -233,13 +232,23 @@ if timeout:
     print(prefix+"Phenocam Done; took %s seconds to run" % (np.round(time.time() - start_time)))
 
 #### Add spatial information (30 minute scale only!)
+start_time=time.time()
+print(prefix+'Adding Spatial data; this will take a long time',flush=True)
 add_spatial(l1dir,dsm_dir,dtm_dir,lai_dir,fdir=fdir,\
         nlcd_ak='/home/tswater/Downloads/NLCD_2016_Land_Cover_AK_20200724.img',\
         nlcd_hi='/home/tswater/Downloads/hi_landcover_wimperv_9-30-08_se5.img',\
         nlcd_pr='/home/tswater/Downloads/pr_landcover_wimperv_10-28-08_se5.img',\
         nlcd_us='/home/tswater/Downloads/nlcd_2021_land_cover_l48_20230630/nlcd_2021_land_cover_l48_20230630.img',\
-        debug=debug,sites)
+        debug=debug,sites=sites)
+if timeout:
+    print(prefix+"Spatial Data; took %s seconds to run" % (np.round(time.time() - start_time)))
 
+#### Add spatiotemporal
+start_time=time.time()
+print(prefix+'Adding spatiotemporal data; this will take a long time',flush=True)
+add_spatiotemporal(l1dir,lai_dir,fdir,ivars=ivars,sites=sites,debug=debug)
+if timeout:
+    print(prefix+"Spatiotemporal Data; took %s seconds to run" % (np.round(time.time() - start_time)))
 
 print(prefix+'COMPLETE!!!!!!!', flush=True)
 

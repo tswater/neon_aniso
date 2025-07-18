@@ -51,7 +51,7 @@ def homogenize_list(a,fill=float('nan')):
 
 ########################## OUT TO H5 ##################################
 # Take a dictionary that mimics h5 filestructure and output to said h5
-def out_to_h5(_fp,_ov,overwrite,desc={}):
+def out_to_h5(_fp,_ov,overwrite,desc={},attrs={}):
     for k in _ov.keys():
         if type(_ov[k]) is dict:
             ov2=_ov[k]
@@ -84,8 +84,40 @@ def out_to_h5(_fp,_ov,overwrite,desc={}):
             _f[kout].attrs['missing_value']=-9999
             if k in desc.keys():
                 _f[kout].attrs['description']=desc[k]
+            if k in attrs.keys():
+                for kk in attrs[k].keys():
+                    _f[kout].attrs[kk]=attrs[k][kk]
     _fp.attrs['last_updated_utc']=str(datetime.datetime.utcnow())
     return None
+
+##############################################################################
+############################# GAPFILL ########################################
+# Fills a timseries with a fill value to complete it
+def ngapfill(t_out,t_in,d_in,fill=float('nan')):
+    tout=np.array(t_out)
+    tin=np.array(t_in)
+    din=np.array(d_in)
+    dout=np.ones((len(tout),))*fill
+    msk=np.zeros((len(tout),)).astype(bool)
+
+    # determine i0 and if
+    t0=tin[0]
+    tf=tin[-1]
+    i0=np.where(tout==t0)[0][0]
+    ie=np.where(tout==tf)[0][0]
+
+    j=0
+    for i in range(i0,ie+1):
+        if i>=len(tout):
+            break
+        t=tout[i]
+        if tin[j]==t:
+            j=j+1
+            msk[i]=True
+        else:
+            continue
+    dout[msk]=din[:]
+    return dout
 
 
 #####################################################

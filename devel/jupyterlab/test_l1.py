@@ -378,7 +378,7 @@ test.close()
 
 # %%
 
-# %% [markdown]
+# %% [markdown] jp-MarkdownHeadingCollapsed=true
 # ### Debugging issues with DSM/DTM/LAI footprints for STEI, LAJA, KONZ and KONA
 
 # %%
@@ -462,3 +462,27 @@ for e in range(2):
                 except Exception as e2:
                     corrs[e,s,v,i]=float('nan')
             print('*',end='',flush=True)
+
+# %%
+
+# %% [markdown]
+# ### Test Script For Adding LAI spatiotemporal
+
+# %%
+if 'neonutil.l1tools' in sys.modules:
+    del sys.modules['neonutil.l1tools']
+from neonutil.l1tools import add_spatiotemporal
+
+# %%
+bdir='/run/media/tswater/Elements/NEON/downloads/'
+ndir='/home/tswater/Documents/tyche/data/neon/L1/neon_30m/'
+add_spatiotemporal(ndir,bdir+'lai/',bdir+'dp4ex/',scl=30,sites=['ABBY'],debug=True)
+
+# %%
+test=h5py.File(ndir+'ABBY_30m.h5','r')
+test.keys()
+
+# %%
+test['LAI_fmedian'].attrs['dates']
+
+# %%

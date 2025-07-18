@@ -6,9 +6,9 @@ import os
 import math
 from subprocess import run
 try:
-    from nutil import SITES,nscale,sort_together,out_to_h5
+    from nutil import SITES,nscale,sort_together,out_to_h5,ngapfill
 except:
-    from neonutil.nutil import SITES,nscale,sort_together,out_to_h5
+    from neonutil.nutil import SITES,nscale,sort_together,out_to_h5,ngapfill
 import pytz
 import csv
 import netCDF4 as nc
@@ -371,6 +371,13 @@ def add_turb25(scl,ndir,tdir,ivars=None,overwrite=False,dlt=None,sites=SITES,deb
         flist=os.listdir(tdir+site)
         flist.sort()
 
+        skip=True
+        for k in outvar.keys():
+            if (k not in fpo.keys()):
+                skip=False
+        if (not overwrite) and skip:
+            print('Skipping phenocam data for '+site)
+
         # loop through time
         for file in flist:
             fp_in=h5py.File(tdir+site+'/'+file,'r')
@@ -431,6 +438,14 @@ def add_stationarity(ndir,idir,sclo,scli,ivars=None,overwrite=False,sites=SITES,
         fpi=h5py.File(idir+site+'_'+str(scli)+'m.h5','r')
         fpo=h5py.File(ndir+site+'_'+str(sclo)+'m.h5','r+')
 
+        skip=True
+        for k in outvar.keys():
+            if (k not in fpo.keys()):
+                skip=False
+        if (not overwrite) and skip:
+            print('Skipping phenocam data for '+site)
+
+
         for k in ivars:
             xxi=nscale(fpo['TIME'][:]+sclo/2*60,fpi['TIME'][:]+scli/2*60,\
                     fpi[k][:])
@@ -463,6 +478,15 @@ def add_derived(scl,ndir,ivars=None,overwrite=False,sites=SITES):
         ovar=outvar.copy()
         fpo=h5py.File(ndir+site+'_'+str(scl)+'m.h5','r+')
         tmp={}
+
+        skip=True
+        for k in outvar.keys():
+            if (k not in fpo.keys()):
+                skip=False
+        if (not overwrite) and skip:
+            print('Skipping phenocam data for '+site)
+
+
         for var in ovar.keys():
             match var:
                 case 'ANI_YBs':
@@ -793,6 +817,15 @@ def add_profile_tqc(scl,ndir,dp4dir,dlt=None,addprof=True,addqaqc=True,ivars=Non
         dlti=int(np.min(time[1:]-time[:-1])/60)
         filelist=os.listdir(dp4dir+site)
         filelist.sort()
+
+        skip=True
+        for k in outvar.keys():
+            if (k not in fpo.keys()):
+                skip=False
+        if (not overwrite) and skip:
+            print('Skipping derived data for '+site)
+
+
         inp={'t':{},'q':{},'c':{},'qq':{},'qt':{},'qc':{},\
                 't_t':{},'t_q':{},'t_c':{},'ttop':[],'t_ttop':[],'qttop':[]}
 
@@ -1043,6 +1076,14 @@ def add_radiation(scl,ndir,idir,dlt=None,adddata=True,addqaqc=True,ivars=None,ov
         time2=time+scl/2*60
         ovar=outvar.copy()
 
+        skip=True
+        for k in outvar.keys():
+            if (k not in fpo.keys()):
+                skip=False
+        if (not overwrite) and skip:
+            print('Skipping phenocam data for '+site)
+
+
         # Load Data
         N=len(readlist)+2
         d=_load_csv_data(readlist,idir+site,['_1min'])
@@ -1113,6 +1154,14 @@ def add_ghflx(scl,ndir,idir,dlt=None,adddata=True,addqaqc=True,ivars=None,overwr
         time=fpo['TIME'][:]
         time2=time+scl/2*60
         ovar=outvar.copy()
+
+        skip=True
+        for k in outvar.keys():
+            if (k not in fpo.keys()):
+                skip=False
+        if (not overwrite) and skip:
+            print('Skipping phenocam data for '+site)
+
 
         if scl==30:
             st1='_30min'
@@ -1198,6 +1247,14 @@ def add_precip(scl,ndir,idir1,idir2,dlt=None,adddata=True,addqaqc=False,ivars=No
         time=fpo['TIME'][:]
         time2=time+scl/2*60
         ovar=outvar.copy()
+
+        skip=True
+        for k in outvar.keys():
+            if (k not in fpo.keys()):
+                skip=False
+        if (not overwrite) and skip:
+            print('Skipping phenocam data for '+site)
+
 
         # check if primary or secondary or both
         prime=False
@@ -1289,6 +1346,15 @@ def add_dp04(scl,ndir,idir,dlt=None,ivars=None,basepath=None,ivar_override=False
         for var in ovar.keys():
             ovar[var]=np.ones((len(time2),))*float('nan')
         tmp={}
+
+        skip=True
+        for k in outvar.keys():
+            if (k not in fpo.keys()):
+                skip=False
+        if (not overwrite) and skip:
+            print('Skipping phenocam data for '+site)
+
+
         for var in ovar.keys():
             tmp[var]=[]
             tmp[var+'_time']=[]
@@ -1483,6 +1549,15 @@ def add_qaqc(scl,ndir,idir,dlt=None,ivars=None,qsci=False,overwrite=False,\
         ovar=outvar.copy()
         for var in ovar.keys():
             ovar[var]=np.ones((len(time2),))*float('nan')
+
+        skip=True
+        for k in outvar.keys():
+            if (k not in fpo.keys()):
+                skip=False
+        if (not overwrite) and skip:
+            print('Skipping qaqc data for '+site)
+
+
         tmp={}
         tmp['sonitime']=[]
         tmp['qctime']=[]
@@ -1672,6 +1747,13 @@ def add_pheno(scl,ndir,idir,dlt=None,ivars=None,overwrite=False,sites=SITES,debu
             print(dbg+':::::::::::::::::DEBUG::::::::::::::::::',flush=True)
         # Setup
         fpo=h5py.File(ndir+site+'_'+str(scl)+'m.h5','r+')
+        skip=True
+        for k in outvar.keys():
+            if (k not in fpo.keys()):
+                skip=False
+        if (not overwrite) and skip:
+            print('Skipping phenocam data for '+site)
+
         time=fpo['TIME'][:]
         time2=time+scl/2*60
         ovar=outvar.copy()
@@ -1917,48 +1999,45 @@ def update_var(scl,ndir,var,rename=None,desc=None,units=None,\
 
 ##############################################################################
 ######################## ADD SPATIAL ETC #####################################
-def _add_2d_data(data,dx,fdir,istats,wkdir,year=None,foot=True):
+def _add_2d_data(data,dx,fdir,istats,wkdir='/tmp/l1spatial/',debug=False,year=None,mndt=None):
     # data is at any resolution that is a factor of dx (oop)
     # data must be centered on the tower
 
     if year is None:
         years=[2017,2018,2019,2020,2021,2022,2023]
     else:
-        years=[year]
+        years=[int(year)]
 
-    mean,std=_databig() #FIXME
-
-    ov_st={}
-    ov={}
-    tmp={}
-    for stat in istats:
-        ov[str(year)+'_'+stat]=[]
-        tmp[str(year)+'_'+stat]=[]
-        ov_st[str(year)+'_'+stat]=float('nan')
-
-    # Do static stuff
-    # FIXME
+    mean,std=_databig(data,dx)
 
     # assemble filelist
-    # FIXME
+    filelist=os.listdir(fdir)
+    filelist.sort()
 
     flist=[]
 
     for file in filelist:
-        yr=file[0:1] # FIXME
+        yr=file[-13:-9]
         if (int(yr) not in years):
             continue
-        else:
+        elif mndt is None:
             flist.append(file)
+        else:
+            raise NotImplemented('Currently only allow data by year oops')
 
     # move files to make it faster to process
     for file in flist:
-        run('cp '+file+' '+wkdir+file,shell=True)
+        run('cp '+fdir+file+' '+wkdir+file,shell=True)
 
     time=[]
+    data={}
+    for v in istats:
+        data[v]=[]
 
     # now acutally do stuff
     for file in flist:
+        if debug:
+            print('.',end='',flush=True)
         fpi=nc.Dataset(wkdir+file,'r')
         dd=datetime.datetime(int(file[-13:-9]),int(file[-8:-6]),int(file[-5:-3]),0,0)
         d0=datetime.datetime(1970,1,1,0,0)
@@ -1968,13 +2047,15 @@ def _add_2d_data(data,dx,fdir,istats,wkdir,year=None,foot=True):
             m=fpi['footprint'][t,:,:].astype(np.bool)
             nn=np.sum(m)
             for i in range(len(istats)):
-                # median
-                # std
+                v=istats[i]
+                if v=='median':
+                    data[v].append(np.nanmedian(mean[m]))
+                elif v=='std':
+                    data[v].append(_grid_std(mean[m].flatten(),std[m].flatten()))
 
-    # interpolation
-    # FIXME
-
-    return ov,ov_st
+    for file in os.listdir(wkdir):
+        run('rm '+wkdir+file,shell=True)
+    return time,data
 
 
 
@@ -2198,21 +2279,96 @@ def add_spatial(ndir,dsmdir,dtmdir,laidir,wrkdir='/tmp/l1spatial/',fdir=None,\
 
 ##############################################################################
 ################ ADD SPATIOTEMPORAL VARIABLES (i.e. LAI) #####################
-def add_spatiotemporal(ivars,istats):
+def add_spatiotemporal(ndir,idir,fdir,ivars=None,istats=None,sites=SITES,debug=False,overwrite=False):
 
     # Determine true ivars and istats
+    _ivars = ['lai']
+    if ivars in [None]:
+        ivars=_ivars
 
+    _istats = ['std','median']
+    if istats in [None]:
+        istats=_istats
+
+    outvar={}
+    outat={}
+    for v in ivars:
+        if v not in _ivars:
+            continue
+        for s in istats:
+            if s not in _istats:
+                continue
+            outvar[v.upper()+'_f'+s]=[]
+            outat[v.upper()+'_f'+s]={}
     # iterate through sites
+    for site in sites:
+        ovar=outvar.copy()
+        oat=outat.copy()
+        if debug:
+            dbg='::::::::::::::::DEBUG:::::::::::::::::::\n'
+            dbg=dbg+'Loading spatial (temporal) data for '+site+'\n'
+            print(dbg+':::::::::::::::::DEBUG::::::::::::::::::',flush=True)
+        # Setup
+        fpo=h5py.File(ndir+site+'_'+str(scl)+'m.h5','r+')
+        time=fpo['TIME'][:]
+        time2=time+scl/2*60
+        for k in ovar.keys():
+            ovar[k]=np.ones((len(time),))*float('nan')
 
-        # Assemble outvars as a combo of ivars, istats and years
+        skip=True
+        for k in outvar.keys():
+            if (k not in fpo.keys()):
+                skip=False
+        if (not overwrite) and skip:
+            print('Skipping spatiotemporal data for '+site)
+
+
+        fdirs=fdir+site+'/'
+        ff=nc.Dataset(fdirs+list(os.listdir(fdirs))[0],'r')
+        dx=ff.dx
+        lat=fpo.attrs['lat']
+        lon=fpo.attrs['lon']
+        ff.close()
 
         # iterate through variables
+        for v in ivars:
+            if v not in _ivars:
+                continue
+
+            if type(idir)==dict:
+                _idir=idir[v]+'/'+site+'/'
+            else:
+                _idir=idir+'/'+site+'/'
+            for k in istats:
+                oat[v.upper()+'_f'+k]['dates']=[]
 
             # iterate through year
+            for y in ['2017','2018','2019','2020','2021','2022','2023']:
+                flist=os.listdir(_idir)
+                for f in flist:
+                    if y in f:
+                        break
+                if y not in f:
+                    continue
+                if debug:
+                    print('::::::::: DEBUG :: starting '+site+' '+v+' for '+y,flush=True)
 
-                # _add_2d_data()
+                fr=rasterio.open(_idir+f+'/'+v+'_'+site+f+'.tif')
 
+                transformer=Transformer.from_crs('EPSG:4326',fr.crs,always_xy=True)
+                xx_,yy_=transformer.transform(lon,lat)
+                xx,yy=fr.index(xx_,yy_)
 
+                dxi=int(dx*301/2)
+                wn=Window(yy-dxi,xx-dxi,dx*301,dx*301)
+                data=fr.read(1,boundless=True,fill_value=float('nan'),window=wn)
+                tm,data = _add_2d_data(data,dx,fdirs,istats,year=y,debug=debug)
+                for k in istats:
+                    tmp=ngapfill(time2,tm,data[k])
+                    ovar[v.upper()+'_f'+k][~np.isnan(tmp)]=tmp[~np.isnan(tmp)]
+                    oat[v.upper()+'_f'+k]['dates'].append(f)
+
+        out_to_h5(fpo,ovar,overwrite,attrs=oat)
 
     return None
 
