@@ -2113,33 +2113,39 @@ def add_spatial_site(site,ndir,ivars=None,fdsm=None,fdtm=None,flai=None,fnlcd=No
     ff.close()
 
     fp=h5py.File(ndir+site+'_30m.h5','r+')
-    f=rasterio.open(f)
-
-    transformer=Transformer.from_crs('EPSG:4326',f.crs,always_xy=True)
-    xx_,yy_=transformer.transform(lon,lat)
-    xx,yy=f.index(xx_,yy_)
-
-    dxi2=int(dxi*2)
-    wn=Window(yy-dxi,xx-dxi,int(dxi*2),int(dxi*2))
-
     # pull in all static data
     data={}
     if calc_dsm:
         fpdsm=rasterio.open(fdsm)
+        transformer=Transformer.from_crs('EPSG:4326',fpdsm.crs,always_xy=True)
+        xx_,yy_=transformer.transform(lon,lat)
+        xx,yy=fpdsm.index(xx_,yy_)
+        dxi2=int(dxi*2)
+        wn=Window(yy-dxi,xx-dxi,int(dxi*2),int(dxi*2))
         dsm=fpdsm.read(1,boundless=True,fill_value=float('nan'),window=wn)
         data['dsm']=_databig(dsm,dx,sz=int(np.floor(dxi2/dx)))
     if calc_dtm:
         fpdtm=rasterio.open(fdtm)
+        transformer=Transformer.from_crs('EPSG:4326',fpdtm.crs,always_xy=True)
+        xx_,yy_=transformer.transform(lon,lat)
+        xx,yy=fpdtm.index(xx_,yy_)
+        dxi2=int(dxi*2)
+        wn=Window(yy-dxi,xx-dxi,int(dxi*2),int(dxi*2))
         dtm=fpdtm.read(1,boundless=True,fill_value=float('nan'),window=wn)
         data['dtm']=_databig(dtm,dx,sz=int(np.floor(dxi2/dx)))
     if calc_lai:
         fplai=rasterio.open(flai)
+        transformer=Transformer.from_crs('EPSG:4326',fplai.crs,always_xy=True)
+        xx_,yy_=transformer.transform(lon,lat)
+        xx,yy=fplai.index(xx_,yy_)
+        dxi2=int(dxi*2)
+        wn=Window(yy-dxi,xx-dxi,int(dxi*2),int(dxi*2))
         lai=fplai.read(1,boundless=True,fill_value=float('nan'),window=wn)
         data['lai']=_databig(lai,dx,sz=int(np.floor(dxi2/dx)))
     if calc_dtm and calc_dsm:
         data['chm']=_databig(dsm-dtm,dx,sz=int(np.floor(dxi2/dx)))
     if calc_nlcd:
-        data['nlcd']=_load_nlcd(fnlcd,xx_,yy_,dx,f.crs.to_proj4(),site,wkdir,sz=int(np.floor(dxi2/dx)))
+        data['nlcd']=_load_nlcd(fnlcd,xx_,yy_,dx,fpdsm.crs.to_proj4(),site,wkdir,sz=int(np.floor(dxi2/dx)))
 
     #  _load_nlcd(nlcdf,x,y,dx,proj4,site,wrkdir,sz=301):
 
@@ -2170,17 +2176,28 @@ def add_spatial_site(site,ndir,ivars=None,fdsm=None,fdtm=None,flai=None,fnlcd=No
     # Now static data again, but prepped for footprint
     #### PREP FOR OTHERS
     dxi=int(dx*301/2)
-    wn=Window(yy-dxi,xx-dxi,dx*301,dx*301)
     if calc_dtm:
+        transformer=Transformer.from_crs('EPSG:4326',fpdtm.crs,always_xy=True)
+        xx_,yy_=transformer.transform(lon,lat)
+        xx,yy=fpdtm.index(xx_,yy_)
+        wn=Window(yy-dxi,xx-dxi,dx*301,dx*301)
         dtm=fpdtm.read(1,boundless=True,fill_value=float('nan'),window=wn)
         data['dtm']=_databig(dtm,dx)
     if calc_dsm:
+        transformer=Transformer.from_crs('EPSG:4326',fpdsm.crs,always_xy=True)
+        xx_,yy_=transformer.transform(lon,lat)
+        xx,yy=fpdsm.index(xx_,yy_)
+        wn=Window(yy-dxi,xx-dxi,dx*301,dx*301)
         dsm=fpdsm.read(1,boundless=True,fill_value=float('nan'),window=wn)
         data['dsm']=_databig(dsm,dx)
     if calc_dtm and calc_dsm:
         chm=dsm-dtm
         data['chm']=_databig(chm,dx)
     if calc_lai:
+        transformer=Transformer.from_crs('EPSG:4326',fplai.crs,always_xy=True)
+        xx_,yy_=transformer.transform(lon,lat)
+        xx,yy=fplai.index(xx_,yy_)
+        wn=Window(yy-dxi,xx-dxi,dx*301,dx*301)
         lai=fplai.read(1,boundless=True,fill_value=float('nan'),window=wn)
         data['lai']=_databig(lai,dx)
     if calc_nlcd:

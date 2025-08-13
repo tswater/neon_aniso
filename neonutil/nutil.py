@@ -427,13 +427,14 @@ def cani_norm(x,vmn_a=.1,vmx_a=.7):
 def get_phi(fp,var,m=None):
     if m in [None]:
         m=np.ones((len(fp['TIME'][:]),)).astype(bool)
-    if (len(var)==2) and (var[0]==var[1]):
+    if ((len(var)==2) and (var[0]==var[1])) or (var=='THETATHETA'):
         if var in ['UU','VV','WW']:
             varstar=fp['USTAR'][:][m]
+        elif var in ['THETATHETA']:
+            varstar=1/fp['USTAR'][:][m]*(fp['WTHETA'][:][m])
         else:
             varstar=1/fp['USTAR'][:][m]*(fp['W'+var[0]][:][m])
-        phi=np.sqrt(fp[var][m])/varstar
-
+        phi=np.sqrt(fp[var][m])/np.abs(varstar)
     return phi
 
 def get_phio(var,stab,fp=None,zL=None):
@@ -460,7 +461,19 @@ def get_phio(var,stab,fp=None,zL=None):
             phio=1.35*(1-3*zL)**(1/3)
         case 'WWs':
             phio=1.6*np.ones(zL.shape)
-
+        case 'THETATHETAu':
+            phio=.99*(.067-zL)**(-1/3)
+            phio[zL>-0.05]=.015*(-zL[zL>-0.05])**(-1)+1.76
+        case 'THETATHETAs':
+            phio=0.00087*(zL)**(-1.4)+2.03
+        case 'QQu':
+            phio=np.sqrt(30)*(1-25*zL)**(-1/3)
+        case 'QQs':
+            phio=2.74*np.ones(zL.shape)
+        case 'CCu':
+            phio=np.sqrt(30)*(1-25*zL)**(-1/3)
+        case 'CCs':
+            phio=2.74*np.ones(zL.shape)
     return phio
 
 
@@ -475,6 +488,9 @@ def get_hours(time,utcoff):
 
 ##############################################################################
 ################################ LUMLEY PREP #################################
+def _iqr(data):
+    return np.nanpercentile(data,75)-np.nanpercentile(data,25)
+
 def datagrid(x,y,z,nbin=31,fxn=np.nanmedian,gridtype='equalx',mincnt=None):
     ''' get bin values by x and y
         gridtype: ['linear','equalx','equaly']
@@ -810,7 +826,8 @@ def plt_scaling(zeta,phi,c,ymin,ymax,varlist,\
     N=zeta.shape[1]
     M=zeta.shape[2]
     K=zeta.shape[3]
-    ylabels={'UU':r'$\Phi_u$','VV':r'$\Phi_v$','WW':r'$\Phi_w$'}
+    ylabels={'UU':r'$\Phi_u$','VV':r'$\Phi_v$','WW':r'$\Phi_w$',\
+             'THETATHETA':r'$\Phi_{\theta}$','QQ':r'$\Phi_q$','CC':r'$\Phi_c$'}
 
     if colorbar in ['empty','yb']:
         L=3
