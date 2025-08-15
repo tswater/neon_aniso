@@ -39,12 +39,16 @@ def _nsv(d):
 
 def cbase(zL,a,b,c,d,e):
     return a*(b+c*zL)**(d)+e
-
+def tbaseu(zL,a,b,c,d,e):
+    return 1.07*(0.05+np.abs(zL))**(-1/3)+\
+        (-1.14+a*(np.abs(zL)**(-9/10)))*(1-np.tanh(10*(np.abs(zL))**(2/3)))
+def lbase(zL,a,b,c,d,e):
+    return a+b*np.log10(zL)+c*np.log10(zL)**2+d*np.log10(e*zL)**3
 
 
 
 #### LIST OF BASES
-bases={'cbase':cbase}
+bases={'cbase':cbase,'tbaseu':tbaseu,'lbase':lbase}
 
 ##############################################################################
 ##############################################################################
@@ -196,17 +200,17 @@ class Cfit:
                 plt.ylim(.1,20)
                 plt.gca().invert_xaxis()
             else:
-                plt.loglog(zL[m],phi[m],'o',markersize=1,color='grey',alpha=.3)
-                plt.loglog(zL[m],phio[m],'o',markersize=1,color='black')
+                plt.semilogx(zL[m],phi[m],'o',markersize=1,color='grey',alpha=.3)
+                plt.semilogx(zL[m],phio[m],'o',markersize=1,color='black')
                 zLi=np.logspace(-3,2)
                 phi1=fxn([zLi,np.ones((50,))*.1],*pvals)
                 phi3=fxn([zLi,np.ones((50,))*.3],*pvals)
                 phi5=fxn([zLi,np.ones((50,))*.5],*pvals)
                 phi7=fxn([zLi,np.ones((50,))*.7],*pvals)
-                plt.loglog(zLi,phi1,color='red')
-                plt.loglog(zLi,phi3,color='orange')
-                plt.loglog(zLi,phi5,color='tan')
-                plt.loglog(zLi,phi7,color='blue')
+                plt.semilogx(zLi,phi1,color='red')
+                plt.semilogx(zLi,phi3,color='orange')
+                plt.semilogx(zLi,phi5,color='tan')
+                plt.semilogx(zLi,phi7,color='blue')
                 plt.xlim(10**(-3),10**(1.5))
                 plt.ylim(.5,20)
             if plotonly:

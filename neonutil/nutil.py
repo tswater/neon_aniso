@@ -729,7 +729,7 @@ def sitebar(fig,ax,sites,data1,data2,color,hatch=None,issorted=False,\
 #############################################################################
 ########################## LUMLEY TRIANGLE PLOTTING  ########################
 def lumley(fig,ax,xb,yb,data,cmap='Spectral_r',leftedge=False,\
-        bottomedge=False,vmin='abspct',vmax='abspct',cbarlabel='',fntsm=8,fntlg=12):
+        bottomedge=False,vmin='abspct',vmax='abspct',shading='gouraud',cbarlabel='',fntsm=8,fntlg=12):
     xc = np.array([0, 1, 0.5])
     yc = np.array([0, 0, np.sqrt(3)*0.5])
     ccc=['k','r','b']
@@ -775,7 +775,7 @@ def lumley(fig,ax,xb,yb,data,cmap='Spectral_r',leftedge=False,\
         vmin=-vmax
     elif vmin=='pct':
         vmin=np.nanpercentile(data,5)
-    im=ax.pcolormesh(xb,yb,data,cmap='Spectral_r',shading='gouraud',vmin=vmin,vmax=vmax)
+    im=ax.pcolormesh(xb,yb,data,cmap='Spectral_r',shading=shading,vmin=vmin,vmax=vmax)
     cb=fig.colorbar(im, cax=ax.inset_axes([0.95, 0.05, 0.05, .92]),label=cbarlabel)
     cb.set_label(label=cbarlabel,fontsize=fntlg)
     cb.ax.zorder=100
