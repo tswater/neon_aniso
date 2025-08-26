@@ -4,6 +4,7 @@ from scipy.interpolate import interp1d
 import datetime
 import matplotlib.pyplot as plt
 import matplotlib
+from scipy import stats
 ############## CONSTANTS ################
 SITES =['ABBY', 'BARR', 'BART', 'BLAN', 'BONA', 'CLBJ', 'CPER', 'DCFS', 'DEJU',  'DELA', 'DSNY', 'GRSM', 'GUAN', 'HARV', 'HEAL', 'JERC', 'JORN', 'KONA', 'KONZ',  'LAJA', 'LENO', 'MLBS', 'MOAB', 'NIWO', 'NOGP', 'OAES', 'ONAQ', 'ORNL', 'OSBS',  'PUUM', 'RMNP', 'SCBI', 'SERC', 'SJER', 'SOAP', 'SRER', 'STEI', 'STER', 'TALL',  'TEAK', 'TOOL', 'TREE', 'UKFS', 'UNDE', 'WOOD', 'WREF', 'YELL']
 
@@ -425,7 +426,7 @@ def cani_norm(x,vmn_a=.1,vmx_a=.7):
     'CC'
 '''
 def get_phi(fp,var,m=None):
-    if m in [None]:
+    if m is None:
         m=np.ones((len(fp['TIME'][:]),)).astype(bool)
     if ((len(var)==2) and (var[0]==var[1])) or (var=='THETATHETA'):
         if var in ['UU','VV','WW']:
@@ -585,7 +586,7 @@ def get_errorlines(x,y,c,xbins,cbins,minpct=0.00001):
 ########################### SITEBAR #########################################
 def sitebar(fig,ax,sites,data1,data2,color,hatch=None,issorted=False,\
         ymin=None,ymax=None,vmin='pct',vmax='pct',colorvals=None,\
-        cbar=None,legend=None,fntsm=7,fntlg=10,lw=1,xticklbls=True):
+        cbar=None,cutoff=True,legend=None,fntsm=7,fntlg=10,lw=1,xticklbls=True):
     ''' Make a sitebar graph
         data2: bar colored data
         data1: error spline data
@@ -691,15 +692,21 @@ def sitebar(fig,ax,sites,data1,data2,color,hatch=None,issorted=False,\
 
 
     # ylim determination
+    actual_max=max(np.nanmax(Y[1]),np.nanmax(X))
     if ymax is None:
         actual_max=max(np.nanmax(Y[1]),np.nanmax(X))
         pct90=max(np.nanpercentile(Y[1],90),np.nanpercentile(X,90))
-        if (actual_max>pct90*2):
-            cutoff=True
+        if not cutoff:
+            ymax=actual_max*1.03
+        elif (actual_max>pct90*2):
             ymax=pct90*1.03
         else:
             cutoff=False
             ymax=actual_max*1.03
+    elif ymax<actual_max*.98:
+        cutoff=cutoff
+    else:
+        cutoff=False
     if ymin is None:
         actual_min=min(np.nanmin(Y[1]),np.nanmin(X))
         if actual_min<0:
@@ -708,6 +715,7 @@ def sitebar(fig,ax,sites,data1,data2,color,hatch=None,issorted=False,\
             ymin=actual_min-(ymax-actual_min)*.1
             if ymin<0:
                 ymin=0
+    ax.set_ylim(ymin,ymax)
 
     # handle cutoffs
     if cutoff:
@@ -725,6 +733,166 @@ def sitebar(fig,ax,sites,data1,data2,color,hatch=None,issorted=False,\
     # sorted data must be (sites,data1,data2,color,issorted)
     return fig,ax,sorted_data
 
+
+##########################################################################
+######################### CORRELATION TESTING ############################
+# check correlation/relation between various variables
+def _find_cfit(fp,var,casek='main'):
+    try:
+        from curvefit import load_fit
+    except:
+        from neonutil.curvefit import load_fit
+
+    for k in fp['main/curve_fits'].keys():
+        if var in k:
+            name=k.split('::')[2]
+            stab=k.split('::')[1]
+            break
+
+    cf=load_fit(fp,casek,name,var=var,stab=stab)
+    return cf
+
+def _proc_data(fp,var,stab,m,extra=None):
+    dvvars=['phiCC','phiQQ','phiTHETATHETA','mdoCC','madoCC','mdoQQ','madoQQ','mdoTHETATHETA','madoTHETATHETA',\
+            'mdnCC','madnCC','mdnQQ','madnQQ','mdnTHETATHETA','madnTHETATHETA']
+    if var in dvvars:
+        if 'phi' in var:
+            return get_phi(fp['main/data'],var[3:],m)
+        elif 'mdo' in var:
+            zL=fp['main/data']['zL'][:][m]
+            return -get_phi(fp['main/data'],var[3:],m)+get_phio(var[3:],stab,zL=zL)
+        elif 'mado' in var:
+            zL=fp['main/data']['zL'][:][m]
+            return np.abs(get_phi(fp['main/data'],var[4:],m)-get_phio(var[4:],stab,zL=zL))
+        elif 'madn' in var:
+            zL=fp['main/data']['zL'][:][m]
+            ani=fp['main/data']['ANI_YB'][:][m]
+            cf=_find_cfit(fp,var[4:])
+            phin=cf.get_phin(zL,ani)
+            return np.abs(-get_phi(fp,var[4:],m)+phin)
+        elif 'mdn' in var:
+            zL=fp['main/data']['zL'][:][m]
+            ani=fp['main/data']['ANI_YB'][:][m]
+            cf=_find_cfit(fp,var[4:])
+            phin=cf.get_phin(zL,ani)
+            return -get_phi(fp,var[4:],m)+phin
+    elif (not (extra is None)) and (var in extra.keys()):
+        return extra[var][:][m]
+    elif var in fp['main/data'].keys():
+        return fp['main/data'][var][:][m]
+    else:
+        return np.ones((np.sum(m),))*float('nan')
+
+def test_site_corr(xvars,yvars,fpx,fpy,stab,extra=None):
+    # 3 types of variables... static, derived, full
+    fxs=fpx['main/data/']['SITE'][:]
+    fys=fpy['main/data']['SITE'][:]
+
+    df=np.ones((len(xvars),len(yvars),2,47))*float('nan')
+
+    #### Pull Data
+    i=0
+    for xv in xvars:
+        datax=np.ones((47,))*float('nan')
+        k=0
+        for site in SITES:
+            mx=fxs==bytes(site,'utf-8')
+            df[i,:,0,k]=np.nanmedian(_proc_data(fpx,xv,stab,mx,extra))
+            k=k+1
+        j=0
+        for yv in yvars:
+            k=0
+            for site in SITES:
+                my=fys==bytes(site,'utf-8')
+                df[:,j,1,k]=np.nanmedian(_proc_data(fpy,yv,stab,my,extra))
+                k=k+1
+            j=j+1
+
+        i=i+1
+    #### Get Spearmanr
+    spear=np.zeros((len(xvars),len(yvars)))
+    for i in range(len(xvars)):
+        for j in range(len(yvars)):
+            spear[i,j]=stats.spearmanr(df[i,j,0,:],df[i,j,1,:],nan_policy='omit')[0]
+
+    #### Plot
+    nx=len(xvars)
+    ny=len(yvars)
+    plt.figure(figsize=(ny*2,nx*2))
+    k=0
+    cmp=matplotlib.cm.get_cmap('twilight_shifted')
+    for j in range(ny):
+        for i in range(nx):
+            plt.subplot(ny,nx,k+1)
+            corr=spear[i,j]
+            plt.scatter(df[i,j,0,:],df[i,j,1,:],color=cmp((corr+1)/2),s=30)
+            ax=plt.gca()
+            if j==(ny-1):
+                plt.xlabel(xvars[i],fontsize=10)
+            else:
+                ax.set_xticklabels([])
+            if i==0:
+                plt.ylabel(yvars[j],fontsize=10)
+            else:
+                ax.set_yticklabels([])
+            if j==0:
+                plt.title(xvars[i],fontsize=10)
+            k=k+1
+
+def test_corr(xvars,yvars,fp,stab,numpoints=10000,extra=None):
+    # 3 types of variables... static, derived, full
+    fs=fp['main/data/']['SITE'][:]
+
+    N=len(fs)
+
+    if hasattr(numpoints, "__len__"):
+        m=numpoints
+    else:
+        m=np.zeros((N,)).astype(bool)
+        m[0:numpoints]=True
+        np.random.shuffle(m)
+    Nm=np.sum(m)
+    nx=len(xvars)
+    ny=len(yvars)
+
+    datax=np.zeros((nx,Nm))
+    datay=np.zeros((ny,Nm))
+
+    for i in range(nx):
+        xv=xvars[i]
+        datax[i,:]=_proc_data(fp,xv,stab,m,extra)
+    for j in range(ny):
+        yv=yvars[j]
+        datay[j,:]=_proc_data(fp,yv,stab,m,extra)
+    spear=np.zeros((nx,ny))
+    for j in range(ny):
+        for i in range(nx):
+            spear[i,j]=stats.spearmanr(datax[i,:],datay[j,:],nan_policy='omit')[0]
+    cmp=matplotlib.cm.get_cmap('twilight_shifted')
+    plt.figure(figsize=(nx*2,ny*2))
+    k=0
+    print('Beginning plotting',flush=True)
+    for j in range(ny):
+        for i in range(nx):
+            plt.subplot(ny,nx,k+1)
+            corr=spear[i,j]
+            xval=datax[i,:]
+            yval=datay[j,:]
+            plt.scatter(xval,yval,color=cmp((corr+1)/2),s=1,alpha=.2)
+            plt.xlim(np.nanpercentile(xval,1),np.nanpercentile(xval,97.5))
+            plt.ylim(np.nanpercentile(yval,1),np.nanpercentile(yval,97.5))
+            ax=plt.gca()
+            if j==(ny-1):
+                plt.xlabel(xvars[i],fontsize=14)
+            else:
+                ax.set_xticklabels([])
+            if i==0:
+                plt.ylabel(yvars[j],fontsize=14)
+            else:
+                ax.set_yticklabels([])
+            if j==0:
+                plt.title(xvars[i],fontsize=14)
+            k=k+1
 
 #############################################################################
 ########################## LUMLEY TRIANGLE PLOTTING  ########################
@@ -803,11 +971,11 @@ def plt_scaling(zeta,phi,c,ymin,ymax,varlist,\
         linearg={'marker':'o','markersize':2,'linewidth':.2},\
         scatarg={},wthscl=1,fntsm=10,fntlg=14,ticrot=0):
     '''
-    zeta,phi   : (2,N,M,K) array; 2 columns, N variables, M lines, K points
+    zeta,phi   : (L,N,M,K) array; 2 columns, N variables, M lines, K points
     p25,p75    : (^) error bar bottom and top
-    sc_zeta    : (2,N,L) scatterplot points if using
-    sc_phi     : (2,N,L) scatterplot points if using
-    c          : (2,N,M) array
+    sc_zeta    : (L,N,X) scatterplot points if using
+    sc_phi     : (L,N,X) scatterplot points if using
+    c          : (L,N,M) array
     ymin       : (N) array of minimum y values for each variable
     ymax       : (N) array of maximum y values for each variable
     varlist    : (N) array of variables
@@ -823,31 +991,32 @@ def plt_scaling(zeta,phi,c,ymin,ymax,varlist,\
     scatarg    : arguments to be passed to the scatter
     '''
 
+    L=zeta.shape[0]
     N=zeta.shape[1]
     M=zeta.shape[2]
     K=zeta.shape[3]
     ylabels={'UU':r'$\Phi_u$','VV':r'$\Phi_v$','WW':r'$\Phi_w$',\
              'THETATHETA':r'$\Phi_{\theta}$','QQ':r'$\Phi_q$','CC':r'$\Phi_c$'}
 
+    wdrt=[1]*L
     if colorbar in ['empty','yb']:
-        L=3
-        wdrt=[1,1,.1]
+        L2=L+1
+        wdrt.append(.1)
     else:
-        L=2
-        wdrt=[1,1]
+        L2=L
 
     if type(xyscale)==str:
         xyscale=[xyscale]*N
     print(xyscale)
     if figaxs is None:
-        fig,axs=plt.subplots(N,L,figsize=(width,wthscl*width*1.125/3*N),gridspec_kw={'width_ratios':wdrt})
+        fig,axs=plt.subplots(N,L2,figsize=(width,wthscl*width*1.125/3*N),gridspec_kw={'width_ratios':wdrt})
     else:
         fig=figaxs[0]
         axs=figaxs[1]
 
     for j in range(N):
         var=varlist[j]
-        for s in range(2):
+        for s in range(L):
             yplt=phi[s,j,:,:]
             anic=c[s,j,:]
             if stab[s]:
@@ -928,13 +1097,13 @@ def plt_scaling(zeta,phi,c,ymin,ymax,varlist,\
         if (colorbar is None) or (colorbar=='none'):
             continue
         elif colorbar=='empty':
-            ax=axs[j,2]
+            ax=axs[j,L2-1]
             ax.yaxis.tick_right()
             ax.yaxis.set_label_position("right")
             ax.grid(False)
         elif colorbar=='yb':
             anicc=cani_norm(np.array([.05,.15,.25,.35,.45,.55,.65,.75]))
-            ax=axs[j,2]
+            ax=axs[j,L2-1]
             ax.imshow(anicc.reshape(8,1,4),origin='lower',interpolation=None)
             ax.set_xticks([],[])
             inta=[-.05]
