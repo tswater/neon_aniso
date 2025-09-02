@@ -5,6 +5,7 @@ import datetime
 import matplotlib.pyplot as plt
 import matplotlib
 from scipy import stats
+import pandas as pd
 ############## CONSTANTS ################
 SITES =['ABBY', 'BARR', 'BART', 'BLAN', 'BONA', 'CLBJ', 'CPER', 'DCFS', 'DEJU',  'DELA', 'DSNY', 'GRSM', 'GUAN', 'HARV', 'HEAL', 'JERC', 'JORN', 'KONA', 'KONZ',  'LAJA', 'LENO', 'MLBS', 'MOAB', 'NIWO', 'NOGP', 'OAES', 'ONAQ', 'ORNL', 'OSBS',  'PUUM', 'RMNP', 'SCBI', 'SERC', 'SJER', 'SOAP', 'SRER', 'STEI', 'STER', 'TALL',  'TEAK', 'TOOL', 'TREE', 'UKFS', 'UNDE', 'WOOD', 'WREF', 'YELL']
 
@@ -74,12 +75,12 @@ def out_to_h5(_fp,_ov,overwrite,desc={},attrs={}):
                         _f=_f[split[i]]
                 kout=split[-1]
             else:
-                kout=k
+                kout=str(k)
             try:
-                _f.create_dataset(kout,data=np.array(_ov[k][:]))
+                _f.create_dataset(kout,data=_ov[k])
             except Exception as e:
                 if overwrite:
-                    _f[kout][:]=np.array(_ov[k][:])
+                    _f[kout][:]=_ov[k]
                 else:
                     print('Skipping output of '+str(kout))
             _f[kout].attrs['missing_value']=-9999
@@ -327,6 +328,66 @@ def nupscale(tout,tin,din,outscl=None,maxdelta=60,nearest=True,nanth=.2,debug=Fa
 
     return out
 
+#########################################################################
+########################### LHET ########################################
+def lhet_data(data,N,ctf,Np=10000,binopt='equal'):
+    dxi=int(data.shape[0]/2)
+    posx=[]
+    posy=[]
+    for i in range(int(dxi*2)):
+        for j in range(int(dxi*2)):
+            posx.append(i)
+            posy.append(j)
+    m=np.zeros((len(posx),)).astype(bool)
+    m[0:Np]=True
+    np.random.shuffle(m)
+    posx=np.array(posx)
+    posy=np.array(posy)
+    posx=posx[m]
+    posy=posy[m]
+    dflat=[]
+    for i in range(Np):
+        dflat.append(data[posx[i],posy[i]])
+    dflat=np.array(dflat)
+    mu=np.nanmean(dflat)
+    a=(dflat[:,np.newaxis].T-mu)*(dflat[:,np.newaxis]-mu)
+    a=a.reshape(a.size)
+    dist= (((posx[:,np.newaxis] - (posx).T)**2 + (posy[:,np.newaxis] - (posy).T)**2)**0.5)
+    dist=dist.reshape(dist.size)
+    if binopt=='equal':
+        hbin=getbins(dist,n=N)
+    elif binopt=='linear':
+        nn=(dxi*1.5-np.sum(np.linspace(0,(N-1)*2,N)))/N
+        hbin=np.cumsum(np.linspace(nn,nn+(N-1)*2,N))
+    Q=[]
+    Q.append(np.nanvar(dflat))
+    hm=[]
+    hm.append(0)
+    for i in range(N-1):
+        m=(dist>hbin[i])&(dist<=hbin[i+1])
+        Q.append(np.nanmean(a[m]))
+        hm.append(np.nanmean(dist[m]))
+    if not hasattr(ctf, "__len__"):
+        ctf=[ctf]
+    hm=np.array(hm)
+    lhet={}
+    dh=hm[1:]-hm[:-1]
+    print('DH: '+str(np.nanmin(dh))+' - '+str(np.nanmax(dh))+' ('+str(np.nanmedian(dh))+')')
+    dh=np.nanmedian(dh)
+    for i in range(len(ctf)):
+        try:
+            idx=np.where(Q<Q[0]*ctf[i])[0][0]
+            slope=(Q[idx]-Q[idx-1])/(hm[idx]-hm[idx-1])
+            b=Q[idx]-(slope*hm[idx])
+            xx=((Q[0]*ctf[i])-b)/slope
+            lhet[str(ctf[i])]=xx
+            if xx<=dh*3:
+                print('WARNING: for cutoff of '+str(ctf[i])+' lhet is on order of resolution')
+        except:
+            lhet[str(ctf[i])]=float('nan')
+    return lhet,dh
+
+
 ############################ GETBINS ####################################
 # Get equal size bins
 def getbins(A,B=None,n=31):
@@ -352,23 +413,19 @@ def sort_together(X,Y):
     if len(np.array(Y).shape)==1:
         Y=Y[:,None]
         Y=Y.T
-    # X is an N length array to sort based on. Y is an M x N array of things that will sort
-    X=X.copy()
-    dic={}
-    for i in range(len(X)):
-        dic[X[i]]=[]
-    for i in range(len(Y)):
-        for j in range(len(X)):
-            dic[X[j]].append(Y[i][j])
-    X=np.array(X)
-    X.sort()
-    Yout=[]
-    for i in range(len(Y)):
-        Yout.append([])
-    for i in range(len(Y)):
-        for j in range(len(X)):
-            Yout[i].append(dic[X[j]][i])
-    return X,Yout
+        df=pd.DataFrame({'x':X,'y':Y})
+    else:
+        N=np.array(Y).shape[0]
+        dfd={'x':X}
+        for i in range(N):
+            dfd[str(i)]=Y[i]
+        df=pd.DataFrame(dfd)
+    dfo=df.sort_values(by=['x'])
+    X=dfo['x'].tolist()
+    Y=[]
+    for i in range(len(dfo.columns)-1):
+        Y.append(dfo[str(i)].tolist())
+    return X,Y
 
 ############################################################################
 ########################### COLORING #######################################
@@ -398,8 +455,7 @@ def get_cmap_ani():
                     (inbetween_color_amount)+1,j] = flow
     return ListedColormap(newcolvals, name='from_list', N=None)
 
-def cani_norm(x,vmn_a=.1,vmx_a=.7):
-    cmapa=get_cmap_ani()
+def cani_norm(x,vmn_a=.1,vmx_a=.7,cmapa=get_cmap_ani()):
     try:
         x_=x.copy()
         x_[x_<vmn_a]=vmn_a
@@ -413,7 +469,6 @@ def cani_norm(x,vmn_a=.1,vmx_a=.7):
 
     x_=(x_-vmn_a)/(vmx_a-vmn_a)
     return cmapa(x_)
-
 
 #############################################################################
 ################################# GET PHI ###################################
@@ -624,6 +679,12 @@ def sitebar(fig,ax,sites,data1,data2,color,hatch=None,issorted=False,\
         to_sort.append(color)
     to_sort.append(hatch)
     nn=len(to_sort)
+    if data1 is None:
+        plot_yerr=False
+        data1=data2.copy()
+    else:
+        plot_yerr=True
+
     if not issorted:
         X,Y=sort_together(data1,to_sort)
     else:
@@ -681,7 +742,11 @@ def sitebar(fig,ax,sites,data1,data2,color,hatch=None,issorted=False,\
     yerr[1,:][yerr[1,:]<0]=0
 
     # plot!
-    a=ax.bar(Y[0],Y[1],color=color,hatch=hatch,edgecolor='black',yerr=yerr,\
+    if plot_yerr:
+        a=ax.bar(Y[0],Y[1],color=color,hatch=hatch,edgecolor='black',yerr=yerr,\
+            capsize=3,error_kw={'lw':lw,'capthick':lw},linewidth=lw)
+    else:
+        a=ax.bar(Y[0],Y[1],color=color,hatch=hatch,edgecolor='black',\
             capsize=3,error_kw={'lw':lw,'capthick':lw},linewidth=lw)
     if xticklbls:
         ax.set_xticks(np.linspace(0,len(X)-1,len(X)),Y[0],rotation=45,fontsize=fntsm)
@@ -737,17 +802,25 @@ def sitebar(fig,ax,sites,data1,data2,color,hatch=None,issorted=False,\
 ##########################################################################
 ######################### CORRELATION TESTING ############################
 # check correlation/relation between various variables
-def _find_cfit(fp,var,casek='main'):
+def _find_cfit(fp,var,casek='main',getmost=False):
     try:
         from curvefit import load_fit
     except:
         from neonutil.curvefit import load_fit
 
     for k in fp['main/curve_fits'].keys():
-        if var in k:
+        if (var in k):
             name=k.split('::')[2]
             stab=k.split('::')[1]
-            break
+            if getmost:
+                if name != 'most':
+                    continue
+                else:
+                    break
+            elif name=='most':
+                continue
+            else:
+                break
 
     cf=load_fit(fp,casek,name,var=var,stab=stab)
     return cf
@@ -967,7 +1040,7 @@ def lumley(fig,ax,xb,yb,data,cmap='Spectral_r',leftedge=False,\
 def plt_scaling(zeta,phi,c,ymin,ymax,varlist,\
         figaxs=None,p25=None,p75=None,sc_zeta=None,sc_phi=None,\
         stab=[False,True],zeta_range=[10**-3.5,10**1.3],plot_old=True,\
-        colorbar='yb',width=6,skip=False,xyscale='semilog',\
+        colorbar='yb',cmap='ani',width=6,skip=False,xyscale='semilog',\
         linearg={'marker':'o','markersize':2,'linewidth':.2},\
         scatarg={},wthscl=1,fntsm=10,fntlg=14,ticrot=0):
     '''
@@ -982,6 +1055,7 @@ def plt_scaling(zeta,phi,c,ymin,ymax,varlist,\
     figaxs     : list [fig,axs] to supply a figure/axes group ahead
     stab       : stability of each column
     zeta_range : range of zeta values (xlims)
+    cmap       : colormap to use for c; ani will use custom anisotropy colormap
     colobar    : 'empty','yb','none' for an emtpy axis, yb colorbar, or no cb
     width      : width in inches of plot
     skip       : if true, will skip the first line (yb very low)
@@ -1018,7 +1092,6 @@ def plt_scaling(zeta,phi,c,ymin,ymax,varlist,\
         var=varlist[j]
         for s in range(L):
             yplt=phi[s,j,:,:]
-            anic=c[s,j,:]
             if stab[s]:
                 sts=1
             else:
@@ -1034,21 +1107,34 @@ def plt_scaling(zeta,phi,c,ymin,ymax,varlist,\
             for i in range(M):
                 if skip and (i==0):
                     continue
+                if 'color' in linearg.keys():
+                    anic=linearg['color']
+                    lineargpass=linearg.copy()
+                    del lineargpass['color']
+                elif cmap=='ani':
+                    anic=cani_norm(c[s,j,i])
+                    lineargpass=linearg.copy()
+                else:
+                    anic=cani_norm(c[s,j,i],vmn_a=np.nanpercentile(c,1),\
+                            vmx_a=np.nanpercentile(c,99),cmapa=cmap)
+                    lineargpass=linearg.copy()
+
+
                 xplt=zeta[s,j,i,:]
                 # plot phi
                 if xyscale[j]=='semilog':
-                    ax.semilogx(sts*xplt,yplt[i,:],color=cani_norm(anic[i]),\
-                            zorder=4,**linearg)
+                    ax.semilogx(sts*xplt,yplt[i,:],color=anic,\
+                            zorder=4,**lineargpass)
                 elif xyscale[j]=='loglog':
-                    ax.loglog(sts*xplt,yplt[i,:],color=cani_norm(anic[i]),\
-                            zorder=4,**linearg)
+                    ax.loglog(sts*xplt,yplt[i,:],color=anic,\
+                            zorder=4,**lineargpass)
 
                 # plot fill
                 if (p25 is None) or (p75 is None):
                     pass
                 else:
                     ax.fill_between(sts*xplt,p25[s,j,i,:],p75[s,j,i,:],\
-                            color=cani_norm(anic[i]),alpha=.15,zorder=3)
+                            color=anic,alpha=.15,zorder=3)
 
             # plot old
             if plot_old:
