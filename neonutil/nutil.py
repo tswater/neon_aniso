@@ -4,6 +4,7 @@ from scipy.interpolate import interp1d
 import datetime
 import matplotlib.pyplot as plt
 import matplotlib
+from numba import jit
 from scipy import stats
 import pandas as pd
 ############## CONSTANTS ################
@@ -330,6 +331,124 @@ def nupscale(tout,tin,din,outscl=None,maxdelta=60,nearest=True,nanth=.2,debug=Fa
 
 #########################################################################
 ########################### LHET ########################################
+@jit(nopython=True)
+def _datasmall(data,dx,N,adv=0):
+    dout=np.zeros((N-1,N-1))
+    cnt=np.zeros((N-1,N-1))
+    for i in range(dx):
+        for j in range(dx):
+            d=data[i+adv:-(dx-i):dx,j+adv:-(dx-j):dx]
+            if d.shape[0]>cnt.shape[0]:
+                d=d[:-1,:-1]
+            #cnt[~np.isnan(d)]=cnt[~np.isnan(d)]+1
+            cnt=cnt+(1-np.isnan(d))
+            d=d*(1-np.isnan(d))
+            dout=dout+d
+    dout=dout/cnt
+    dout=dout+np.log10(cnt-.5)*0
+    return dout
+
+@jit(nopython=True)
+def _full_lac_helper(data,Nx,sc,adv=1):
+    Nxx=Nx-sc
+    means=np.ones((Nxx,Nxx))*float('nan')
+    for i in range(0,Nxx,adv):
+        for j in range(0,Nxx,adv):
+            means[i,j]=np.nanmean(data[i:i+sc,j:j+sc])
+    return means
+
+def autocorr(data):
+    return None
+
+def lacunarity_full(data,N=100,scales=None,ctf=None,debug=False):
+    Nx=data.shape[0]
+    lac=[]
+    scales=[]
+    lac.append(np.nanvar(data))
+    scales.append(1)
+    delta=1
+    dd=1
+    if debug:
+        print(':::DEBUG:::',end='')
+    for k in range(N):
+        sc=scales[-1]+delta
+        if debug:
+            print(str(scales[-1])+':'+str(lac[-1]),end=', ',flush=True)
+        adv=int(np.floor(sc/7))
+        adv=max(adv,1)
+        means=_full_lac_helper(data,Nx,sc,adv)
+        lac.append(np.nanvar(means))
+        scales.append(sc)
+        dlac=(lac[-2]-lac[-1])/lac[-2]
+        pctlac=lac[-1]/lac[0]
+        if pctlac<ctf:
+            break
+        if dlac<.2:
+            delta=delta+dd
+            dd=dd+1
+    return np.array(lac),np.array(scales)
+
+
+def lacunarity(data,N=100,scales=None,ctf=None,debug=False,full=True):
+    # can define scales 2 ways:
+    # 1: define directly with scales
+    # 2: define ctf, or a cutoff decay, after which scales are not checked
+    #    for option 3, scales are dynamic and N defines max
+    if full:
+        return lacunarity_full(data,N,scales,ctf,debug)
+
+    Nx=data.shape[0]
+    Ny=data.shape[1]
+    lac=[]
+
+    # option 1
+    if hasattr(scales, "__len__"):
+        for scale in scales:
+            Nxx=int(round(Nx/scale))
+            Nyy=int(round(Ny/scale))
+            means=np.ones((Nxx-1,Nyy-1))*float('nan')
+            for i in range(Nxx-1):
+                for j in range(Nyy-1):
+                    means[i,j]=np.nanmean(data[i*scale:(i+1)*scale,j*scale:(j+1)*scale])
+            lac.append(np.nanvar(means))
+        return lac,scales
+
+    # option 2
+    lac=[]
+    scales=[]
+    lac.append(np.nanvar(data))
+    scales.append(1)
+    delta=1
+    dd=1
+    if debug:
+        print(':::DEBUG:::',end='')
+    for k in range(N):
+        sc=scales[-1]+delta
+        if debug:
+            print(str(scales[-1])+':'+str(lac[-1]),end=', ',flush=True)
+        Nxx=int(round(Nx/sc))
+        Nyy=int(round(Ny/sc))
+        if Nxx<=2:
+            break
+        if Nyy<=2:
+            break
+        means=_datasmall(data,sc,Nxx)
+        #means=np.ones((Nxx-1,Nyy-1))*float('nan')
+        #for i in range(Nxx-1):
+        #    for j in range(Nyy-1):
+        #        means[i,j]=np.nanmean(data[i*sc:(i+1)*sc,j*sc:(j+1)*sc])
+        lac.append(np.nanvar(means))
+        scales.append(sc)
+        dlac=(lac[-2]-lac[-1])/lac[-2]
+        pctlac=lac[-1]/lac[0]
+        if pctlac<ctf:
+            break
+        if dlac<.2:
+            delta=delta+dd
+            dd=dd+1
+    return np.array(lac),np.array(scales)
+
+
 def lhet_data(data,N,ctf,Np=10000,binopt='equal'):
     dxi=int(data.shape[0]/2)
     posx=[]
@@ -523,13 +642,15 @@ def get_phio(var,stab,fp=None,zL=None):
         case 'THETATHETAs':
             phio=0.00087*(zL)**(-1.4)+2.03
         case 'QQu':
-            phio=np.sqrt(30)*(1-25*zL)**(-1/3)
+            phio=2.74*(1-8*zL)**(-1/3)
+            #phio=np.sqrt(30)*(1-25*zL)**(-1/3)
         case 'QQs':
             phio=2.74*np.ones(zL.shape)
         case 'CCu':
-            phio=np.sqrt(30)*(1-25*zL)**(-1/3)
+            phio=4.1*(1-8*zL)**(-1/3)
+            #phio=np.sqrt(30)*(1-25*zL)**(-1/3)
         case 'CCs':
-            phio=2.74*np.ones(zL.shape)
+            phio=4.1*np.ones(zL.shape)
     return phio
 
 
@@ -1016,7 +1137,7 @@ def lumley(fig,ax,xb,yb,data,cmap='Spectral_r',leftedge=False,\
         vmin=-vmax
     elif vmin=='pct':
         vmin=np.nanpercentile(data,5)
-    im=ax.pcolormesh(xb,yb,data,cmap='Spectral_r',shading=shading,vmin=vmin,vmax=vmax)
+    im=ax.pcolormesh(xb,yb,data,cmap=cmap,shading=shading,vmin=vmin,vmax=vmax)
     cb=fig.colorbar(im, cax=ax.inset_axes([0.95, 0.05, 0.05, .92]),label=cbarlabel)
     cb.set_label(label=cbarlabel,fontsize=fntlg)
     cb.ax.zorder=100

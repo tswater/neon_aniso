@@ -779,6 +779,20 @@ def add_profile_old(scl,ndir,idir,addprof=True,addqaqc=True,\
                 pass
     # FIXME I gave up implementing this
 
+##############################################################################
+##################### ADD RESISTANCE INFORMATION #############################
+# Adds z0 (constant), z0 (seasonal) and zd (seasonal) and zd (computed)
+def add_roughness(scl,ndir,overwrite=False,debug=False,sites=SITES):
+    #### SETUP
+
+    # create a temporary L2 file for near neutral conditions and decent windspeeds at each site
+
+    # build a list for each month
+
+    # compute
+
+
+
 ########################################################################
 ################## ADD PROFILE TQC ####################################
 # Adds the vertical profiles of temperature, water vapor and co2
