@@ -205,7 +205,7 @@ def ninterp(tout,tin,din,maxdelta=60,nearest=True,extrap=True,debug=False):
         try:
             if debug:
                 dbg='::::::::::DEBUG::::::::::::\n'
-                f=len(np.where(tdelta<np.nanmin(toutdelta)))
+                f=len(np.where(tdelta<np.nanmin(toutdelta))[0])
                 dbg=dbg+'Frequency of input finer than output: '+str(f)+'/'+str(len(tdelta))+'\n'
                 if (f>0):
                     idxs=np.where(tdelta<np.nanmin(toutdelta))[0]

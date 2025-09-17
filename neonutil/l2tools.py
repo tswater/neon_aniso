@@ -394,14 +394,11 @@ def datagen(outfile,idir,include=None,exclude=None,static=None,zeta=['zL'],\
             if (v not in exclude) and (v[0]!='q'):
                 vlist.append(v)
 
-    # convert list to include profile variables fully
-    # FIXME profiles can't be loaded in appropriately because the number
-    #       of levels in each profile are different. For now, just skip
-    # vlist=_convert_varlist(fpi,vlist)
+    proflist=[]
     vlist2=[]
     for v in vlist:
         if 'profile' in v:
-            pass
+            proflist.append(v)
         else:
             vlist2.append(v)
     vlist=vlist2
@@ -484,6 +481,38 @@ def datagen(outfile,idir,include=None,exclude=None,static=None,zeta=['zL'],\
                 ovar['main/data'][v]=arr
 
         out_to_h5(fpo,ovar,overwrite)
+
+    # now handle profile stuff
+    for v in proflist:
+        ovar={'main/data':{}}
+        if v[-1]=='t':
+            for i in range(4):
+                ovar['main/data'][v[-1].upper()+str(i)]=[]
+        else:
+            for i in range(3):
+                ovar['main/data'][v[-1].upper()+str(i)]=[]
+        for site in sites:
+            fpi=h5py.File(idir+site+'_'+str(cs.scale)+'m.h5','r')
+            msk=fpo['main/mask'][site]
+            n=np.sum(msk)
+            if n==0:
+                continue
+            a=fpi[v].keys()
+            la=len(a)
+            if v[-1]=='t':
+                for i in range(4):
+                    nmo=v[-1].upper()+str(i)
+                    nmi=v[-1].upper()+str(la-4+i)
+                    ovar['main/data'][nmo].extend(fpi[v][nmi][:][msk])
+            else:
+                for i in range(3):
+                    nmo=v[-1].upper()+str(i)
+                    nmi=v[-1].upper()+str(la-3+i)
+                    ovar['main/data'][nmo].extend(fpi[v][nmi][:][msk])
+        out_to_h5(fpo,ovar,overwrite)
+
+        if not v[-1]=='t':
+            fpo['main/data/'+v[-1].upper()+'3']=h5py.SoftLink('main/data/'+v[-1].upper())
 
 
 

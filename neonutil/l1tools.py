@@ -790,14 +790,14 @@ def add_roughness(scl,ndir,overwrite=False,debug=False,sites=SITES):
     # build a list for each month
 
     # compute
-
+    return
 
 
 ########################################################################
 ################## ADD PROFILE TQC ####################################
 # Adds the vertical profiles of temperature, water vapor and co2
 def add_profile_tqc(scl,ndir,dp4dir,dlt=None,addprof=True,addqaqc=True,ivars=None,\
-                    overwrite=False,debug=False,sites=SITES):
+        overwrite=False,debug=False,sites=SITES):
     ''' Add profile information '''
     # add profiles from scratch
     _ivars = ['profile_t','profile_q','profile_c']
@@ -837,7 +837,9 @@ def add_profile_tqc(scl,ndir,dp4dir,dlt=None,addprof=True,addqaqc=True,ivars=Non
             if (k not in fpo.keys()):
                 skip=False
         if (not overwrite) and skip:
-            print('Skipping derived data for '+site)
+            print('Skipping profile data for '+site)
+            fpo.close()
+            continue
 
 
         inp={'t':{},'q':{},'c':{},'qq':{},'qt':{},'qc':{},\
@@ -960,6 +962,7 @@ def add_profile_tqc(scl,ndir,dp4dir,dlt=None,addprof=True,addqaqc=True,ivars=Non
         # Interpolate top point in temperature profile
         if 't' in vs:
             v_long='profile_t'
+            v='t'
             if addprof:
                 ovar[v_long][v.upper()+str(len(lvltqc)-1)]=\
                         nscale(time2,inp['t_ttop'][:],inp['ttop'][:],scl=scl,nearest=False,debug=debug)

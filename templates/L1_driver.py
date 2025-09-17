@@ -29,6 +29,7 @@ start_time=time.time()
 
 #### BASIC OPTIONS
 scale   = 0 # averaging period in minutes
+vscale  = 0 # scale for vstat; should be approximately 1/5 or 1/6 of scale
 
 #### PLACES and THINGS TO PROCESS
 sites    = None # if None or [] will use all
@@ -52,7 +53,7 @@ qc_sci  = False # add quality flags from added science review
 
 #### DIRECTORIES
 # directories should contain a folder for each site, with data within
-l1dir_    = '/run/media/tswater/Elements/NEON/L1/' # L1 directory
+l1dir_    = '/home/tswater/Documents/tyche/data/neon/L1/' # L1 directory
 bd1       = '/run/media/tswater/Elements/NEON/downloads/' # base directory
 bd2       = '/home/tswater/Documents/tyche/data/neon/'
 turb_dir  = bd1+'multiscale/' # turbulence directory
@@ -186,6 +187,13 @@ add_profile_tqc(scale,l1dir,dp4_dir,dlt=dlt,addqaqc=qc_prof,ivars=varlist,\
 if timeout:
     print(prefix+"TQC Profiles Done; took %s seconds to run" % (np.round(time.time() - start_time)))
 
+#### Add profile information for Wind
+start_time=time.time()
+print(prefix+'Adding profiles for velocity ',flush=True)
+add_profile_wind(scale,l1dir,wind_dir,addqaqc=qc_prof,ivars=varlist,\
+        overwrite=replace,sites=sites,debug=debug)
+if timeout:
+    print(prefix+"Velocity Profiles Done; took %s seconds to run" % (np.round(time.time() - start_time)))
 
 #### Add Radiation information
 start_time=time.time()
@@ -213,6 +221,13 @@ add_precip(scale,l1dir,p1_dir,p2_dir,dlt=dlt,ivars=varlist,\
 if timeout:
     print(prefix+"Precipitation Done; took %s seconds to run" % (np.round(time.time() - start_time)))
 
+#### Add Stationarity
+start_time=time.time()
+print(prefix+'Adding stationarity; this will take a long time',flush=True)
+add_stationarity(l1dir,l1dir_+'neon_'+str(vscale)+'m/',scale,vscale,ivars=vstat,\
+        overwrite=replace,sites=sites,debug=debug)
+if timeout:
+    print(prefix+"Adding stationarity; took %s seconds to run" % (np.round(time.time() - start_time)))
 
 ### Add qaqc
 start_time=time.time()
