@@ -785,11 +785,110 @@ def add_profile_old(scl,ndir,idir,addprof=True,addqaqc=True,\
 def add_roughness(scl,ndir,overwrite=False,debug=False,sites=SITES):
     #### SETUP
 
+    from neonutil.l2tools import casegen,datagen,add_from_l1
+    import copy
+
     # create a temporary L2 file for near neutral conditions and decent windspeeds at each site
+    include=['profile_u','USTAR','TIME','Us']
+    zeta=['zL','z','zd']
+    static=None
+    conv_nan=True
+    case={}
+    case['name']     = 'temp'
+    case['scale']    = scl
+    case['l1dir']    = ndir
+    case['stab']     = None
+    case['basecase'] = None
+    case['months']   = []
+    case['years']    = []
+    case['sites']    = sites
+    case['precip']   = True
+    case['wind_sys'] = 'streamwise'
+    case['counter']  = False
+    case['core_vars']=['WTHETA','USTAR']
+    case['core_q']   = ['qH','qUSTAR']
+    case['limvars']  = {'ST_UsW_5':[-1,30],'USTAR/Us':[.05,100],'Us':[1,100],'zL':[-.01,.01]}
+    case['fpath']    = '/tmp/neonl2/proftmp.h5'
 
-    # build a list for each month
+    try:
+        os.mkdir('/tmp/neonl2')
+    except:
+        pass
 
-    # compute
+    casegen(case)
+    datagen(case['fpath'],case['l1dir'],include,None,static,zeta,conv_nan,overwrite=True,debug=debug)
+
+    fpl2=h5py.File(case['fpath'],'r')
+
+    # build for each month
+    zd_={}
+    z0_={}
+    fpsite=fpl2['main/data']['SITE'][:]
+    time=fpl2['main/data']['TIME'][:]
+    month=[]
+    for t in time:
+        dt=datetime.datetime(1970,1,1,0,0)+datetime.timedelta(seconds=t)
+        month.append(dt.month)
+    month=np.array(month)
+    sidx=0
+    for site in sites:
+        m=fpsite==bytes(site,'utf-8')
+        utop  = fpl2['main/data']['U3'][:][m]
+        ztop  = fpl2['main/static']['tow_height'][sidx]
+        u2top = fpl2['main/data']['U2'][:][m]
+        z2top = np.nanmax(fpl2['main/static']['lvls_u'][sidx,:])
+        ustar = fpl2['main/data/USTAR'][:][m]
+        mnt   = month[m]
+        if debug:
+            print(np.nanmean(utop))
+            print(ztop)
+            print(np.nanmean(u2top))
+            print(z2top)
+            print(np.nanmean(ustar))
+        for i in range(12):
+            mm=mnt==(i+1)
+
+            #zd12=z2top-(ztop-z2top)/(np.exp(.4*(utop[mm]-u2top[mm])/ustar[mm])-1)
+
+            #exp1=np.exp(utop[mm]*.4/ustar[mm])
+            #exp2=np.exp(u2top[mm]*.4/ustar[mm])
+            #zd12=(z2top-ztop*exp2/exp1)/(1-exp2/exp1)
+
+            zd12=[fpl2['main/static']['zd'][sidx]]*np.sum(mm)
+
+            z0=(z2top-zd12)*np.exp(-.4*u2top[mm]/ustar[mm])
+            z0[utop[mm]<u2top[mm]]=float('nan')
+            #zd12[zd12>z2top]=float('nan')
+            #zd12[zd12<0]=float('nan')
+            #z0[np.isnan(zd12)]=float('nan')
+            z0_[i]=z0
+            zd_[i]=zd12
+        sidx=sidx+1
+        fpo=h5py.File(ndir+site+'_'+str(scl)+'m.h5','r+')
+        olistz0=[]
+        olistzd=[]
+        zvl0=[]
+        zvld=[]
+        for i in range(12):
+            zvl0.extend(z0_[i][:])
+            zvld.extend(zd_[i][:])
+            olistz0.append(np.nanmedian(z0_[i][:]))
+            olistzd.append(np.nanmedian(zd_[i][:]))
+        try:
+            del fpo.attrs['z0_S']
+            del fpo.attrs['zd_comp']
+            del fpo.attrs['z0']
+            del fpo.attrs['zd_S']
+        except:
+            pass
+        fpo.attrs['z0']=np.nanmedian(zvl0)
+        fpo.attrs['zd_comp']=np.nanmedian(zvld)
+        fpo.attrs['z0_S']=olistz0
+        fpo.attrs['zd_S']=olistzd
+        fpo.close()
+
+        # compute
+    fpl2.close()
     return
 
 

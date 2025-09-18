@@ -106,7 +106,12 @@ def maskgen(fp,mask,cvar=None,flags=None,precip=None,stb=None,limvars=None,\
         for var in limvars:
             mn=limvars[var][0]
             mx=limvars[var][1]
-            if '/' in var:
+
+            if var == 'zL':
+                z=fp.attrs['tow_height']
+                zd=fp.attrs['zd']
+                data=(z-zd)/fp['L_MOST'][:]
+            elif '/' in var:
                 vsplt=var.split('/')
                 data=fp[vsplt[0]][:]/fp[vsplt[1]][:]
             elif '*' in var:
@@ -311,7 +316,9 @@ def staticgen(fp,idir,casek='main',case=None,static=None):
     else:
         cs=SimpleNamespace(**case)
     sites=cs.sites
-    if sites in ['NA',None,'ALL',[]]:
+    if hasattr(sites, "__len__"):
+        sites=sites
+    elif sites in [None,'NA',[]]:
         sites=SITES
     if static is None:
         static=[]
@@ -370,7 +377,9 @@ def datagen(outfile,idir,include=None,exclude=None,static=None,zeta=['zL'],\
         fpo=outfile
     cs=SimpleNamespace(**pull_case(fpo,'main'))
     sites=cs.sites
-    if sites in [None,'NA',[]]:
+    if hasattr(sites, "__len__"):
+        sites=sites
+    elif sites in [None,'NA',[]]:
         sites=SITES
     sites.sort()
     wind_sys=cs.wind_sys
@@ -512,8 +521,8 @@ def datagen(outfile,idir,include=None,exclude=None,static=None,zeta=['zL'],\
         out_to_h5(fpo,ovar,overwrite)
 
         if not v[-1]=='t':
-            fpo['main/data/'+v[-1].upper()+'3']=h5py.SoftLink('main/data/'+v[-1].upper())
-
+            fpo['main/data/'+v[-1].upper()+'3']=h5py.SoftLink('/main/data/'+v[-1].upper())
+    fpo.close()
 
 
 ##############################################################
