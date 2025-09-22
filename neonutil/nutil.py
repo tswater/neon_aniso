@@ -599,6 +599,58 @@ def cani_norm(x,vmn_a=.1,vmx_a=.7,cmapa=get_cmap_ani()):
     'QQ'
     'CC'
 '''
+
+def get_psi(fp,var,m=None,level=3):
+    # level indicates height at which to compute; default is top (3)
+    #       options include 1,2,3. 1 is not recommended for short towers
+    if 'main' not in fp.keys():
+        raise KeyError('Input file must be an L2 file with main/mask main/static and main/data')
+    f=fp['main/data']
+    if m is None:
+        m=np.ones((len(f['SITE'][:]),)).astype(bool)
+    try:
+        zd=f['zd'][:][m]
+    except Exception:
+        zd=static2full(fp['main/mask'],fp['main/static']['zd'][:])[m]
+    z0=np.array(static2full(fp['main/mask'],fp['main/static']['z0'][:]))
+    z0=z0[m]
+    zs0=[]
+    zs1=[]
+    zs2=[]
+    zs3=[]
+    if var =='pU':
+        varstar=f['USTAR'][:][m]
+        zs3=fp['main/static']['tow_height'][:]
+        for i in range(47):
+            lvu=fp['main/static']['lvls_u'][i,:]
+            zs2.append(np.nanmax(lvu))
+            zs1.append(np.nanmax(lvu[lvu<zs2[-1]]))
+            zs0.append(np.nanmax(lvu[lvu<zs1[-1]]))
+        zlo=z0
+        delta=f['U'+str(level)][:]
+    else:
+        if var == 'pT':
+            varstar=1/f['USTAR'][:][m]*(f['WTHETA'][:][m])
+        else:
+            varstar=1/f['USTAR'][:][m]*(f['W'+var[1]][:][m])
+        for i in range(47):
+            lvu=fp['main/static']['lvls'][i,:]
+            zs3.append(np.nanmax(lvu))
+            zs2.append(np.nanmax(lvu[lvu<zs3[-1]]))
+            zs1.append(np.nanmax(lvu[lvu<zs2[-1]]))
+            zs0.append(np.nanmax(lvu[lvu<zs1[-1]]))
+        zlo=[zs2,zs1,zs0][level-1]
+        zlo=np.array(static2full(fp['main/mask'],zlo))
+        zlo=zlo[m]
+        delta=f[var[1]+str(level)][:][m]-f[var[1]+str(level-1)][:][m]
+
+
+    z=[zs3,zs2,zs1][level-1]
+    z=np.array(static2full(fp['main/mask'],z))
+    z=z[m]
+    psi=np.log((z-zd)/zlo)-0.4*delta/varstar
+    return psi
+
 def get_phi(fp,var,m=None):
     if m is None:
         m=np.ones((len(fp['TIME'][:]),)).astype(bool)

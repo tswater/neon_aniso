@@ -136,8 +136,32 @@ def maskgen(fp,mask,cvar=None,flags=None,precip=None,stb=None,limvars=None,\
         mask=mask&(fp['P'][:]<=0)
         slist.append('Precip')
         nlist.append(np.sum(mask))
-    if counter not in [None,False,'NA']:
-        raise NotImplementedError('Masking countergradient fluxes TBI')
+    if hasattr(counter,"__len__") or (counter==True):
+        if not hasattr(counter,"__len__"):
+            counter=['profile_t','profile_u','profile_q','profile_c']
+        for k in counter:
+            v=k[-1]
+            if k in ['profile_u','profile_q','profile_c']:
+                lk=len(fp[k].keys())
+                top=fp[v.upper()][:]
+                top2=fp[k][v.upper()+str(lk-1)][:]
+                delta=top-top2
+                if v=='u':
+                    flux=fp['UsW'][:]
+                else:
+                    flux=fp['W'+v.upper()][:]
+                mask=mask&(delta*flux<0)
+            elif k in ['profile_t']:
+                lk=len(fp[k].keys())
+                top=fp[k][v.upper()+str(lk-1)][:]
+                top2=fp[k][v.upper()+str(lk-2)][:]
+                delta=top-top2
+                flux=fp['WTHETA'][:]
+                mask=mask&(delta*flux<0)
+
+        slist.append('Counter')
+        nlist.append(np.sum(mask))
+
     yrbool= (years not in [None,[],'NA'])
     mnbool= (months not in [None,[],'NA'])
     if yrbool | mnbool:
@@ -317,6 +341,8 @@ def staticgen(fp,idir,casek='main',case=None,static=None):
         cs=SimpleNamespace(**case)
     sites=cs.sites
     if hasattr(sites, "__len__"):
+        if sites=='NA':
+            sites=SITES
         sites=sites
     elif sites in [None,'NA',[]]:
         sites=SITES
@@ -378,6 +404,8 @@ def datagen(outfile,idir,include=None,exclude=None,static=None,zeta=['zL'],\
     cs=SimpleNamespace(**pull_case(fpo,'main'))
     sites=cs.sites
     if hasattr(sites, "__len__"):
+        if sites=='NA':
+            sites=SITES
         sites=sites
     elif sites in [None,'NA',[]]:
         sites=SITES
@@ -436,6 +464,8 @@ def datagen(outfile,idir,include=None,exclude=None,static=None,zeta=['zL'],\
             ovar['main/data']['zL'].extend((z-zd)/lmost)
         if 'zd' in zeta:
             ovar['main/data']['zd'].extend([zd]*n)
+        if 'z0' in zeta:
+            ovar['main/data']['z0'].extend([fpi.attrs['z0']]*n)
         if 'z' in zeta:
             ovar['main/data']['z'].extend([z]*n)
         if 'zzd' in zeta:

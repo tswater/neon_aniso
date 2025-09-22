@@ -18,7 +18,7 @@ from neonutil.l2tools import casegen,datagen
 include=[] # list of variables to include in L2 data (leave this or exclude empty)
 exclude=[] # list of variables to exclude from L2 data (will pull in all L1 data
            # except for the specified variables
-static=[]  # list of static variables to include; if empty will include
+static=None  # list of static variables to include; if empty will include
            # all L1 attrs
 zeta=[]    # list of forms of zeta to include; options are
            # ['zL','L_MOST','z','zd','zzd']

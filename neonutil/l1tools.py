@@ -1075,6 +1075,32 @@ def add_profile_tqc(scl,ndir,dp4dir,dlt=None,addprof=True,addqaqc=True,ivars=Non
         # Output
         out_to_h5(fpo,ovar,overwrite)
 
+############################################################################
+# Change a temperature profile to a potential temperature profile
+def prof2theta(scl,ndir,sites=SITES):
+    for site in sites:
+        fpo=h5py.File(ndir+site+'_'+str(scl)+'m.h5','r+')
+        P=fpo['PA'][:]
+        P0=100000
+        lvls=fpo.attrs['lvls']
+        Mgr=-9.81*28.9644/(8.31432*10**(3))
+        i=0
+        ovar={}
+        ovar={'profile_ta':{},'profile_t':{}}
+        for l in lvls:
+            T=fpo['profile_t']['T'+str(i)][:]
+            ovar['profile_ta']['T'+str(i)]=T.copy()
+            T=T+273.15
+            ps=P/np.exp(-Mgr*(lvls[-1]-l)/T)
+            theta=T*(P0/ps)**(.286)
+            ovar['profile_t']['T'+str(i)]=theta.copy()
+            i=i+1
+
+        out_to_h5(fpo,ovar,overwrite=True)
+
+
+
+
 #############################################################################
 ########################### ADD PROFILE WIND ################################
 # Adds the profile of windspeed
