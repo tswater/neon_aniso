@@ -630,25 +630,30 @@ def get_psi(fp,var,m=None,level=3):
         delta=f['U'+str(level)][:]
     else:
         if var == 'pT':
-            varstar=1/f['USTAR'][:][m]*(f['WTHETA'][:][m])
+            varstar=1/f['USTAR'][:][m]*(-f['WTHETA'][:][m])
         else:
-            varstar=1/f['USTAR'][:][m]*(f['W'+var[1]][:][m])
+            varstar=1/f['USTAR'][:][m]*(-f['W'+var[1]][:][m])
         for i in range(47):
             lvu=fp['main/static']['lvls'][i,:]
             zs3.append(np.nanmax(lvu))
             zs2.append(np.nanmax(lvu[lvu<zs3[-1]]))
             zs1.append(np.nanmax(lvu[lvu<zs2[-1]]))
             zs0.append(np.nanmax(lvu[lvu<zs1[-1]]))
-        zlo=[zs2,zs1,zs0][level-1]
+        zlo=[zs0,zs1,zs2][level-1]
         zlo=np.array(static2full(fp['main/mask'],zlo))
         zlo=zlo[m]
+        zlo=zlo-zd
         delta=f[var[1]+str(level)][:][m]-f[var[1]+str(level-1)][:][m]
+        if var == 'pQ':
+            if np.nanmean(f[var[1]+str(level)][:][m])>1:
+                delta=f[var[1]+str(level)][:][m]/1000-f[var[1]+str(level-1)][:][m]/1000
+            elif np.nanmean(f[var[1]+str(level-1)][:][m])>1:
+                delta=f[var[1]+str(level)][:][m]-f[var[1]+str(level-1)][:][m]/1000
 
-
-    z=[zs3,zs2,zs1][level-1]
+    z=[zs1,zs2,zs3][level-1]
     z=np.array(static2full(fp['main/mask'],z))
     z=z[m]
-    psi=np.log((z-zd)/zlo)-0.4*delta/varstar
+    psi=np.log((z-zd)/(zlo))-0.4*delta/varstar
     return psi
 
 def get_phi(fp,var,m=None):
