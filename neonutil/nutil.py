@@ -41,8 +41,11 @@ def static2full(fmsk,data,debug=False):
             print(sitelist[i])
             print(N)
             print(data[i],flush=True)
-        out.extend([data[i]]*N)
-    return out
+        if hasattr(data, "__len__"):
+            out.extend([data[i]]*N)
+        else:
+            out.extend([data]*N)
+    return np.array(out)
 
 
 ######################### HMG LIST OF LISTS ###########################
@@ -600,9 +603,13 @@ def cani_norm(x,vmn_a=.1,vmx_a=.7,cmapa=get_cmap_ani()):
     'CC'
 '''
 
-def get_psi(fp,var,m=None,level=3):
+def get_psi(fp,var,m=None,level=3,level2=None,minz=None,ret_dz=False):
     # level indicates height at which to compute; default is top (3)
     #       options include 1,2,3. 1 is not recommended for short towers
+    # If level2 is defined, will be the height to calculate delta at.
+    #       default is level-1
+    # If minz is defined (as 'zd' or 'canopy_height'), level2 will be
+    #       the lowest level above that height
     if 'main' not in fp.keys():
         raise KeyError('Input file must be an L2 file with main/mask main/static and main/data')
     f=fp['main/data']
@@ -618,6 +625,16 @@ def get_psi(fp,var,m=None,level=3):
     zs1=[]
     zs2=[]
     zs3=[]
+
+    if level2 is None:
+        level2=level-1
+    if minz is None:
+        minz=None
+    elif minz == 'zd':
+        minz=zd
+    elif minz == 'canopy_height':
+        minz=static2full(fp['main/mask'],fp['main/static']['canopy_height'][:])[m]
+
     if var =='pU':
         varstar=f['USTAR'][:][m]
         zs3=fp['main/static']['tow_height'][:]
@@ -639,22 +656,50 @@ def get_psi(fp,var,m=None,level=3):
             zs2.append(np.nanmax(lvu[lvu<zs3[-1]]))
             zs1.append(np.nanmax(lvu[lvu<zs2[-1]]))
             zs0.append(np.nanmax(lvu[lvu<zs1[-1]]))
-        zlo=[zs0,zs1,zs2][level-1]
+        zlo=[zs0,zs1,zs2][level2]
         zlo=np.array(static2full(fp['main/mask'],zlo))
         zlo=zlo[m]
+        #zlo=zlo-zd
+        if minz is None:
+            delta=f[var[1]+str(level)][:][m]-f[var[1]+str(level2)][:][m]
+            if var == 'pQ':
+                if np.nanmean(f[var[1]+str(level)][:][m])>1:
+                    delta=f[var[1]+str(level)][:][m]/1000-f[var[1]+str(level2)][:][m]/1000
+                elif np.nanmean(f[var[1]+str(level-1)][:][m])>1:
+                    delta=f[var[1]+str(level)][:][m]-f[var[1]+str(level2)][:][m]/1000
+        else:
+            delta=np.ones((np.sum(m),))*float('nan')
+            for lv in range(0,level):
+                delta0=f[var[1]+str(level)][:][m]-f[var[1]+str(lv)][:][m]
+                if var == 'pQ':
+                    if np.nanmean(f[var[1]+str(level)][:][m])>1:
+                        delta0=f[var[1]+str(level)][:][m]/1000-f[var[1]+str(lv)][:][m]/1000
+                    elif np.nanmean(f[var[1]+str(level-1)][:][m])>1:
+                        delta0=f[var[1]+str(level)][:][m]-f[var[1]+str(lv)][:][m]/1000
+
+                # height of lv and the point below
+                z1=[-1,zs0,zs1,zs2,zs3][lv+1]
+                z1=np.array(static2full(fp['main/mask'],z1))
+                z1=z1[m]
+                z2=[-1,zs0,zs1,zs2,zs3][lv]
+                z2=np.array(static2full(fp['main/mask'],z2))
+                z2=z2[m]
+
+                # all points above canopy where level below is below canopy
+                mm=(z1>minz)&(z2<minz)
+                delta[mm]=delta0[mm]
+                zlo[mm]=z1[mm]
         zlo=zlo-zd
-        delta=f[var[1]+str(level)][:][m]-f[var[1]+str(level-1)][:][m]
-        if var == 'pQ':
-            if np.nanmean(f[var[1]+str(level)][:][m])>1:
-                delta=f[var[1]+str(level)][:][m]/1000-f[var[1]+str(level-1)][:][m]/1000
-            elif np.nanmean(f[var[1]+str(level-1)][:][m])>1:
-                delta=f[var[1]+str(level)][:][m]-f[var[1]+str(level-1)][:][m]/1000
+        z0=.1*z0
 
     z=[zs1,zs2,zs3][level-1]
     z=np.array(static2full(fp['main/mask'],z))
     z=z[m]
     psi=np.log((z-zd)/(zlo))-0.4*delta/varstar
-    return psi
+    if ret_dz:
+        return psi,zlo-z0
+    else:
+        return psi
 
 def get_phi(fp,var,m=None):
     if m is None:

@@ -1176,6 +1176,78 @@ def add_profile_wind(scl,ndir,idir,addprof=True,addqaqc=True,ivars=None,\
 
     return None
 
+#############################################################################
+######################## ADD SKIN TEMP ######################################
+# Adds skin temperature top and soil
+def add_trad(scl,ndir,idir,dlt=None,adddata=True,addqaqc=True,ivars=None,overwrite=False,sites=SITES,debug=False):
+    ''' Add radiation information
+        scl   : averaging scale in minutes
+        ndir  : directory of L1 base files
+        ivars : variables to process; None will add all
+    '''
+    #### SETUP
+    _ivars = ['TRAD_CAN','TRAD_SOIL']
+    if ivars in [None]:
+        ivars=_ivars
+    outvar={}
+    for var in ivars:
+        if var in _ivars:
+            outvar[var]=[]
+    if len(outvar.keys())==0:
+        print('add_trad No valid variables in ivars')
+        return None
+    readlist=[]
+    if adddata:
+        readlist.extend(['bioTempMean'])
+    if addqaqc:
+        readlist.extend(['finalQF'])
+
+    if dlt in [None]:
+        dlt=scl
+
+    #### SITE LOOP
+    for site in sites:
+        if debug:
+            dbg='::::::::::::::::DEBUG:::::::::::::::::::\n'
+            dbg=dbg+'Loading in radiative temperature data for '+site+'\n'
+            print(dbg+':::::::::::::::::DEBUG::::::::::::::::::',flush=True)
+        # Setup
+        fpo=h5py.File(ndir+site+'_'+str(scl)+'m.h5','r+')
+        time=fpo['TIME'][:]
+        time2=time+scl/2*60
+        ovar=outvar.copy()
+
+        skip=True
+        for k in outvar.keys():
+            if (k not in fpo.keys()):
+                skip=False
+        if (not overwrite) and skip:
+            print('Skipping temperature data for '+site)
+
+        # Identify highest point
+        vert=[]
+        for file in os.listdir(idir+site):
+            vert.append(int(file[32:35]))
+
+
+        # Load Data
+        N=len(readlist)+2
+        ds=_load_csv_data(readlist,idir+site,['_1min','000.000'])
+        tms=(ds['startDateTime'][:]+ds['endDateTime'][:])/2
+
+        N=len(readlist)+2
+        dc=_load_csv_data(readlist,idir+site,['_1min','0'+str(int(np.max(vert)))])
+        tmc=(dc['startDateTime'][:]+dc['endDateTime'][:])/2
+
+        # interpolate data
+        if adddata:
+            ovar['TRAD_SOIL']=nscale(time2,tms,ds['bioTempMean'],scl=scl,debug=debug)
+            ovar['TRAD_CAN']=nscale(time2,tmc,dc['bioTempMean'],scl=scl,debug=debug)
+        if addqaqc:
+            ovar['qTRAD_SOIL']=nscale(time2,tms,ds['qFinal'],scl=scl,debug=debug)
+            ovar['qTRAD_CAN']=nscale(time2,tmc,dc['qFinal'],scl=scl,debug=debug)
+
+        out_to_h5(fpo,ovar,overwrite)
 
 #############################################################################
 ######################## ADD RADIATION ######################################
