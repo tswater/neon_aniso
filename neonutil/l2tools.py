@@ -91,8 +91,20 @@ def maskgen(fp,mask,cvar=None,flags=None,precip=None,stb=None,limvars=None,\
     nlist.append(np.sum(mask))
     if flags not in [None,[]]:
         for flag in flags:
-            mask=mask&(~np.isnan(fp[flag][:]))
-            mask=mask&(fp[flag][:]==0)
+            try:
+                mask=mask&(~np.isnan(fp[flag][:]))
+                mask=mask&(fp[flag][:]==0)
+            except Exception as e:
+                if flag=='qUVW':
+                    try:
+                        for v in ['U','V','W']
+                            flg='q'+v
+                            mask=mask&(~np.isnan(fp[flg][:]))
+                            mask=mask&(fp[flg][:]==0)
+                    except Exception as e2:
+                        print(e)
+                        print(e2)
+                        raise(e)
             slist.append(flag)
             nlist.append(np.sum(mask))
     if cvar not in [None,[]]:
