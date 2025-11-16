@@ -84,7 +84,7 @@ def _h5_casewrite(fp,case,casek):
 ###################### CONSTRUCTION FUNCTIONS #######################
 # Functions for building and manipulating L2 file and mask
 def maskgen(fp,mask,cvar=None,flags=None,precip=None,stb=None,limvars=None,\
-            counter=None,months=None,years=None,debug=False):
+            zdtyp=['S','C','D'][2],counter=None,months=None,years=None,debug=False):
     ''' Generate a Mask '''
     nlist=[]
     slist=['START']
@@ -109,7 +109,13 @@ def maskgen(fp,mask,cvar=None,flags=None,precip=None,stb=None,limvars=None,\
 
             if var == 'zL':
                 z=fp.attrs['tow_height']
-                zd=fp.attrs['zd']
+                if zdtyp=='C':
+                    zd=[fpi.attrs['zd_comp']]*len(mask)
+                elif zdtyp=='S':
+                    zd=_s2full(fp.attrs['zd_S'][:],fpi['TIME'][:])
+                else:
+                    zd=[fp.attrs['zd']]*len(mask)
+
                 data=(z-zd)/fp['L_MOST'][:]
             elif '/' in var:
                 vsplt=var.split('/')
@@ -341,8 +347,11 @@ def staticgen(fp,idir,casek='main',case=None,static=None):
         cs=SimpleNamespace(**case)
     sites=cs.sites
     if hasattr(sites, "__len__"):
-        if sites=='NA':
-            sites=SITES
+        try:
+            if sites=='NA':
+                sites=SITES
+        except Exception as e:
+            pass
         sites=sites
     elif sites in [None,'NA',[]]:
         sites=SITES
@@ -380,12 +389,38 @@ def staticgen(fp,idir,casek='main',case=None,static=None):
                     print(e)
                     raise(e2)
 
+def _s2full(zds,time):
+    # Make zd seasonal into a full zd situation
+    month=[]
+    for t in time:
+        dt=datetime.datetime(1970,1,1,0,0)+datetime.timedelta(seconds=t)
+        month.append(dt.month)
+    month=np.array(month)
+    timez=np.linspace(1,12,12)
+    timi=[]
+    zdsi=[zds[10],zds[11]]
+    zdsi.extend(zds)
+    zdsi.extend([zds[0],zds[1]])
+    zout=np.zeros((len(time),))
+    for i in range(12):
+        n=np.sum(month==(i+1))
+        if n==0:
+            continue
+        if np.isnan(zds[i]):
+            a=np.nanmean(zdsi[i:i+5])
+        else:
+            a=zdsi[i+2]
+        if np.isnan(a):
+            a=np.nanmean(zds)
 
-
+        zout[month==(i+1)]=a
+    return zout
 
 ##############################################################
-def datagen(outfile,idir,include=None,exclude=None,static=None,zeta=['zL'],\
+def datagen(outfile,idir,include=None,exclude=None,static=None,zdtyp=['S','C','D'][2],zeta=['zL'],\
         conv_nan=True,overwrite=False,debug=False):
+
+    # zdtyp: S is for seasonal, C is for constant computed, D is for default from NEON
 
     # Streamwise List and Earth List
     slist=['Us','Vs','UsUs','VsVs','UsVs','UsW','VsW',\
@@ -404,9 +439,13 @@ def datagen(outfile,idir,include=None,exclude=None,static=None,zeta=['zL'],\
     cs=SimpleNamespace(**pull_case(fpo,'main'))
     sites=cs.sites
     if hasattr(sites, "__len__"):
-        if sites=='NA':
-            sites=SITES
-        sites=sites
+        try:
+            if sites=='NA':
+                sites=SITES
+        except Exception as e:
+            sites=sites
+    elif sites is None:
+        sites=SITES
     elif sites in [None,'NA',[]]:
         sites=SITES
     sites.sort()
@@ -458,18 +497,26 @@ def datagen(outfile,idir,include=None,exclude=None,static=None,zeta=['zL'],\
         # newly generated variables
         ovar['main/data']['SITE'].extend([site]*n)
         z=fpi.attrs['tow_height']
-        zd=fpi.attrs['zd']
+        if zdtyp=='C':
+            zd=[fpi.attrs['zd_comp']]*n
+            z0=[fpi.attrs['z0']]*n
+        elif zdtyp=='S':
+            z0=_s2full(fpi.attrs['z0_S'][:],fpi['TIME'][:][msk])
+            zd=_s2full(fpi.attrs['zd_S'][:],fpi['TIME'][:][msk])
+        else:
+            z0=[fpi.attrs['z0']]*n
+            zd=[fpi.attrs['zd']]*n
         lmost=fpi['L_MOST'][:][msk]
+        if 'z0' in zeta:
+            ovar['main/data']['z0'].extend(z0)
         if 'zL' in zeta:
             ovar['main/data']['zL'].extend((z-zd)/lmost)
         if 'zd' in zeta:
-            ovar['main/data']['zd'].extend([zd]*n)
-        if 'z0' in zeta:
-            ovar['main/data']['z0'].extend([fpi.attrs['z0']]*n)
+            ovar['main/data']['zd'].extend(zd)
         if 'z' in zeta:
             ovar['main/data']['z'].extend([z]*n)
         if 'zzd' in zeta:
-            ovar['main/data']['zzd'].extend([z-zd]*n)
+            ovar['main/data']['zzd'].extend(np.array([z]*n)-zd)
         if ('L_MOST' in zeta) and ((is_include and ('L_MOST' not in include)) or\
                 (is_exclude and ('L_MOST' in exclude))):
             ovar['main/data']['L_MOST'].extend(lmost)
@@ -477,7 +524,13 @@ def datagen(outfile,idir,include=None,exclude=None,static=None,zeta=['zL'],\
     # conv nan
     if conv_nan:
         for v in ovar['main/data'].keys():
-            arr=np.array(ovar['main/data'][v][:])
+            try:
+                arr=np.array(ovar['main/data'][v][:])
+            except Exception as e:
+                print(v)
+                print(ovar['main/data'][v].shape)
+                print(len(ovar['main/data'][v]))
+                raise(e)
             arr[arr==-9999]=float('nan')
             ovar['main/data'][v]=arr
 

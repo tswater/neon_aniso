@@ -603,13 +603,92 @@ def cani_norm(x,vmn_a=.1,vmx_a=.7,cmapa=get_cmap_ani()):
     'CC'
 '''
 
-def get_psi(fp,var,m=None,level=3,level2=None,minz=None,ret_dz=False):
+def get_psi_trad(fp,m,level,z0,zd,trad):
+    f=fp['main/data']
+    z=[]
+    for i in range(47):
+        lv=fp['main/static']['lvls'][i,:]
+        lv0=10000
+        for j in range(4-level):
+            lv0=np.nanmax(lv[lv<lv0])
+        z.append(lv0)
+    z = np.array(static2full(fp['main/mask'],z))
+    if trad=='VARIABLE':
+        delta=f['T'+str(level)][:][m]-f['TRAD_SOIL'][m]
+        delta[zd>.3]=(f['T'+str(level)][:][m]-f['TRAD_CAN'][m])[zd>.3]
+    else:
+        delta=f['T'+str(level)][:][m]-f[trad][m]
+    zlo=z0*.1
+    varstar=1/f['USTAR'][:][m]*(-f['WTHETA'][:][m])
+    psi=np.log((z-zd)/(zlo))-0.4*delta/varstar
+    return psi
+
+def get_psi_trap(fp,var,m,level,minlvl,z0,zd,ret_dz):
+    f=fp['main/data']
+    v=var[1]
+    z_=np.zeros((4,47))
+    for i in range(47):
+        lv=fp['main/static']['lvls'][i,:]
+        arr=[]
+        for j in range(8):
+            a=lv[j]
+            if np.isnan(a):
+                pass
+            else:
+                arr.append(a)
+        z_[:,i]=arr[-4:]
+    z=np.zeros((4,np.sum(m)))
+    for j in range(4):
+        z[j,:]=np.array(static2full(fp['main/mask'],z_[j,:]))[m]
+    mm=np.ones((4,np.sum(m))).astype(bool)
+    if type(minlvl)==int:
+        for j in range(0,minlvl):
+            mm[j,:]=False
+    elif hasattr(minlvl, "__len__"):
+        minlvl=np.array(static2full(fp['main/mask'],minlvl))[m]
+        for j in range(4):
+            mmm=minlvl>j
+            mm[j,mmm]=False
+    elif minlvl=='canopy_height':
+        pass
+    elif minlvl=='z0':
+        pass
+    elif minlvl=='zd':
+        pass
+
+    psi=np.zeros((np.sum(m),))
+    zmin=np.zeros((np.sum(m),))
+    for i in range(0,level):
+        mmm=mm[i]
+        if np.sum(mmm)<1:
+            continue
+        mz=mmm&(zmin==0)
+        zmin[mz]=z[i,mz]
+        lnz=np.log((z[i+1,mmm]-zd[mmm])/(z[i,mmm]-zd[mmm]))
+        delta=f[v+str(i+1)][:][m][mmm]-f[v+str(i)][:][m][mmm]
+        if v=='T':
+            varstar=-f['WTHETA'][:][m][mmm]/f['USTAR'][:][m][mmm]
+        else:
+            varstar=-f['W'+v][:][m][mmm]/f['USTAR'][:][m][mmm]
+        psi[mmm]=psi[mmm]+(lnz-.4*delta/varstar)
+
+    psi[psi==0]=float('nan')
+    if ret_dz:
+        return psi,zmin-zd-z0
+    else:
+        return psi
+
+
+
+def get_psi(fp,var,m=None,level=3,level2=None,minz=None,ret_dz=False,ret_dvstr=False,forcezlo=False,trad=None,trap=True):
     # level indicates height at which to compute; default is top (3)
     #       options include 1,2,3. 1 is not recommended for short towers
     # If level2 is defined, will be the height to calculate delta at.
     #       default is level-1
     # If minz is defined (as 'zd' or 'canopy_height'), level2 will be
     #       the lowest level above that height
+
+    from neonutil.l2tools import _s2full
     if 'main' not in fp.keys():
         raise KeyError('Input file must be an L2 file with main/mask main/static and main/data')
     f=fp['main/data']
@@ -619,8 +698,18 @@ def get_psi(fp,var,m=None,level=3,level2=None,minz=None,ret_dz=False):
         zd=f['zd'][:][m]
     except Exception:
         zd=static2full(fp['main/mask'],fp['main/static']['zd'][:])[m]
-    z0=np.array(static2full(fp['main/mask'],fp['main/static']['z0'][:]))
-    z0=z0[m]
+    try:
+        z0=f['z0'][:][m]
+    except Exception:
+        z0=np.array(static2full(fp['main/mask'],fp['main/static']['z0'][:]))
+        z0=z0[m]
+
+    if (trad in ['TRAD_SOIL','TRAD_CAN','VARIABLE']) and (var=='pT'):
+        return get_psi_trad(fp,m,level,z0,zd,trad)
+
+    if (trap) & (not (var=='pU')):
+        return get_psi_trap(fp,var,m,level,minz,z0,zd,ret_dz)
+
     zs0=[]
     zs1=[]
     zs2=[]
@@ -634,7 +723,9 @@ def get_psi(fp,var,m=None,level=3,level2=None,minz=None,ret_dz=False):
         minz=zd
     elif minz == 'canopy_height':
         minz=static2full(fp['main/mask'],fp['main/static']['canopy_height'][:])[m]
-
+        minz=.95*minz
+    elif minz == 'chm':
+        minz=static2full(fp['main/mask'],fp['main/static']['chm'][:])[m]
     if var =='pU':
         varstar=f['USTAR'][:][m]
         zs3=fp['main/static']['tow_height'][:]
@@ -692,12 +783,19 @@ def get_psi(fp,var,m=None,level=3,level2=None,minz=None,ret_dz=False):
         zlo=zlo-zd
         z0=.1*z0
 
+    dz=zlo-z0
+    if forcezlo:
+        zlo=z0
     z=[zs1,zs2,zs3][level-1]
     z=np.array(static2full(fp['main/mask'],z))
     z=z[m]
     psi=np.log((z-zd)/(zlo))-0.4*delta/varstar
-    if ret_dz:
-        return psi,zlo-z0
+    if ret_dz and ret_dvstr:
+        return psi,dz,0.4*delta/varstar
+    elif ret_dz:
+        return psi,dz
+    elif ret_dvstr:
+        return psi,0.4*delta/varstar
     else:
         return psi
 
@@ -1294,7 +1392,8 @@ def plt_scaling(zeta,phi,c,ymin,ymax,varlist,\
     M=zeta.shape[2]
     K=zeta.shape[3]
     ylabels={'UU':r'$\Phi_u$','VV':r'$\Phi_v$','WW':r'$\Phi_w$',\
-             'THETATHETA':r'$\Phi_{\theta}$','QQ':r'$\Phi_q$','CC':r'$\Phi_c$'}
+             'THETATHETA':r'$\Phi_{\theta}$','QQ':r'$\Phi_q$','CC':r'$\Phi_c$',\
+             'pU':r'$\Psi_M$','pT':r'$\Psi_H$','pQ':r'$\Psi_W$'}
 
     wdrt=[1]*L
     if colorbar in ['empty','yb']:
@@ -1312,6 +1411,8 @@ def plt_scaling(zeta,phi,c,ymin,ymax,varlist,\
         fig=figaxs[0]
         axs=figaxs[1]
 
+    if len(axs.shape)<2:
+        axs=np.array([axs])
     for j in range(N):
         var=varlist[j]
         for s in range(L):

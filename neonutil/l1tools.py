@@ -96,9 +96,9 @@ def _dpt2utc(tm,source='neon_h5'):
         tm2.append((dt-t0).total_seconds())
     return np.array(tm2)
 
-def _load_csv_data(innames,inp,req=None):
+def _load_csv_data(innames,inp,req=None,debug=False):
     if (req!=None) & (os.path.isdir(inp)):
-        return _load_csv_data_neon(innames,inp,req)
+        return _load_csv_data_neon(innames,inp,req,debug)
     elif (not os.path.isdir(inp)) & (req==None):
         return _load_csv_data_pheno(innames,inp)
 
@@ -192,7 +192,7 @@ def _load_csv_data_pheno(innames,ifile):
     return out
 
 
-def _load_csv_data_neon(innames,idir,req):
+def _load_csv_data_neon(innames,idir,req,debug=False):
     # innames is a list of names to input
     # idir is directory of input
     # req is a list of file name requirements; i.e. req=['_30min'] will only
@@ -207,12 +207,24 @@ def _load_csv_data_neon(innames,idir,req):
     flist=os.listdir(idir)
     flist.sort()
     filelist=[]
+    greq=np.zeros((len(req),))
     for file in flist:
         good=True
+        ii=0
         for r in req:
             good=good&(r in file)
+            greq[ii]=greq[ii]+int(good)
+            ii=ii+1
         if good:
             filelist.append(file)
+    if debug:
+        print('::::::::::::DEBUG:::::::::::')
+        print('LOAD_CSV')
+        print('filelist length (pre req):' +str(len(flist)))
+        print('filelist length: '+str(len(filelist)))
+        print('Requirements Met:')
+        for ii in range(len(req)):
+            print('   '+str(req[ii])+': '+str(greq[ii]))
     for file in filelist:
         with open(idir+'/'+file,encoding='latin-1') as read_r:
             read_r = csv.reader(read_r)
@@ -694,7 +706,7 @@ def add_core_attrs(scl,ndir,nbdir=None,bscl=30,ivars=None,sites=SITES):
     # for now, we assume we already have these
     #### SETUP
     _ivars = ['canopy_height','elevation','lat','lon','lvls','lvls_u',
-              'nlcd_dom','tow_height','utc_off','zd','nlcdXX']
+              'nlcd_dom','tow_height','utc_off','zd','nlcdXX','zd_S','zd_comp','z0_S']
     pctn=[11,12,21,22,23,24,31,42,43,51,52,71,72,73,74,81,82,90,95]
     if ivars in [None]:
         ivars=_ivars
@@ -782,8 +794,47 @@ def add_profile_old(scl,ndir,idir,addprof=True,addqaqc=True,\
 ##############################################################################
 ##################### ADD RESISTANCE INFORMATION #############################
 # Adds z0 (constant), z0 (seasonal) and zd (seasonal) and zd (computed)
-def add_roughness(scl,ndir,overwrite=False,debug=False,sites=SITES):
-    #### SETUP
+def _get_profiles(fp,site,mnth=None):
+    z=[]
+    u=[]
+    fpsite=fp['main/data']['SITE'][:]
+    time=fp['main/data']['TIME'][:]
+    month=[]
+    for t in time:
+        dt=datetime.datetime(1970,1,1,0,0)+datetime.timedelta(seconds=t)
+        month.append(dt.month)
+    month=np.array(month)
+    m=fpsite==bytes(site,'utf-8')
+    if mnth is None:
+        pass
+    else:
+        m=m&(month==mnth)
+    m=m&(~np.isnan(fp['main/data']['U2'][:]))
+    m=m&(~np.isnan(fp['main/data']['U1'][:]))
+    mout=month[m]
+    sidx=np.where(np.unique(fpsite)==bytes(site,'utf-8'))[0][0]
+    d0=fp['main/static']['zd'][sidx]
+    canh=fp['main/static']['canopy_height'][sidx]
+    z00=fp['main/static']['z0'][sidx]
+    numz=np.sum(np.isnan(fp['main/static']['lvls_u'][sidx,:]))
+    print(numz)
+    for i in range(4):
+        if i==3:
+            zi=fp['main/static']['tow_height'][sidx]
+        else:
+            zi=fp['main/static']['lvls_u'][sidx,i-(numz+3)]
+        if i==0:
+            continue
+        z.append(zi)
+        u.append(fp['main/data']['U'+str(i)][:][m])
+    ustar=fp['main/data']['USTAR'][:][m]
+    return np.array(z),np.array(u),np.array(ustar),d0,canh,z00,mout
+
+def _ueq(z,d,z0):
+    return np.log((z-d)/z0)/0.4
+
+def add_roughness(scl,ndir,overwrite=False,debug=False,sites=SITES,nofit=False):
+    #### SETiUP
 
     from neonutil.l2tools import casegen,datagen,add_from_l1
     import copy
@@ -807,8 +858,10 @@ def add_roughness(scl,ndir,overwrite=False,debug=False,sites=SITES):
     case['counter']  = False
     case['core_vars']=['WTHETA','USTAR']
     case['core_q']   = ['qH','qUSTAR']
-    case['limvars']  = {'ST_UsW_5':[-1,30],'USTAR/Us':[.05,100],'Us':[1,100],'zL':[-.01,.01]}
+    case['limvars']  = {'ST_UsW_5':[-1,30],'Us':[1,100],'zL':[-.01,.01]}
     case['fpath']    = '/tmp/neonl2/proftmp.h5'
+
+    from scipy import optimize
 
     try:
         os.mkdir('/tmp/neonl2')
@@ -816,64 +869,55 @@ def add_roughness(scl,ndir,overwrite=False,debug=False,sites=SITES):
         pass
 
     casegen(case)
-    datagen(case['fpath'],case['l1dir'],include,None,static,zeta,conv_nan,overwrite=True,debug=debug)
+    datagen(case['fpath'],case['l1dir'],include,None,static,'C',zeta,conv_nan,overwrite=True,debug=debug)
 
     fpl2=h5py.File(case['fpath'],'r')
 
     # build for each month
     zd_={}
     z0_={}
-    fpsite=fpl2['main/data']['SITE'][:]
-    time=fpl2['main/data']['TIME'][:]
-    month=[]
-    for t in time:
-        dt=datetime.datetime(1970,1,1,0,0)+datetime.timedelta(seconds=t)
-        month.append(dt.month)
-    month=np.array(month)
-    sidx=0
     for site in sites:
-        m=fpsite==bytes(site,'utf-8')
-        utop  = fpl2['main/data']['U3'][:][m]
-        ztop  = fpl2['main/static']['tow_height'][sidx]
-        u2top = fpl2['main/data']['U2'][:][m]
-        z2top = np.nanmax(fpl2['main/static']['lvls_u'][sidx,:])
-        ustar = fpl2['main/data/USTAR'][:][m]
-        mnt   = month[m]
-        if debug:
-            print(np.nanmean(utop))
-            print(ztop)
-            print(np.nanmean(u2top))
-            print(z2top)
-            print(np.nanmean(ustar))
-        for i in range(12):
-            mm=mnt==(i+1)
+        z,u,ustar,d0,canh,z00,mout=_get_profiles(fpl2,site)
+        p0=[d0,.1]
+        bounds=([0,0],[max(canh,2),max(canh/4,.5)])
+        z0vals=[]
+        dvals=[]
+        for i in range(len(ustar)):
+            try:
+                popt,pcov=optimize.curve_fit(_ueq,z,u[:,i]/ustar[i],p0,bounds=bounds)
+            except Exception as e:
+                try:
+                    p0=[1,.1]
+                    popt,pcov=optimize.curve_fit(_ueq,z,u[:,i]/ustar[i],p0,bounds=bounds)
+                except Exception as ee:
+                    print(site)
+                    print(e)
+                    print(ee)
+                    z0vals.append(float('nan'))
+                    dvals.append(float('nan'))
+                    continue
+            if (popt[1]>popt[0])&(canh>1):
+                z0vals.append(float('nan'))
+                dvals.append(float('nan'))
+                continue
+            z0vals.append(popt[1])
+            dvals.append(popt[0])
 
-            #zd12=z2top-(ztop-z2top)/(np.exp(.4*(utop[mm]-u2top[mm])/ustar[mm])-1)
+        z0vals=np.array(z0vals)
+        dvals=np.array(dvals)
 
-            #exp1=np.exp(utop[mm]*.4/ustar[mm])
-            #exp2=np.exp(u2top[mm]*.4/ustar[mm])
-            #zd12=(z2top-ztop*exp2/exp1)/(1-exp2/exp1)
-
-            zd12=[fpl2['main/static']['zd'][sidx]]*np.sum(mm)
-
-            z0=(z2top-zd12)*np.exp(-.4*u2top[mm]/ustar[mm])
-            z0[utop[mm]<u2top[mm]]=float('nan')
-            #zd12[zd12>z2top]=float('nan')
-            #zd12[zd12<0]=float('nan')
-            #z0[np.isnan(zd12)]=float('nan')
-            z0_[i]=z0
-            zd_[i]=zd12
-        sidx=sidx+1
         fpo=h5py.File(ndir+site+'_'+str(scl)+'m.h5','r+')
         olistz0=[]
         olistzd=[]
-        zvl0=[]
-        zvld=[]
-        for i in range(12):
-            zvl0.extend(z0_[i][:])
-            zvld.extend(zd_[i][:])
-            olistz0.append(np.nanmedian(z0_[i][:]))
-            olistzd.append(np.nanmedian(zd_[i][:]))
+        for i in range(1,13):
+            z0ss=z0vals[mout==i]
+            dss=dvals[mout==i]
+            if (len(z0ss)<10) or (len(dss)<10):
+                olistz0.append(float('nan'))
+                olistzd.append(float('nan'))
+            else:
+                olistz0.append(np.nanmedian(z0ss))
+                olistzd.append(np.nanmedian(dss))
         try:
             del fpo.attrs['z0_S']
             del fpo.attrs['zd_comp']
@@ -881,8 +925,8 @@ def add_roughness(scl,ndir,overwrite=False,debug=False,sites=SITES):
             del fpo.attrs['zd_S']
         except:
             pass
-        fpo.attrs['z0']=np.nanmedian(zvl0)
-        fpo.attrs['zd_comp']=np.nanmedian(zvld)
+        fpo.attrs['z0']=np.nanmedian(z0vals)
+        fpo.attrs['zd_comp']=np.nanmedian(dvals)
         fpo.attrs['z0_S']=olistz0
         fpo.attrs['zd_S']=olistzd
         fpo.close()
@@ -1227,26 +1271,31 @@ def add_trad(scl,ndir,idir,dlt=None,adddata=True,addqaqc=True,ivars=None,overwri
         # Identify highest point
         vert=[]
         for file in os.listdir(idir+site):
-            vert.append(int(file[32:35]))
-
+            try:
+                vert.append(int(file[32:35]))
+            except Exception:
+                pass
 
         # Load Data
         N=len(readlist)+2
-        ds=_load_csv_data(readlist,idir+site,['_1min','000.000'])
+        ds=_load_csv_data(readlist,idir+site,['_1_min','000.00'],debug=debug)
         tms=(ds['startDateTime'][:]+ds['endDateTime'][:])/2
 
         N=len(readlist)+2
-        dc=_load_csv_data(readlist,idir+site,['_1min','0'+str(int(np.max(vert)))])
+        dc=_load_csv_data(readlist,idir+site,['_1_min','.0'+str(int(np.max(vert)))],debug=debug)
         tmc=(dc['startDateTime'][:]+dc['endDateTime'][:])/2
 
         # interpolate data
         if adddata:
-            ovar['TRAD_SOIL']=nscale(time2,tms,ds['bioTempMean'],scl=scl,debug=debug)
-            ovar['TRAD_CAN']=nscale(time2,tmc,dc['bioTempMean'],scl=scl,debug=debug)
+            ovar['TRAD_SOIL']=nscale(time2,tms,ds['bioTempMean'],scl=scl,debug=debug)+273.15
+            ovar['TRAD_CAN']=nscale(time2,tmc,dc['bioTempMean'],scl=scl,debug=debug)+273.15
         if addqaqc:
-            ovar['qTRAD_SOIL']=nscale(time2,tms,ds['qFinal'],scl=scl,debug=debug)
-            ovar['qTRAD_CAN']=nscale(time2,tmc,dc['qFinal'],scl=scl,debug=debug)
-
+            try:
+                ovar['qTRAD_SOIL']=nscale(time2,tms,ds['finalQF'],scl=scl,debug=debug)
+                ovar['qTRAD_CAN']=nscale(time2,tmc,dc['finalQF'],scl=scl,debug=debug)
+            except Exception as e:
+                print(dc.keys())
+                raise(e)
         out_to_h5(fpo,ovar,overwrite)
 
 #############################################################################
@@ -2153,7 +2202,7 @@ def remove_var(scl,ndir,delvar=[],confirm=True,sites=SITES):
 
 ##################################################################
 def update_var(scl,ndir,var,rename=None,desc=None,units=None,\
-        attr=None,factor=1,ofset=0,confirm=True,sites=SITES):
+        attr=None,factor=1,ofset=0,confirm=True,sites=SITES,tryskip=False):
     ''' Update a variable name, add description or units or factor'''
 
     doele={}
@@ -2198,7 +2247,14 @@ def update_var(scl,ndir,var,rename=None,desc=None,units=None,\
         for site in sites:
             fp=h5py.File(ndir+site+'_'+str(scl)+'m.h5','r+')
             if doele['factor']:
-                fp[var][:]=fp[var][:]*factor
+                try:
+                    fp[var][:]=fp[var][:]*factor
+                except KeyError as e:
+                    print(site+': '+str(e))
+                    if tryskip:
+                        pass
+                    else:
+                        raise(e)
             if doele['ofset']:
                 fp[var][:]=fp[var][:]+ofset
             if doele['desc']:

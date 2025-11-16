@@ -125,7 +125,7 @@ for site in sitelist[rank::size]:
         subprocess.run('rm '+outname,shell=True)
         for a in dwnld_list:
             subprocess.run('wget -nv '+a,shell=True)
-        subprocess.run('mv * ../../trad/'+site+'/',shell=True)
+        subprocess.run('mv * ../../../trad/'+site+'/',shell=True)
         os.chdir('../')
     #subprocess.run('mv *DTM* ../../dtm/'+site+'/',shell=True)
 
