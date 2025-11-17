@@ -97,7 +97,7 @@ def maskgen(fp,mask,cvar=None,flags=None,precip=None,stb=None,limvars=None,\
             except Exception as e:
                 if flag=='qUVW':
                     try:
-                        for v in ['U','V','W']
+                        for v in ['U','V','W']:
                             flg='q'+v
                             mask=mask&(~np.isnan(fp[flg][:]))
                             mask=mask&(fp[flg][:]==0)
