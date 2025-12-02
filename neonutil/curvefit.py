@@ -37,18 +37,47 @@ def _nsv(d):
 #### CORE BASE
 # the basic base function from theory
 
+def lcbase(zL,a,b,c,d,e):
+    return a*np.log(b+c*zL)**(d)+e
+
+def lcbase_(zL,a,b,c,d,e):
+    if hasattr(c, "__len__"):
+        c[c>-.1]=-.1
+    elif c>-.1:
+        c=-.1
+    return lcbase(zL,a,b,c,d,e)
+
 def cbase(zL,a,b,c,d,e):
     return a*(b+c*zL)**(d)+e
 def tbaseu(zL,a,b,c,d,e):
     return 1.07*(0.05+np.abs(zL))**(-1/3)+\
         (-1.14+a*(np.abs(zL)**(-9/10)))*(1-np.tanh(10*(np.abs(zL))**(2/3)))
 def lbase(zL,a,b,c,d,e):
-    return a+b*np.log10(zL)+c*np.log10(zL)**2+d*np.log10(e*zL)**3
+    return a+b*np.log10(np.abs(zL))+c*np.log10(np.abs(zL))**2+d*np.log10(e*np.abs(zL))**3
 
+def brut_s(zL,a,b,c,d,e):
+    if not hasattr(a,"__len__"):
+        a=np.array([a]*len(zL))
+    if not hasattr(b,"__len__"):
+        b=np.array([b]*len(zL))
+    if not hasattr(c,"__len__"):
+        c=np.array([c]*len(zL))
+    if not hasattr(d,"__len__"):
+        d=np.array([d]*len(zL))
+    out=a+b*zL
+    out2=a+b*c*(1-d*np.log(c)+d*np.log(zL))
+    out[zL>=c]=out2[zL>=c]
+    return out
 
+def pbase(zL,a,b,c,d,e):
+    return a+b*zL+c*zL**2+d*zL**3+e*zL**4
+
+def pbase2(zL,a,b,c,d,e):
+    return a+b*np.abs(zL)**c+d*np.abs(zL)**e
 
 #### LIST OF BASES
-bases={'cbase':cbase,'tbaseu':tbaseu,'lbase':lbase}
+bases={'brut_s':brut_s,'pbase':pbase,'lcbase_':lcbase_,'lcbase':lcbase,\
+        'pbase2':pbase2,'cbase':cbase,'tbaseu':tbaseu,'lbase':lbase}
 
 ##############################################################################
 ##############################################################################
@@ -185,7 +214,7 @@ class Cfit:
             m=np.zeros((len(phin),)).astype(bool)
             m[0:10000]=True
             np.random.shuffle(m)
-            plt.figure()
+            fig=plt.figure()
             if not self.stab:
                 plt.semilogx(-zL[m],phi[m],'o',markersize=1,color='grey',alpha=.3)
                 plt.semilogx(-zL[m],phio[m],'o',markersize=1,color='black')
@@ -193,9 +222,11 @@ class Cfit:
                 phi1=fxn([zLi,np.ones((50,))*.1],*pvals)
                 phi3=fxn([zLi,np.ones((50,))*.3],*pvals)
                 phi5=fxn([zLi,np.ones((50,))*.5],*pvals)
+                phi7=fxn([zLi,np.ones((50,))*.7],*pvals)
                 plt.semilogx(-zLi,phi1,color='red')
-                plt.semilogx(-zLi,phi3,color='tan')
-                plt.semilogx(-zLi,phi5,color='blue')
+                plt.semilogx(-zLi,phi3,color='orange')
+                plt.semilogx(-zLi,phi5,color='tan')
+                plt.semilogx(-zLi,phi7,color='blue')
                 plt.xlim(10**(-3),10**(1.5))
                 plt.ylim(.1,20)
                 plt.gca().invert_xaxis()
@@ -282,6 +313,8 @@ class Cfit:
         report['SShi_site']=sshi_s
 
         self.stats=report
+
+        return fig
 
     def save_fit(self,fg):
         # save to L2 file where fg is the group not the file

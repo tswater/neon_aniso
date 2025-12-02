@@ -824,6 +824,18 @@ def get_phio(var,stab,fp=None,zL=None):
             zL=fp['zzd'][:]/fp['L_MOST'][:]
 
     match vv:
+        case 'pUu':
+            y=(1-16*zL)**(1/4)
+            phio=2*np.log((1+y)/2)+np.log((1+y**2)/2)-2*np.arctan(y)+np.pi/2
+        case 'pUs':
+            phio=-5*zL
+            phio[zL>1]=(-5*(1-np.log(1)+np.log(zL)))[zL>1]
+        case 'pTu':
+            y=(1-16*zL)**(1/4)
+            phio=1.2*np.log((.33+y**(.78))/(1.33))
+        case 'pTs':
+            phio=-5*zL
+            phio[zL>1]=(-5*(1-np.log(1)+np.log(zL)))[zL>1]
         case 'UUu':
             phio=2.55*(1-3*zL)**(1/3)
         case 'UUs':
