@@ -215,14 +215,17 @@ class Cfit:
             m[0:10000]=True
             np.random.shuffle(m)
             fig=plt.figure()
+            alvl=[.1,.3,.5,.7]
+            if np.min(ani)<0:
+                alvl=np.log10(alvl)
             if not self.stab:
                 plt.semilogx(-zL[m],phi[m],'o',markersize=1,color='grey',alpha=.3)
                 plt.semilogx(-zL[m],phio[m],'o',markersize=1,color='black')
                 zLi=-np.logspace(-3,2)
-                phi1=fxn([zLi,np.ones((50,))*.1],*pvals)
-                phi3=fxn([zLi,np.ones((50,))*.3],*pvals)
-                phi5=fxn([zLi,np.ones((50,))*.5],*pvals)
-                phi7=fxn([zLi,np.ones((50,))*.7],*pvals)
+                phi1=fxn([zLi,np.ones((50,))*alvl[0]],*pvals)
+                phi3=fxn([zLi,np.ones((50,))*alvl[1]],*pvals)
+                phi5=fxn([zLi,np.ones((50,))*alvl[2]],*pvals)
+                phi7=fxn([zLi,np.ones((50,))*alvl[3]],*pvals)
                 plt.semilogx(-zLi,phi1,color='red')
                 plt.semilogx(-zLi,phi3,color='orange')
                 plt.semilogx(-zLi,phi5,color='tan')
@@ -234,10 +237,10 @@ class Cfit:
                 plt.semilogx(zL[m],phi[m],'o',markersize=1,color='grey',alpha=.3)
                 plt.semilogx(zL[m],phio[m],'o',markersize=1,color='black')
                 zLi=np.logspace(-3,2)
-                phi1=fxn([zLi,np.ones((50,))*.1],*pvals)
-                phi3=fxn([zLi,np.ones((50,))*.3],*pvals)
-                phi5=fxn([zLi,np.ones((50,))*.5],*pvals)
-                phi7=fxn([zLi,np.ones((50,))*.7],*pvals)
+                phi1=fxn([zLi,np.ones((50,))*alvl[0]],*pvals)
+                phi3=fxn([zLi,np.ones((50,))*alvl[1]],*pvals)
+                phi5=fxn([zLi,np.ones((50,))*alvl[2]],*pvals)
+                phi7=fxn([zLi,np.ones((50,))*alvl[3]],*pvals)
                 plt.semilogx(zLi,phi1,color='red')
                 plt.semilogx(zLi,phi3,color='orange')
                 plt.semilogx(zLi,phi5,color='tan')
@@ -257,6 +260,9 @@ class Cfit:
         mdoh=np.nanmedian(np.abs(phi[mhi]-phio[mhi]))
         mdnh=np.nanmedian(np.abs(phi[mhi]-phin[mhi]))
 
+        mmdn=np.nanmedian(np.abs(phi-phin))
+        mmd=np.nanmedian(phin-phi)
+
         ss=1-mdn/mdo
         sslo=1-mdnl/mdol
         sshi=1-mdnh/mdoh
@@ -264,6 +270,10 @@ class Cfit:
         sslo_s=[]
         ss_s=[]
         sshi_s=[]
+        mdn_s=[]
+        md_s=[]
+        mdhi_s=[]
+        mdlo_s=[]
 
         sites=np.unique(fpsites)
         sites.sort()
@@ -271,6 +281,9 @@ class Cfit:
             ms=fpsites==site
             mlo=(np.abs(zL)<.1)&ms
             mhi=(np.abs(zL)>.1)&ms
+            mdlo=np.nanmedian(-(phi[mlo]-phin[mlo]))
+            mdhi=np.nanmedian(-(phi[mhi]-phin[mhi]))
+            md=np.nanmedian(-(phi[ms]-phin[ms]))
             mdo=np.nanmedian(np.abs(phi[ms]-phio[ms]))
             mdn=np.nanmedian(np.abs(phi[ms]-phin[ms]))
             mdol=np.nanmedian(np.abs(phi[mlo]-phio[mlo]))
@@ -280,10 +293,17 @@ class Cfit:
             ss_s.append(1-mdn/mdo)
             sslo_s.append(1-mdnl/mdol)
             sshi_s.append(1-mdnh/mdoh)
-
+            mdn_s.append(mdn)
+            md_s.append(md)
+            mdhi_s.append(mdhi)
+            mdlo_s.append(mdlo)
         ss_s=np.array(ss_s)
         sslo_s=np.array(sslo_s)
         sshi_s=np.array(sshi_s)
+        mdn_s=np.array(mdn_s)
+        mdhi_s=np.array(mdhi_s)
+        mdlo_s=np.array(mdlo_s)
+        md_s=np.array(md_s)
 
         sgss=np.nanstd(ss_s)
         sgsslo=np.nanstd(sslo_s)
@@ -311,6 +331,14 @@ class Cfit:
         report['SS_site']=ss_s
         report['SSlo_site']=sslo_s
         report['SShi_site']=sshi_s
+        report['MADn']=mmdn
+        report['MADn_site']=mdn_s
+        report['MDn']=mmd
+        report['MDn_site']=md_s
+        report['MDnlo_site']=mdlo_s
+        report['MDnhi_site']=mdhi_s
+
+
 
         self.stats=report
 
@@ -532,7 +560,9 @@ def cfit_p2(in2,deg,typ,plot1=True):
             plt.figure(figsize=(3,6))
             plt.subplot(in2[3],1,i+1)
             plt.scatter(x,popt[:,i][m])
-            y2=c[0]+c[1]*x
+            y2=c[0]*np.ones((len(x),))
+            if deg[i]>0:
+                y2=y2+c[1]*x
             if deg[i]>1:
                 y2=y2+c[2]*x**2
             if deg[i]>2:
@@ -562,7 +592,60 @@ def binit(ani,binsize=float('nan'),n=100,vmx_a=.7,vmn_a=.15):
 #############################################################################
 ##################### COMPARE CURVE FIT RESULTS #############################
 # Compares the results of different curve fits
-def compare_fits(reports):
+def compare_fits_noss(reports):
+    ''' turns a list of reports into useful output -- version with no comparison to old formulations '''
+    names=['ID----------------------------','-SCORE-','--MAD--','--MD---','-cvMAD-','-mMDlo-','-mMDhi-','-MDrtio']
+    vari=[]
+    for rp in reports:
+        vari.append(rp.var)
+    vari=np.array(vari)
+    for v in np.unique(vari):
+        N=np.sum(vari==v)
+        full=np.ones((N,len(names)))*float('nan')
+        for i in range(N):
+            idx=np.where(vari==v)[0][i]
+            rp=reports[idx]
+            full[i,0]=idx
+            a=len(rp.params)
+            if rp.stats in [None,{}]:
+                continue
+            full[i,2]=rp.stats['MADn']
+            full[i,3]=rp.stats['MDn']
+            full[i,4]=np.nanstd(rp.stats['MADn_site'])/np.nanmean(rp.stats['MADn_site'])
+            full[i,5]=np.nanmedian(rp.stats['MDnlo_site'][:])
+            full[i,6]=np.nanmedian(rp.stats['MDnhi_site'][:])
+            full[i,7]=np.sum(rp.stats['MDn_site'][:]>0)/len(rp.stats['MDn_site'][:])
+
+            full[i,1]=5-full[i,2]-np.abs(full[i,3])-2*full[i,4]-2*np.abs(full[i,6]-full[i,5])/full[i,2]-8*np.abs(full[i,7]-.5)
+
+        print('-----------------------------------------'+str(v)+'---------------------------------------------')
+        for n in names:
+            print(n,end='|')
+        print()
+        for i in range(N):
+            idx=np.where(vari==v)[0][i]
+            rp=reports[idx]
+            for n in range(len(names)):
+                if n==0:
+                    prms_str=''
+                    for k in rp.params:
+                        prms_str=prms_str+k+','
+                    print('{0:30}'.format(rp.base+'('+prms_str[0:-1]+')')+str('|'),end='')
+                elif full[i,n]<0:
+                    ts='{0: 6}'.format(full[i,n])
+                    ts=ts[0:7]+str('|')
+                    print(ts,end='')
+                else:
+                    ts=' {0: 6}'.format(full[i,n])
+                    ts=ts[0:7]+str('|')
+                    print(ts,end='')
+            print()
+        print()
+
+
+def compare_fits(reports,noSS=False):
+    if noSS:
+        return compare_fits_noss(reports)
 
     ''' turns a list of reports into useful output '''
     names=['ID------------------','-SCORE-','--SS---','-medSS-','-sigSS-','-mSSlo-','-mSShi-','Nworse-']
