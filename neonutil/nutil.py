@@ -975,7 +975,7 @@ def get_errorlines(x,y,c,xbins,cbins,minpct=0.00001):
 ########################### SITEBAR #########################################
 def sitebar(fig,ax,sites,data1,data2,color,hatch=None,issorted=False,\
         ymin=None,ymax=None,vmin='pct',vmax='pct',colorvals=None,\
-        cbar=None,cutoff=True,legend=None,fntsm=7,fntlg=10,lw=1,xticklbls=True):
+        cbar=None,cutoff=True,legend=None,fntsm=7,fntlg=10,lw=1,capsize=3,xticklbls=True):
     ''' Make a sitebar graph
         data2: bar colored data
         data1: error spline data
@@ -1078,10 +1078,10 @@ def sitebar(fig,ax,sites,data1,data2,color,hatch=None,issorted=False,\
     # plot!
     if plot_yerr:
         a=ax.bar(Y[0],Y[1],color=color,hatch=hatch,edgecolor='black',yerr=yerr,\
-            capsize=3,error_kw={'lw':lw,'capthick':lw},linewidth=lw)
+            capsize=capsize,error_kw={'lw':lw,'capthick':lw},linewidth=lw)
     else:
         a=ax.bar(Y[0],Y[1],color=color,hatch=hatch,edgecolor='black',\
-            capsize=3,error_kw={'lw':lw,'capthick':lw},linewidth=lw)
+            capsize=capsize,error_kw={'lw':lw,'capthick':lw},linewidth=lw)
     if xticklbls:
         ax.set_xticks(np.linspace(0,len(X)-1,len(X)),Y[0],rotation=45,fontsize=fntsm)
     else:
@@ -1533,12 +1533,15 @@ def plt_scaling(zeta,phi,c,ymin,ymax,varlist,\
             inta.extend([.05,.15,.25,.35,.45,.55,.65,.75])
             inta.extend([.85])
             xtc=np.interp([.1,.2,.3,.4,.5,.6,.7],inta,np.linspace(-1,8,10))
-            ax.set_yticks(xtc,[.1,.2,.3,.4,.5,.6,.7])
+            if fntsm>10:
+                ax.set_yticks(xtc,[0.1,'',0.3,'','0.5','','0.7'],fontsize=fntsm)
+            else:
+                ax.set_yticks(xtc,[.1,.2,.3,.4,.5,.6,.7],fontsize=fntsm)
             ax.grid(False)
             ax.yaxis.tick_right()
             ax.yaxis.set_label_position("right")
             ax.set_ylabel(r'$y_b$',fontsize=fntsm)
-            ax.tick_params(axis='both',which='major',labelsize=10)
+            ax.tick_params(axis='both',which='major',labelsize=fntsm)
 
     fig.subplots_adjust(hspace=.08,wspace=.02)
     return fig, axs
