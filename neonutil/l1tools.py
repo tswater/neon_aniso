@@ -358,6 +358,7 @@ def add_turb25(scl,ndir,tdir,ivars=None,overwrite=False,dlt=None,sites=SITES,deb
        ivars : variables to process; None will add all
     '''
 
+
     # setup
     _ivars = ['U','V','W','Us','Vs','UU','UV','UW','VV','VW','WW',\
               'UsUs','UsVs','UsW','VsVs','VsW',\
@@ -372,6 +373,10 @@ def add_turb25(scl,ndir,tdir,ivars=None,overwrite=False,dlt=None,sites=SITES,deb
     for var in ivars:
         if var in _ivars:
             outvar[var]=[]
+    if debug:
+        print('::::::::::::::::DEBUG:::::::::::::::')
+        print(ivars)
+        print(outvar.keys())
 
     for site in sites:
         ovar=outvar.copy()
@@ -407,7 +412,20 @@ def add_turb25(scl,ndir,tdir,ivars=None,overwrite=False,dlt=None,sites=SITES,deb
                 N=N-int(30/dlt)+1
 
             for var in ovar.keys():
-                ovar[var][a:a+N]=fp_in[var+add][0:N]
+                try:
+                    ovar[var][a:a+N]=fp_in[var+add][0:N]
+                except Exception as e:
+                    if 's' in var:
+                        var2=var[:]
+                        var2=var2.replace('s','str')
+                        try:
+                            ovar[var][a:a+N]=fp_in[var2+add][0:N]
+                        except Exception as e2:
+                            var2=var[:]
+                            var2=var2.replace('s','')
+                            ovar[var][a:a+N]=fp_in[var2+add][0:N]
+                    else:
+                        raise(e)
         if debug:
             dbgout=':::::::::::::::::::DEBUG:::::::::::::::::::::\n'
             dbgout=dbgout+'Printing turb variables and their means for output at '+str(site)+'\n'

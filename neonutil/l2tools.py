@@ -516,7 +516,10 @@ def datagen(outfile,idir,include=None,exclude=None,static=None,zdtyp=['S','C','D
             z0=_s2full(fpi.attrs['z0_S'][:],fpi['TIME'][:][msk])
             zd=_s2full(fpi.attrs['zd_S'][:],fpi['TIME'][:][msk])
         else:
-            z0=[fpi.attrs['z0']]*n
+            try:
+                z0=[fpi.attrs['z0']]*n
+            except Exception:
+                pass
             zd=[fpi.attrs['zd']]*n
         lmost=fpi['L_MOST'][:][msk]
         if 'z0' in zeta:
@@ -706,17 +709,33 @@ def add_from_l1(fpath,casek,ivars,scl=None,l1dir=None,conv_nan=True,sites=SITES)
     if scl is None:
         scl=case['scale']
 
+    wind_sys=case['wind_sys']
+    strm=wind_sys=='streamwise'
+    slist=['Us','Vs','UsUs','VsVs','UsVs','UsW','VsW',\
+            'ANI_XBs','ANI_YBs','ANID_YBs','ANID_XBs',\
+            'ST_UsUs_1','ST_UsUs_5','ST_VsVs_1','ST_VsVs_5']
+
     ovar={}
     ovar[casek+'/data']={}
     for var in ivars:
-        ovar[casek+'/data'][var]=[]
+        if (strm)&(var in slist):
+            var2=var[:]
+            var2=var2.replace('s','')
+        else:
+            var2=var
+        ovar[casek+'/data'][var2]=[]
 
     for site in sites:
         fpi=h5py.File(l1dir+site+'_'+str(scl)+'m.h5','r')
         m=fpo[casek]['mask'][site]
 
-        for var in ovar[casek+'/data'].keys():
-            ovar[casek+'/data'][var].extend(fpi[var][:][m])
+        for var in ivars:
+            if (strm)&(var in slist):
+                var2=var[:]
+                var2.replace('s','')
+            else:
+                var2=var[:]
+            ovar[casek+'/data'][var2].extend(fpi[var][:][m])
 
     if conv_nan:
         for v in ovar['main/data'].keys():
