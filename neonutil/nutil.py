@@ -832,7 +832,7 @@ def get_phio(var,stab,fp=None,zL=None):
             phio[zL>1]=(-5*(1-np.log(1)+np.log(zL)))[zL>1]
         case 'pTu':
             y=(1-16*zL)**(1/4)
-            phio=1.2*np.log((.33+y**(.78))/(1.33))
+            phio=2*np.log((1+y**(2))/(2))
         case 'pTs':
             phio=-5*zL
             phio[zL>1]=(-5*(1-np.log(1)+np.log(zL)))[zL>1]

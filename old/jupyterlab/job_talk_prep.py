@@ -693,21 +693,31 @@ plt.savefig('../../plot_output/jbtlk_rain.png', bbox_inches = "tight",transparen
 # %%
 
 # %%
+for k in fpst.variables:
+    print(k)
 
 # %%
+np.unique(fpst['LANDMASK'][:])
+
+# %%
+for file in os.listdir(frkdir+'scaling_compressed/hmg006/'):
+    fpst=nc.Dataset(frkdir+'scaling_compressed/hmg006/'+file,'r')
+    if np.sum(fpst['LU_INDEX'][0,:,:]==17)>0:
+        print(file)
 
 # %%
 import netCDF4 as nc
 
 # %%
-frkdir='/home/tswater/Documents/Elements_Temp/WRF/'
-fpscl=nc.Dataset(frkdir+'agg_files/agg_scaling.nc','r')
-fpagg=nc.Dataset(frkdir+'agg_files/agg_full.nc','r')
-fp2d =nc.Dataset(frkdir+'agg_files/agg_2d.nc','r')
+frkdir='/run/media/tswater/Elements/WRF/'
 fp=nc.Dataset(frkdir+'WRF_basic/20210605_conv.nc','r')
-fp=nc.Dataset(frkdir+'scaling_compressed/het/wrfout_d01_2023-07-07_19\uf02200\uf02200','r')
-fpst=nc.Dataset(frkdir+'static_data.nc','r')
+fpst=nc.Dataset(frkdir+'scaling_compressed/het/wrfout_d01_2023-07-07_19\uf02200\uf02200','r')
+#fpst=nc.Dataset(frkdir+'static_data.nc','r')
 msk=fpst['LU_INDEX'][0,:,:]==17
+
+# %%
+for var in fp.variables:
+    print(var)
 
 # %%
 os.listdir('/home/tswater/Documents/Elements_Temp/WRF/scaling_compressed/het/')
@@ -722,11 +732,24 @@ def avg(data,dx):
 
 
 # %%
-T=fp['T'][0,0,:,:]+300
-T[msk]=float('nan')
-plt.imshow(T[375:550,0:250],origin='lower',cmap='terrain',interpolation=None)
+np.sum(fpst['LU_INDEX'][0,:])
+
+# %%
+fpst['LU_INDEX'][0][0,0]
+
+# %%
+plt.figure(dpi=500)
+fp=nc.Dataset(frkdir+'WRF_basic/20230609_conv.nc','r')
+msk=fpst['LANDMASK'][0,:,:]==0
+pres=databig(fp['P_4D_het'][36,0,:])
+t0=fp['T0_het'][36,:]
+th=t0/(pres/1000)**(2/7)
+tout=th*(pres/100000)**(2/7)-273.15
+tout[msk]=float('nan')
+plt.imshow(tout[-1000:,-1000:],origin='lower',cmap='terrain',interpolation=None,vmin=9,vmax=35)
 plt.colorbar()
-plt.scatter([155],[432-375])
+plt.scatter([487],[610],color='k',s=1)
+#plt.scatter([155],[432-375])
 
 # %%
 os.listdir('/home/tswater/Documents/tyche/data/random/')
@@ -752,7 +775,7 @@ fp['StandardMetadata'].keys()
 # %%
 fp['StandardMetadata']['EastBoundingCoordinate'][:]
 
-# %% [markdown] jp-MarkdownHeadingCollapsed=true
+# %% [markdown]
 # # No Anim. Testing
 
 # %%
@@ -903,87 +926,85 @@ def hmgz(data_,dx):
 # %%
 # data prep
 #155:432
-fp=nc.Dataset('/run/media/tswater/Elements/WRF/WRF_basic/20230721_conv.nc','r')
+fp=nc.Dataset('/run/media/tswater/Elements/WRF/WRF_basic/20210619_conv.nc','r')
 t_cmc=[]
 t_cal=[]
-pres=databig(fp['P_4D_het'][37,0,:])
-t0=fp['T0_het'][37,:]
+pres=databig(fp['P_4D_het'][36,0,:])
+t0=fp['T0_het'][36,:]
 th=t0/(pres/1000)**(2/7)
 tout=th*(pres/100000)**(2/7)-273.15
-t_cal.append(tout[593,63])
-t_cmc.append(tout[432,155])
+t_cal.append(tout[-1001:,-1001:][610,487]) # CAL: 593,63 on full field Durham 440,780 on -1001:
+t_cmc.append(tout[-1001:,-1001:][725,850]) # CMC: 432,155 on full field 
 data=np.zeros((50,1001,1001))
 d1=np.zeros(tout.shape)
 d1[:]=tout.data[:]
 d1[msk]=float('nan')
-data[0,:]=d1[:1001,:1001]
+data[0,:]=d1[-1001:,-1001:]
 for i in range(2,51):
     d1=tout.data[:]
     d2=hmgz(d1,i)
     d2[msk]=float('nan')
-    data[i-1,:]=d2[0:1001,0:1001]
-    t_cmc.append(d2[432,155])
-    t_cal.append(d2[593,63])
+    data[i-1,:]=d2[-1001:,-1001:]
+    t_cmc.append(data[i-1][725,850])
+    t_cal.append(data[i-1][610,487]) #
 
 # %%
 plt.style.use("default")
 sns.set_theme()
 sz=.75
-fig=plt.figure(figsize=(9*sz,5*sz),dpi=250)
+fig=plt.figure(figsize=(9*sz,5*sz),dpi=350)
 fig.patch.set_alpha(0)
 fig.set_tight_layout(True)
 sbf = fig.subfigures(1, 2, hspace=0,wspace=0,width_ratios= [1.25,1],frameon=False)
 ax=sbf[0].subplots(1,1)
-ax2,ax1=sbf[1].subplots(2,1)
+ax1,ax2=sbf[1].subplots(2,1)
 text_color='black'
 ccmc=[]
 ccal=[]
 cmap=pl.colormaps['coolwarm']
+vmin=15
+vmax=35
 for i in range(50):
     hm=t_cmc[i]
     ha=t_cal[i]
-    ccmc.append(cmap((hm-13)/(34)))
-    ccal.append(cmap((ha-13)/(34)))
+    ccmc.append(cmap((hm-vmin)/(vmax-vmin)))
+    ccal.append(cmap((ha-vmin)/(vmax-vmin)))
     
 def animate(i):
     print(i,end=',',flush=True)
     lcmc=t_cmc[0:i+1]
     lcal=t_cal[0:i+1]
-    ax1.cla()
     ax2.cla()
+    ax1.cla()
     ax.cla()
-    ax1.plot([-10,160],[lcmc[0],lcmc[0]],'w--',linewidth=2)
+    ax1.plot([-10,160],[lcmc[0],lcmc[0]],'k--',linewidth=0.5)
     ax1.scatter(np.linspace(3,3*50,50)[0:i+1],lcmc,s=25,color=ccmc[0:i+1],edgecolors='black',linewidths=.5)
     ax1.set_xlim(0,155)
-    ax1.set_title('Temperature: Claremont, CA',color=text_color)
-    #ax1.set_ylabel(r'T ($\degree C$)')
-    ax1.set_yticks([27,29,31,35,37,39],[27,'',31,35,'',39])
-    ax1.set_ylim(25,39)
+    ax1.set_title('Temperature: Schenectady, NY',color=text_color)
     ax1.yaxis.set_label_position("right")
     ax1.yaxis.tick_right()
-    ax1.set_xlabel('Resolution ($km$)',color=text_color)
+    ax1.set_ylim(22,28)
+    ax2.set_xlabel('Resolution ($km$)',color=text_color)
     
     ax2.scatter(np.linspace(3,3*50,50)[0:i+1],lcal,s=25,color=ccal[0:i+1],edgecolors='black',linewidths=.5)
-    ax2.plot([-10,160],[lcal[0],lcal[0]],'w--',linewidth=2)
-    ax2.set_yticks([18,20,22,24,28,30,32,34,36],['',20,'',24,28,'',32,'',36])
-    #ax2.set_ylabel(r'T ($\degree C$)')
-    ax2.set_xticks([0,50,100,150],[])
+    ax2.plot([-10,160],[lcal[0],lcal[0]],'k--',linewidth=.5)
+    ax1.set_xticks([0,50,100,150],[])
     ax2.set_xlim(0,155)
-    ax2.set_ylim(17,38)
-    ax2.set_title('Temperature: Berkeley, CA',color=text_color)
+    ax2.set_ylim(19,29)
+    ax2.set_title('Temperature: Chicago, IL',color=text_color)
     ax2.yaxis.set_label_position("right")
     ax2.yaxis.tick_right()
     
-    im=ax.imshow(data[i,0:1000,0:1000],origin='lower',interpolation=None,cmap='coolwarm',vmin=13,vmax=47)
+    im=ax.imshow(data[i,0:1000,0:1000],origin='lower',interpolation=None,cmap='coolwarm',vmin=vmin,vmax=vmax)
     ax.set_title('Temperature',color=text_color)
     ax.axis(False)
-    sbf[0].colorbar(im,cax=ax.inset_axes([0.95, 0, 0.05, 1]),label='T ($\degree C$)')
+    sbf[0].colorbar(im,cax=ax.inset_axes([0.97, 0, 0.03, 1]),label='T ($\degree C$)')
     return fig
 
-#ani=FuncAnimation(fig,animate,frames=49,interval=500,repeat=False)
+ani=FuncAnimation(fig,animate,frames=49,interval=500,repeat=False)
 #FFwriter = pl.animation.FFMpegWriter(fps=2)
-#Pwriter= pl.animation.PillowWriter(fps=2)
-#ani.save('../../plot_output/jbtlk_p2_3ani.gif',writer=Pwriter)
+Pwriter= pl.animation.PillowWriter(fps=2)
+ani.save('../../../plot_output/jbtlk/union_temp_scaling.gif',writer=Pwriter)
 #HTML(ani.to_jshtml())
 #HTML(ani.to_html5_video())
 animate(49)
@@ -993,7 +1014,7 @@ animate(49)
 
 # %%
 
-# %% [markdown] jp-MarkdownHeadingCollapsed=true
+# %% [markdown]
 # ## HFX Average
 
 # %%
@@ -1204,7 +1225,7 @@ plt.style.use("dark_background")
 animate(9,False,fig)
 plt.savefig('../../plot_output/jbtlk_p3_les.png', bbox_inches = "tight",transparent=True)
 
-# %% [markdown] jp-MarkdownHeadingCollapsed=true
+# %% [markdown]
 # ## Turb Time Series
 
 # %%
@@ -1245,7 +1266,7 @@ ax.set_xlabel('Seconds')
 ax.set_ylabel('Velocity ($m\ s^{-1}$)')
 plt.savefig('../../plot_output/jbtlk_p1_3b_.png', bbox_inches = "tight")
 
-# %% [markdown] jp-MarkdownHeadingCollapsed=true
+# %% [markdown]
 # ## Performance MOST/SC23
 
 # %%
